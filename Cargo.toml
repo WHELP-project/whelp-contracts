@@ -1,0 +1,38 @@
+[workspace]
+members = ["packages/*", "contracts/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL 3.0"
+repository = "https://github.com/WHELP-project/whelp-contracts"
+
+[workspace.dependencies]
+anyhow = "1"
+cw20-base = { version = "1.1", package = "cw20-base", features = ["library"] }
+cosmwasm-schema = "1.4"
+cosmwasm-std = "1.4"
+cw2 = "1.1"
+cw20 = "1.1"
+semver                  = "1"
+cw-controllers = "1.1"
+cw-multi-test = "0.16"
+cw-storage-plus = "1.1"
+cw-utils = "1.0"
+derivative = "2.2"
+itertools = "0.10"
+proptest = "1.0"
+serde = { version = "1", default-features = false, features = ["derive"] }
+thiserror = "1"
+test-case = "2.2.1"
+uint = "0.9"
+
+
+[profile.release]
+rpath = false
+lto = true
+overflow-checks = true
+opt-level = 3
+debug = false
+debug-assertions = false
+strip = true
