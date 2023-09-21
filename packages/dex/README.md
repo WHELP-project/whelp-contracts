@@ -1,6 +1,6 @@
-# Wyndex: Common Types
+# Dex: Common Types
 
-This is a collection of common types and queriers which are commonly used in Wyndex contracts.
+This is a collection of common types and queriers which are commonly used in Dex contracts.
 
 ## Data Types
 
