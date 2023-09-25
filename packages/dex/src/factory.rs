@@ -2,7 +2,7 @@ use crate::{
     asset::{Asset, AssetInfo},
     fee_config::FeeConfig,
     pair::{PairInfo, StakeConfig},
-    stake::{ConverterConfig, UnbondingPeriod},
+    stake::UnbondingPeriod,
 };
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -82,8 +82,6 @@ pub struct DefaultStakeConfig {
     pub min_bond: Uint128,
     pub unbonding_periods: Vec<u64>,
     pub max_distributions: u32,
-    /// Optional converter configuration for the staking contract
-    pub converter: Option<ConverterConfig>,
 }
 
 impl DefaultStakeConfig {
@@ -102,9 +100,6 @@ impl DefaultStakeConfig {
         }
         if let Some(max_distributions) = partial.max_distributions {
             self.max_distributions = max_distributions;
-        }
-        if let Some(converter) = partial.converter {
-            self.converter = Some(converter);
         }
 
         self
@@ -135,7 +130,6 @@ impl DefaultStakeConfig {
             min_bond: self.min_bond,
             unbonding_periods: self.unbonding_periods,
             max_distributions: self.max_distributions,
-            converter: self.converter,
         }
     }
 }
@@ -305,8 +299,6 @@ pub struct PartialStakeConfig {
     pub min_bond: Option<Uint128>,
     pub unbonding_periods: Option<Vec<u64>>,
     pub max_distributions: Option<u32>,
-    /// Optional converter configuration for the staking contract
-    pub converter: Option<ConverterConfig>,
 }
 
 /// This structure describes the available query messages for the factory contract.
@@ -416,4 +408,3 @@ pub enum MigrateMsg {
 ///
 /// Notice that `ROUTE[X][Y] = ROUTE[Y][X]`
 pub const ROUTE: Map<(String, String), Vec<Addr>> = Map::new("routes");
-

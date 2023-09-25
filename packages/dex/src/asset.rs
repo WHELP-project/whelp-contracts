@@ -573,4 +573,3 @@ impl Decimal256Ext for Decimal256 {
             .map_err(|_| StdError::generic_err("Decimal256 range exceeded"))
     }
 }
-

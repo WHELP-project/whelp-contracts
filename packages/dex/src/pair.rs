@@ -5,7 +5,6 @@ use crate::{
     factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
     fee_config::FeeConfig,
     oracle::{SamplePeriod, TwapResponse},
-    stake::ConverterConfig,
 };
 
 use cosmwasm_std::{
@@ -157,7 +156,6 @@ impl StakeConfig {
                 max_distributions: self.max_distributions,
                 admin: Some(factory_addr),
                 unbonder: None, // TODO: allow specifying unbonder
-                converter: self.converter,
             })?,
             funds: vec![],
             admin: Some(factory_owner),
@@ -421,4 +419,3 @@ pub struct SpotPricePredictionResponse {
     /// Returns None, result is already below the spot price
     pub trade: Option<Uint128>,
 }
-
