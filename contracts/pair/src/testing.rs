@@ -17,7 +17,7 @@ use dex::pair::{
     assert_max_spread, ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo,
     PoolResponse, ReverseSimulationResponse, SimulationResponse, StakeConfig, TWAP_PRECISION,
 };
-use ex::pair::{MigrateMsg, QueryMsg};
+use dex::pair::{MigrateMsg, QueryMsg};
 
 use crate::contract::{
     accumulate_prices, compute_swap, execute, instantiate, migrate, query_pool,
@@ -52,7 +52,6 @@ fn default_stake_config() -> StakeConfig {
         min_bond: Uint128::new(1000),
         unbonding_periods: vec![60 * 60 * 24 * 7],
         max_distributions: 6,
-        converter: None,
     }
 }
 
