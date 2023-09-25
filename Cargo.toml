@@ -14,19 +14,19 @@ cosmwasm-schema = "1.4"
 cosmwasm-std = "1.4"
 cw2 = "1.1"
 cw20 = "1.1"
-semver                  = "1"
+semver = "1"
 cw-controllers = "1.1"
 cw-multi-test = "0.16"
 cw-storage-plus = "1.1"
 cw-utils = "1.0"
 derivative = "2.2"
+dex = { path = "./packages/dex", default-features = false }
 itertools = "0.10"
 proptest = "1.0"
 serde = { version = "1", default-features = false, features = ["derive"] }
 thiserror = "1"
 test-case = "2.2.1"
 uint = "0.9"
-
 
 [profile.release]
 rpath = false
