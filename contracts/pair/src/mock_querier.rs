@@ -6,13 +6,13 @@ use cosmwasm_std::{
 use std::collections::HashMap;
 
 use cw20::{BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
-use wyndex::factory::{
+use dex::factory::{
     ConfigResponse, FeeInfoResponse,
     QueryMsg::{Config, FeeInfo},
 };
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies.
-/// This uses the Wyndex CustomQuerier.
+/// This uses the Dex CustomQuerier.
 pub fn mock_dependencies(
     contract_balance: &[Coin],
 ) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {

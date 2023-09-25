@@ -8,27 +8,26 @@ use cosmwasm_std::{
 
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use std::str::FromStr;
-use std::vec;
-use wyndex::asset::{
+use dex::asset::{
     addr_opt_validate, check_swap_parameters, Asset, AssetInfoValidated, AssetValidated,
     MINIMUM_LIQUIDITY_AMOUNT,
 };
-use wyndex::decimal2decimal256;
-use wyndex::factory::{ConfigResponse as FactoryConfig, PairType};
-use wyndex::fee_config::FeeConfig;
-use wyndex::pair::{
+use dex::decimal2decimal256;
+use dex::factory::{ConfigResponse as FactoryConfig, PairType};
+use dex::fee_config::FeeConfig;
+use dex::pair::{
     add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
     create_lp_token, get_share_in_assets, handle_referral, handle_reply, migration_check,
     mint_token_message, save_tmp_staking_config, take_referral, ConfigResponse, ContractError,
     Cw20HookMsg, MigrateMsg, DEFAULT_SLIPPAGE, MAX_ALLOWED_SLIPPAGE,
 };
-use wyndex::pair::{
+use dex::pair::{
     CumulativePricesResponse, ExecuteMsg, InstantiateMsg, PairInfo, PoolResponse, QueryMsg,
     ReverseSimulationResponse, SimulationResponse, TWAP_PRECISION,
 };
-use wyndex::querier::{query_factory_config, query_supply};
-
+use dex::querier::{query_factory_config, query_supply};
+use std::str::FromStr;
+use std::vec;
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "dex-pair";
@@ -466,9 +465,9 @@ pub fn provide_liquidity(
     let price = Decimal::from_ratio(new_pool0, new_pool1);
     if total_share.is_zero() {
         // initialize oracle storage
-        wyndex::oracle::initialize_oracle(deps.storage, &env, price)?;
+        dex::oracle::initialize_oracle(deps.storage, &env, price)?;
     } else {
-        wyndex::oracle::store_oracle_price(deps.storage, &env, price)?;
+        dex::oracle::store_oracle_price(deps.storage, &env, price)?;
     }
 
     // Accumulate prices for the assets in the pool
@@ -516,7 +515,7 @@ pub fn withdraw_liquidity(
         .zip(refund_assets.iter())
         .map(|(p, r)| p.amount - r.amount);
     let (new_pool0, new_pool1) = (new_pools.next().unwrap(), new_pools.next().unwrap());
-    wyndex::oracle::store_oracle_price(
+    dex::oracle::store_oracle_price(
         deps.storage,
         &env,
         Decimal::from_ratio(new_pool0, new_pool1),
@@ -758,11 +757,7 @@ fn do_swap(
             pools[1].amount - protocol_fee_amount - return_amount,
         )
     };
-    wyndex::oracle::store_oracle_price(
-        deps.storage,
-        env,
-        Decimal::from_ratio(new_pool0, new_pool1),
-    )?;
+    dex::oracle::store_oracle_price(deps.storage, env, Decimal::from_ratio(new_pool0, new_pool1))?;
 
     // Accumulate prices for the assets in the pool
     if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
@@ -905,7 +900,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             duration,
             start_age,
             end_age,
-        } => to_binary(&wyndex::oracle::query_oracle_range(
+        } => to_binary(&dex::oracle::query_oracle_range(
             deps.storage,
             &env,
             &CONFIG.load(deps.storage)?.pair_info.asset_infos,

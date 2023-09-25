@@ -9,17 +9,15 @@ use cw_utils::MsgInstantiateContractResponse;
 use proptest::prelude::*;
 
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
-use wyndex::asset::{
-    Asset, AssetInfo, AssetInfoValidated, AssetValidated, MINIMUM_LIQUIDITY_AMOUNT,
-};
-use wyndex::factory::PairType;
-use wyndex::fee_config::FeeConfig;
-use wyndex::oracle::{SamplePeriod, TwapResponse};
-use wyndex::pair::{
+use dex::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated, MINIMUM_LIQUIDITY_AMOUNT};
+use dex::factory::PairType;
+use dex::fee_config::FeeConfig;
+use dex::oracle::{SamplePeriod, TwapResponse};
+use dex::pair::{
     assert_max_spread, ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo,
     PoolResponse, ReverseSimulationResponse, SimulationResponse, StakeConfig, TWAP_PRECISION,
 };
-use wyndex::pair::{MigrateMsg, QueryMsg};
+use ex::pair::{MigrateMsg, QueryMsg};
 
 use crate::contract::{
     accumulate_prices, compute_swap, execute, instantiate, migrate, query_pool,
@@ -37,7 +35,7 @@ fn store_liquidity_token(deps: DepsMut, contract_addr: String) {
     };
 
     let mut config = CONFIG.load(deps.storage).unwrap();
-    let _res = wyndex::pair::instantiate_lp_token_reply(
+    let _res = dex::pair::instantiate_lp_token_reply(
         &deps,
         res,
         &config.factory_addr,
@@ -108,7 +106,7 @@ fn proper_initialization() {
                 .unwrap(),
                 funds: vec![],
                 admin: Some("owner".to_owned()),
-                label: String::from("Wyndex LP token"),
+                label: String::from("Dex LP token"),
             }
             .into(),
             id: 1,
@@ -940,7 +938,7 @@ fn withdraw_liquidity() {
     store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
 
     // need to initialize oracle, because we don't call `provide_liquidity` in this test
-    wyndex::oracle::initialize_oracle(
+    dex::oracle::initialize_oracle(
         &mut deps.storage,
         &mock_env_with_block_time(0),
         Decimal::one(),
@@ -1230,7 +1228,7 @@ fn try_native_to_token() {
     store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
 
     // need to initialize oracle, because we don't call `provide_liquidity` in this test
-    wyndex::oracle::initialize_oracle(
+    dex::oracle::initialize_oracle(
         &mut deps.storage,
         &mock_env_with_block_time(0),
         Decimal::one(),
@@ -1448,7 +1446,7 @@ fn try_token_to_native() {
     store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
 
     // need to initialize oracle, because we don't call `provide_liquidity` in this test
-    wyndex::oracle::initialize_oracle(
+    dex::oracle::initialize_oracle(
         &mut deps.storage,
         &mock_env_with_block_time(0),
         Decimal::one(),
