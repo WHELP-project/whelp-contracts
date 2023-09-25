@@ -54,11 +54,3 @@ jobs:
         with:
           command: clippy
           args: --all-targets -- -D warnings
-
-      - name: Generate Schema
-        run: |
-          for C in ./contracts/*/
-          do
-            echo "Generating schema for `basename $C`..."
-            (cd $C && cargo schema --locked)
-          done
