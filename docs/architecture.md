@@ -23,7 +23,7 @@ subgraph WHELP Dex
 end
 ```
 
-## Usage - swap and bonding
+## Usage - providing liquidity and bonding
 
 ```mermaid
 sequenceDiagram
@@ -32,24 +32,32 @@ sequenceDiagram
     participant XYK_LP_Token
     participant XYK_Stake_Contract
 
-    User ->> XYK_Pair: Swaps using
+    User ->> XYK_Pair: Provides liquidity using
     XYK_Pair ->> XYK_LP_Token: Issues
     XYK_LP_Token -->> User: is sent to
     User ->> XYK_Stake_Contract: Bonds XYK_LP_Token in
-
-    participant Stable_Pair
-    participant Stable_LP_Token
-    participant Stable_Stake_Contract
-
-    User ->> Stable_Pair: Swaps using
-    Stable_Pair ->> Stable_LP_Token: Issues
-    Stable_LP_Token -->> User: is sent to
-    User ->> Stable_Stake_Contract: Bonds Stable_LP_Token in
 ```
 
-## Swapping between assets using Multi-hop contract
+## Swapping between assets using a pair contract
+
+User can execute swap operations on any liquidity pool.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Liquidity Pool (Asset1-Asset2)
+    participant Fee Splitter
+
+    User ->> Liquidity Pool (Asset1-Asset2): ExecuteSwap
+    Note left of Liquidity Pool (Asset1-Asset2): Swapping offer_amount for (return amount + protocol fee)
+    Liquidity Pool (Asset1-Asset2) ->> Fee Splitter: Send configured percentage of return amount
+    Liquidity Pool (Asset1-Asset2) ->> User: Send return amount decreased by fee
+```
+
+## Swapping between assets using a Multi-hop contract
 
 In case there is no direct liquidity pool between the assets, user can use (automatically, through well configured frontend) a Multi-hop contract to specify route of the swaps.
+Each consecutive swap takes fee percentage, the same way as during regular swap operations.
 
 ```mermaid
 sequenceDiagram
@@ -72,72 +80,54 @@ sequenceDiagram
     Multi-hop Contract -->> User: Final Amount of Asset3
 ```
 
-### Main functions
+### Main functions and features
 
-## Factory
+## Factory contract
 
-1. **Pair Creation**:
-   - `CreatePair`: Allows authorized users or contracts to create new liquidity pools (pairs) by specifying the asset pair, pair type (e.g., XYK or Stable), fee configuration, staking parameters, and other relevant settings.
+Factory is a contract responsible mainly for creating new liquidity pools. It automates process of deploying several layers of smart contracts and helps to manage them. It allows to set multiple configurable options, like timestamp when trading will be enabled (disabled by default to avoid early swaps).
 
-2. **Pair Configuration Management**:
-   - `UpdatePairConfig`: Enables authorized parties to modify the configuration of existing liquidity pools. This includes adjusting code IDs, pair types, fee configurations, and enabling or disabling pairs.
+1. **Pair Management**:
+   - `CreatePair`: Create liquidity pools with asset pairs, fees, and staking parameters.
+   - `UpdatePairConfig`: Modify liquidity pool settings.
+   - `Deregister`: Deactivate and remove pools while retaining historical data.
+   - `DefaultStakeConfig`: Set default values for LP token staking contracts.
 
-3. **Liquidity Pool Deactivation**:
-   - `Deregister`: Allows for the deactivation and removal of previously created liquidity pools. Deactivated pools can no longer accept new liquidity or swaps but retain their historical data for reference.
+2. **Global Configuration**:
+   - `UpdateConfig`: Adjust global settings, code IDs, permissions, and default stakes.
 
-4. **Global Configuration Updates**:
-   - `UpdateConfig`: Provides a means to update global contract settings, such as code IDs for relevant contracts (e.g., token contracts), fee addresses for governance fees, permissions for pair creation, and default stake configurations.
+3. **Governance Fee Handling**:
+   - `Fee Distribution`: Collect and direct governance fees to a designated address.
 
-5. **Receiver Interface Implementation**:
-   - `ReceiveMsg`: Implements the Cw20 receiver interface, enabling the Factory Contract to receive messages related to pair creation and configuration updates from external contracts.
+4. **Ownership and Permissions**:
+   - `Owner Address`: Specify contract owner with specific permissions.
 
-6. **Governance Fee Handling**:
-   - `Fee Distribution`: Collects governance fees from liquidity pools and, if specified in pair configurations, directs these fees to the designated fee address (the protocol). Governance fees contribute to the operation and development of the DEX.
 
-7. **Ownership and Permission Control**:
-   - `Owner Address`: Specifies the address of the contract owner, who may have certain permissions, such as updating global configurations or creating pairs, depending on the contract's design.
+## Pair (liquidity pool) contract
 
-8. **Pair Type Validation**:
-   - `PairType Enum`: Defines an enumeration (enum) to categorize pair types, ensuring that pairs are created and configured with appropriate parameters based on their intended use (e.g., XYK or Stable pairs).
-
-9. **Security and Authorization**:
-   - `Access Control`: Enforces authorization checks to ensure that only authorized parties can create, configure, or deactivate liquidity pools, update contract configurations, and interact with the Factory Contract.
-
-10. **Stake Contract Integration**:
-    - `DefaultStakeConfig`: Provides default values for LP token staking contracts, including staking code ID, token rewards, minimum bond, unbonding periods, and max distributions.
-
-## Pair (liquidity pool)
+Pair contract is a cornerstone of a decentralized exchange. It allows user to provide liqudiity, swap and withdraw liquidity. When user deposits tokens, contract in returns mints LP Share Tokens, which can be staked in Staking Contract for additional rewards.
 
 1. **Liquidity Pool Management**:
-   - **ProvideLiquidity**: Allows users to provide liquidity to the pool by depositing assets. It supports multiple assets and considers slippage tolerance to ensure fair pricing.
+   - **ProvideLiquidity**: Deposit assets to provide liquidity with slippage tolerance.
+   - **Swap**: Facilitate asset swaps within the pool with user-specified parameters.
 
-2. **Asset Swapping**:
-   - **Swap**: Facilitates asset swaps within the liquidity pool. Users can specify the asset they want to offer, the desired asset, belief price, maximum spread, and other parameters.
+2. **Configuration Updates**:
+   - **UpdateConfig**: Modify the pair's settings, including assets, fees, and options.
+   - **UpdateFees**: Adjust the fee configuration to align with operational requirements.
 
-3. **Configuration Updates**:
-   - **UpdateConfig**: Enables the modification of the pair's configuration settings, including parameters related to assets, fees, and other options.
+3. **Contract Ownership** switch mechanism:
+   - **ProposeNewOwner**: Propose a change in contract ownership with an expiration date.
+   - **DropOwnershipProposal**: Remove an existing ownership change proposal.
+   - **ClaimOwnership**: Claim contract ownership when a proposal is accepted.
 
-4. **Fee Configuration**:
-   - **UpdateFees**: Allows updates to the fee configuration for the pair, ensuring that fees align with the DEX's operational requirements.
+4. **Circuit Breaker**:
+   - **Freeze**: Activate a circuit breaker to freeze functions (except liquidity withdrawal) triggered via MigrateMsg.
 
-5. **Contract Ownership**:
-   - **ProposeNewOwner**: Provides a mechanism to propose a change in contract ownership. Proposals specify the new owner and an expiration date for validity.
-   - **DropOwnershipProposal**: Allows for the removal of an existing ownership change proposal.
-   - **ClaimOwnership**: Permits the claiming of contract ownership when a proposal is accepted.
-
-6. **Circuit Breaker**:
-   - **Freeze**: Activates a circuit breaker to freeze all functions except for liquidity withdrawal. This can only be invoked if a circuit breaker is set through a MigrateMsg.
-
-7. **Asset Information**:
-   - **Asset Infos**: Stores information about the assets in the pool, including their types, codes, and addresses.
-
-8. **Initialization**:
-   - **InstantiateMsg**: Defines the initial parameters for the contract, including asset information, token code ID, factory contract address, fees, staking configurations, trading start time, and an optional circuit breaker address.
-
-9. **Receiver Interface**:
-   - **ReceiveMsg**: Implements the Cw20 receiver interface to receive and process messages of type `Cw20ReceiveMsg`.
+5. **Asset Information**:
+   - **Asset Infos**: Store details about pool assets, including types, codes, and addresses.
 
 ## Staking contract
+
+Staking contract allows to utilize LP Share Tokens by staking them in one of specified unbonding periods.
 
 1. **Token Staking**:
    - **Rebond**: Allows users to update the amount of bonded tokens between different bond periods.
@@ -159,21 +149,19 @@ sequenceDiagram
 5. **Delegation**:
    - **DelegateWithdrawal**: Authorizes an additional account to perform fund withdrawals on behalf of the owner, ensuring flexibility in fund management.
 
-6. **Querying Data**:
+6. **Querying Data - all neccesary data can be looked up, including**:
    - **Claims**: Displays tokens in the process of unbonding for a specific address.
    - **Staked**: Provides the number of tokens currently staked by an address for a specific unbonding period.
-   - **AllStaked**: Shows the number of tokens staked by an address for all unbonding periods.
    - **TotalStaked**: Reveals the total number of tokens delegated by all users for all unbonding periods.
    - **TotalUnbonding**: Displays the total number of tokens currently being unbonded for all unbonding periods.
    - **TotalRewardsPower**: Shows the total outstanding rewards in the contract.
    - **RewardsPower**: Provides outstanding rewards for a specific address.
-   - **Admin**: Returns information about the contract's admin address.
    - **BondingInfo**: Retrieves detailed information about bonding and unbonding activities.
    - **AnnualizedRewards**: Calculates annualized rewards per token for each unbonding period.
-   - **WithdrawableRewards**: Reveals the rewards assigned for withdrawal from a specific address.
    - **DistributedRewards**: Shows the total rewards distributed by the contract.
-   - **UndistributedRewards**: Displays the total funds sent to the contract awaiting distribution.
-   - **Delegated**: Indicates the address allowed for withdrawal of assigned funds.
 
 These functionalities empower the Staking Contract to efficiently manage token staking, rewards distribution, and delegation, while offering extensive querying capabilities to users and administrators.
 
+## Fee splitter contract
+
+Fee splitter is a designed address, that should be configured as default fee collector. During initialization you can specify then what happens with those rewards: how they are split between different addresses.
