@@ -1,15 +1,14 @@
-use coreum_wasm_sdk::{assetft, core::{CoreumQueries, CoreumMsg}};
-use cosmwasm_std::{
-    to_binary, Addr, DepsMut, Env, QuerierWrapper, Reply, Response, StdError, StdResult, Storage,
-    SubMsg, WasmMsg, Uint128, CosmosMsg
+use coreum_wasm_sdk::{
+    assetft,
+    core::{CoreumMsg, CoreumQueries},
 };
-use cw20::MinterResponse;
-use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cosmwasm_std::{
+    Addr, DepsMut, QuerierWrapper, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128,
+};
 use cw_storage_plus::Item;
 use cw_utils::MsgInstantiateContractResponse;
 
 use crate::asset::{format_lp_token_name, AssetInfoValidated};
-use crate::factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg};
 
 use super::{ContractError, PairInfo, StakeConfig};
 
@@ -27,29 +26,20 @@ const INSTANTIATE_STAKE_REPLY_ID: u64 = 2;
 /// It uses [`INSTANTIATE_TOKEN_REPLY_ID`] as id.
 pub fn create_lp_token(
     querier: &QuerierWrapper<CoreumQueries>,
-    env: &Env,
-    token_code_id: u64,
     asset_infos: &[AssetInfoValidated],
-    factory_addr: &Addr,
-) -> StdResult<SubMsg> {
+) -> StdResult<SubMsg<CoreumMsg>> {
     let token_name = format_lp_token_name(asset_infos, querier)?;
 
-    let factory_config: FactoryConfigResponse =
-        querier.query_wasm_smart(factory_addr, &FactoryQueryMsg::Config {})?;
-
-    Ok(SubMsg::reply_on_success(
-        CoreumMsg::AssetFT(assetft::Msg::Issue {
-            symbol: "LP".to_string(),
-            subunit: "uLP".to_string(),
-            precision: LP_TOKEN_PRECISION,
-            initial_amount: Uint128::zero(),
-            description: Some("Dex LP Share token".to_string()),
-            features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burning, 2 - freezing
-            burn_rate: Some("0".into()),
-            send_commission_rate: None,
-        }).into::<CosmosMsg>(),
-        INSTANTIATE_TOKEN_REPLY_ID,
-    ))
+    Ok(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
+        symbol: token_name,
+        subunit: "uLP".to_string(),
+        precision: LP_TOKEN_PRECISION,
+        initial_amount: Uint128::zero(),
+        description: Some("Dex LP Share token".to_string()),
+        features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burning, 2 - freezing
+        burn_rate: Some("0".into()),
+        send_commission_rate: None,
+    })))
 }
 
 /// Saves this `stake_config` to the storage temporarily

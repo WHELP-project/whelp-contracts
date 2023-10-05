@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::vec;
 
-use coreum_wasm_sdk::core::CoreumQueries;
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
     Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError,
@@ -44,7 +44,7 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<CoreumMsg>, ContractError> {
     let asset_infos = check_asset_infos(deps.api, &msg.asset_infos)?;
 
     if asset_infos.len() != 2 {
@@ -57,13 +57,7 @@ pub fn instantiate(
 
     let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
 
-    let create_lp_token_msg = create_lp_token(
-        &deps.querier,
-        &env,
-        msg.token_code_id,
-        &asset_infos,
-        &factory_addr,
-    )?;
+    let create_lp_token_msg = create_lp_token(&deps.querier, &asset_infos)?;
 
     let config = Config {
         pair_info: PairInfo {
