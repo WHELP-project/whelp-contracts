@@ -1,19 +1,20 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Env;
-use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
+use itertools::Itertools;
 use std::fmt;
+
+use coreum_wasm_sdk::core::CoreumQueries;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{
+    to_binary, Addr, Api, BankMsg, Coin, ConversionOverflowError, CosmosMsg, Decimal256, Env,
+    Fraction, MessageInfo, QuerierWrapper, StdError, StdResult, Uint128, Uint256, WasmMsg,
+};
+use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse, TokenInfoResponse};
+use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 
 use crate::pair::PairInfo;
 use crate::pair::QueryMsg as PairQueryMsg;
 use crate::querier::{
     query_balance, query_token_balance, query_token_symbol, NATIVE_TOKEN_PRECISION,
 };
-use cosmwasm_std::{
-    to_binary, Addr, Api, BankMsg, Coin, ConversionOverflowError, CosmosMsg, Decimal256, Fraction,
-    MessageInfo, QuerierWrapper, StdError, StdResult, Uint128, Uint256, WasmMsg,
-};
-use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse, TokenInfoResponse};
-use itertools::Itertools;
 
 /// Minimum initial LP share
 pub const MINIMUM_LIQUIDITY_AMOUNT: Uint128 = Uint128::new(1_000);
@@ -207,7 +208,7 @@ impl AssetInfo {
     }
     pub fn query_pool(
         &self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         pool_addr: impl Into<String>,
     ) -> StdResult<Uint128> {
         match self {
@@ -292,7 +293,7 @@ impl AssetInfoValidated {
     /// * **account_addr** is the address whose token balance we check.
     pub fn query_balance(
         &self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         account_addr: impl Into<String>,
     ) -> StdResult<Uint128> {
         match self {
@@ -304,7 +305,7 @@ impl AssetInfoValidated {
     }
 
     /// Returns the number of decimals that a token has.
-    pub fn decimals(&self, querier: &QuerierWrapper) -> StdResult<u8> {
+    pub fn decimals(&self, querier: &QuerierWrapper<CoreumQueries>) -> StdResult<u8> {
         let decimals = match &self {
             AssetInfoValidated::Native { .. } => NATIVE_TOKEN_PRECISION,
             AssetInfoValidated::Token(contract_addr) => {

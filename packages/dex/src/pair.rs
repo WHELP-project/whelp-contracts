@@ -7,6 +7,7 @@ use crate::{
     oracle::{SamplePeriod, TwapResponse},
 };
 
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     to_binary, Addr, Binary, Decimal, Decimal256, QuerierWrapper, StdError, StdResult, Uint128,
     WasmMsg,
@@ -53,7 +54,7 @@ impl PairInfo {
     /// * **contract_addr** is pair's pool address.
     pub fn query_pools(
         &self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<AssetValidated>> {
         let contract_addr = contract_addr.into();
@@ -73,7 +74,7 @@ impl PairInfo {
     /// * **contract_addr** is pair's pool address.
     pub fn query_pools_decimal(
         &self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<DecimalAsset>> {
         let contract_addr = contract_addr.into();
