@@ -134,6 +134,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
+name = "coreum-wasm-sdk"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77718ec05e1521bf2fd3f7bceb60c77dfbc882408cd99c106a36ba408b0344f9"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "cosmwasm-crypto"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -386,6 +398,7 @@ dependencies = [
 name = "dex"
 version = "0.1.0"
 dependencies = [
+ "coreum-wasm-sdk",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
@@ -401,6 +414,7 @@ dependencies = [
 name = "dex-pair"
 version = "0.1.0"
 dependencies = [
+ "coreum-wasm-sdk",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",

@@ -1,5 +1,7 @@
-use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN};
+use std::str::FromStr;
+use std::vec;
 
+use coreum_wasm_sdk::{assetft, core::CoreumQueries};
 use cosmwasm_std::{
     attr, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
     Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError,
@@ -8,6 +10,7 @@ use cosmwasm_std::{
 
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+
 use dex::asset::{
     addr_opt_validate, check_swap_parameters, Asset, AssetInfoValidated, AssetValidated,
     MINIMUM_LIQUIDITY_AMOUNT,
@@ -26,8 +29,8 @@ use dex::pair::{
     ReverseSimulationResponse, SimulationResponse, TWAP_PRECISION,
 };
 use dex::querier::{query_factory_config, query_supply};
-use std::str::FromStr;
-use std::vec;
+
+use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN};
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "dex-pair";

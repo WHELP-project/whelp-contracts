@@ -7,6 +7,7 @@ use crate::pair::{
     PairInfo, QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
 
+use coreum_wasm_sdk::{assetft, core::CoreumQueries};
 use cosmwasm_std::{
     Addr, AllBalanceResponse, BankQuery, Coin, Decimal, QuerierWrapper, QueryRequest, StdResult,
     Uint128,
@@ -21,13 +22,21 @@ pub const NATIVE_TOKEN_PRECISION: u8 = 6;
 ///
 /// * **denom** specifies the denomination used to return the balance (e.g uluna).
 pub fn query_balance(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     account_addr: impl Into<String>,
     denom: impl Into<String>,
 ) -> StdResult<Uint128> {
-    querier
-        .query_balance(account_addr, denom)
-        .map(|coin| coin.amount)
+    let request: QueryRequest<CoreumQueries> = CoreumQueries::AssetFT(assetft::Query::Balance {
+        account: account_addr.into(),
+        denom: denom.into(),
+    })
+    .into();
+    let balance_response: assetft::BalanceResponse = querier.query(&request)?;
+    Ok(balance_response
+        .balance
+        .parse::<u128>()
+        .expect("Failed to parse the string")
+        .into())
 }
 
 /// Returns the total balances for all coins at a specified account address.
@@ -47,7 +56,7 @@ pub fn query_all_balances(querier: &QuerierWrapper, account_addr: Addr) -> StdRe
 ///
 /// * **account_addr** account address for which we return a balance.
 pub fn query_token_balance(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     contract_addr: impl Into<String>,
     account_addr: impl Into<String>,
 ) -> StdResult<Uint128> {
