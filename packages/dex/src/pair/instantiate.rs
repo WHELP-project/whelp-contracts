@@ -1,7 +1,7 @@
-use coreum_wasm_sdk::core::CoreumQueries;
+use coreum_wasm_sdk::{assetft, core::{CoreumQueries, CoreumMsg}};
 use cosmwasm_std::{
     to_binary, Addr, DepsMut, Env, QuerierWrapper, Reply, Response, StdError, StdResult, Storage,
-    SubMsg, WasmMsg,
+    SubMsg, WasmMsg, Uint128, CosmosMsg
 };
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
@@ -17,7 +17,7 @@ use super::{ContractError, PairInfo, StakeConfig};
 /// lp token instantiation and staking contract instantiation.
 const TMP_STAKING_CONFIG: Item<StakeConfig> = Item::new("tmp_staking_config");
 
-pub const LP_TOKEN_PRECISION: u8 = 6;
+pub const LP_TOKEN_PRECISION: u32 = 6;
 /// A `reply` call code ID used for token instantiation sub-message.
 const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;
 /// A `reply` call code ID used for staking contract instantiation sub-message.
@@ -38,23 +38,16 @@ pub fn create_lp_token(
         querier.query_wasm_smart(factory_addr, &FactoryQueryMsg::Config {})?;
 
     Ok(SubMsg::reply_on_success(
-        WasmMsg::Instantiate {
-            admin: Some(factory_config.owner.to_string()),
-            code_id: token_code_id,
-            msg: to_binary(&TokenInstantiateMsg {
-                name: token_name,
-                symbol: "uLP".to_string(),
-                decimals: LP_TOKEN_PRECISION,
-                initial_balances: vec![],
-                mint: Some(MinterResponse {
-                    minter: env.contract.address.to_string(),
-                    cap: None,
-                }),
-                marketing: None,
-            })?,
-            funds: vec![],
-            label: "Dex LP token".to_owned(),
-        },
+        CoreumMsg::AssetFT(assetft::Msg::Issue {
+            symbol: "LP".to_string(),
+            subunit: "uLP".to_string(),
+            precision: LP_TOKEN_PRECISION,
+            initial_amount: Uint128::zero(),
+            description: Some("Dex LP Share token".to_string()),
+            features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burning, 2 - freezing
+            burn_rate: Some("0".into()),
+            send_commission_rate: None,
+        }).into::<CosmosMsg>(),
         INSTANTIATE_TOKEN_REPLY_ID,
     ))
 }
