@@ -286,7 +286,7 @@ pub fn update_fees(
 ///
 /// NOTE - the address that wants to provide liquidity should approve the pair contract to pull its relevant tokens.
 pub fn provide_liquidity(
-    mut deps: DepsMut,
+    mut deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     assets: Vec<Asset>,
@@ -660,7 +660,7 @@ pub fn swap(
         ]))
 }
 
-fn check_if_frozen(deps: &DepsMut) -> Result<(), ContractError> {
+fn check_if_frozen(deps: &DepsMut<CoreumQueries>) -> Result<(), ContractError> {
     let is_frozen: bool = FROZEN.load(deps.storage)?;
     ensure!(!is_frozen, ContractError::ContractFrozen {});
     Ok(())
@@ -681,7 +681,7 @@ struct SwapResult {
 /// Important: When providing the pool balances for this method, make sure that those do *not* include the offer asset.
 #[allow(clippy::too_many_arguments)]
 fn do_swap(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: &Env,
     config: &mut Config,
     factory_config: &FactoryConfig,
@@ -946,7 +946,7 @@ pub fn query_share(deps: Deps, amount: Uint128) -> StdResult<Vec<AssetValidated>
 ///
 /// * **offer_asset** is the asset to swap as well as an amount of the said asset.
 pub fn query_simulation(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     offer_asset: Asset,
     referral: bool,
     referral_commission: Option<Decimal>,
@@ -1054,7 +1054,7 @@ pub fn query_reverse_simulation(
 }
 
 /// Returns information about cumulative prices for the assets in the pool using a [`CumulativePricesResponse`] object.
-pub fn query_cumulative_prices(deps: Deps, env: Env) -> StdResult<CumulativePricesResponse> {
+pub fn query_cumulative_prices(deps: Deps<CoreumQueries>, env: Env) -> StdResult<CumulativePricesResponse> {
     let config = CONFIG.load(deps.storage)?;
     let (assets, total_share) = pool_info(deps.querier, &config)?;
 
@@ -1224,7 +1224,7 @@ fn assert_slippage_tolerance(
 
 /// Returns the total amount of assets in the pool as well as the total amount of LP tokens currently minted.
 pub fn pool_info(
-    querier: QuerierWrapper,
+    querier: QuerierWrapper<CoreumQueries>,
     config: &Config,
 ) -> StdResult<(Vec<AssetValidated>, Uint128)> {
     let pools = config

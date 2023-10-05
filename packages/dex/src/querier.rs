@@ -92,7 +92,7 @@ pub fn query_token_symbol(
 ///
 /// * **contract_addr** token contract address.
 pub fn query_supply(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     contract_addr: impl Into<String>,
 ) -> StdResult<Uint128> {
     let res: TokenInfoResponse =
@@ -123,7 +123,7 @@ pub fn query_token_precision(
 
 /// Returns the configuration for the factory contract.
 pub fn query_factory_config(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     factory_contract: impl Into<String>,
 ) -> StdResult<FactoryConfigResponse> {
     querier.query_wasm_smart(factory_contract, &FactoryQueryMsg::Config {})
