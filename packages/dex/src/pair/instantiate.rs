@@ -1,3 +1,4 @@
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     to_binary, Addr, DepsMut, Env, QuerierWrapper, Reply, Response, StdError, StdResult, Storage,
     SubMsg, WasmMsg,
@@ -25,7 +26,7 @@ const INSTANTIATE_STAKE_REPLY_ID: u64 = 2;
 /// Returns a sub-message to instantiate a new LP token.
 /// It uses [`INSTANTIATE_TOKEN_REPLY_ID`] as id.
 pub fn create_lp_token(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     env: &Env,
     token_code_id: u64,
     asset_infos: &[AssetInfoValidated],
@@ -69,7 +70,7 @@ pub fn save_tmp_staking_config(
 
 /// Handles the replies from the lp token and staking contract instantiation sub-messages.
 pub fn handle_reply(
-    deps: &DepsMut,
+    deps: &DepsMut<CoreumQueries>,
     msg: Reply,
     factory: &Addr,
     pair_info: &mut PairInfo,
@@ -90,7 +91,7 @@ pub fn handle_reply(
 /// lp token contract, reads the temporary staking config and sends a sub-message to instantiate
 /// the staking contract.
 pub fn instantiate_lp_token_reply(
-    deps: &DepsMut,
+    deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
     factory: &Addr,
     pair_info: &mut PairInfo,
@@ -115,7 +116,7 @@ pub fn instantiate_lp_token_reply(
 /// Sets the `pair_info`'s `staking_addr` field to the address of the newly instantiated
 /// staking contract, and returns a response.
 pub fn instantiate_staking_reply(
-    deps: &DepsMut,
+    deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
     pair_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {

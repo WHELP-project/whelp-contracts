@@ -396,7 +396,7 @@ const TOKEN_SYMBOL_MAX_LENGTH: usize = 4;
 /// Returns a formatted LP token name
 pub fn format_lp_token_name(
     asset_infos: &[AssetInfoValidated],
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
 ) -> StdResult<String> {
     let mut short_symbols: Vec<String> = vec![];
     for asset_info in asset_infos {
