@@ -4,6 +4,7 @@ use crate::{
     querier::query_factory_config,
 };
 
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Decimal256, QuerierWrapper, Uint128, Uint256};
 
 use super::ContractError;
@@ -66,7 +67,7 @@ pub fn take_referral(
 /// such that applying [`take_referral`] to the result will return the original offer asset.
 /// It also returns the commission amount as a second return value.
 pub fn add_referral(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     factory_addr: &Addr,
     referral: bool,
     referral_commission: Option<Decimal>,
