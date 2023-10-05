@@ -138,7 +138,7 @@ impl StakeConfig {
     /// Call this after instantiating the lp token to get a message to instantiate the staking contract
     pub fn into_init_msg(
         self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         lp_token_address: String,
         factory_addr: String,
     ) -> StdResult<WasmMsg> {

@@ -79,7 +79,7 @@ pub fn query_token_balance(
 ///
 /// * **contract_addr** token contract address.
 pub fn query_token_symbol(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     contract_addr: impl Into<String>,
 ) -> StdResult<String> {
     let res: TokenInfoResponse =

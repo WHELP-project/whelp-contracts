@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::vec;
 
-use coreum_wasm_sdk::{assetft, core::CoreumQueries};
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     attr, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
     Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError,
@@ -20,9 +20,9 @@ use dex::factory::{ConfigResponse as FactoryConfig, PairType};
 use dex::fee_config::FeeConfig;
 use dex::pair::{
     add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
-    create_lp_token, get_share_in_assets, handle_referral, handle_reply, migration_check,
-    mint_token_message, save_tmp_staking_config, take_referral, ConfigResponse, ContractError,
-    Cw20HookMsg, MigrateMsg, DEFAULT_SLIPPAGE, MAX_ALLOWED_SLIPPAGE,
+    create_lp_token, get_share_in_assets, handle_referral, handle_reply, mint_token_message,
+    save_tmp_staking_config, take_referral, ConfigResponse, ContractError, Cw20HookMsg, MigrateMsg,
+    DEFAULT_SLIPPAGE, MAX_ALLOWED_SLIPPAGE,
 };
 use dex::pair::{
     CumulativePricesResponse, ExecuteMsg, InstantiateMsg, PairInfo, PoolResponse, QueryMsg,
@@ -40,7 +40,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Creates a new contract with the specified parameters in the [`InstantiateMsg`].
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -90,7 +90,11 @@ pub fn instantiate(
 
 /// The entry point to the contract for processing replies from submessages.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(
+    deps: DepsMut<CoreumQueries>,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
     let res = handle_reply(&deps, msg, &config.factory_addr, &mut config.pair_info)?;
     CONFIG.save(deps.storage, &config)?;
@@ -100,7 +104,11 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 
 /// Manages the contract migration.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut<CoreumQueries>,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response, ContractError> {
     match msg {
         MigrateMsg::UpdateFreeze {
             frozen,
@@ -138,17 +146,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
 ///         }** Performs a swap operation with the specified parameters.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    let cfg = CONFIG.load(deps.storage)?;
-
-    if migration_check(deps.querier, &cfg.factory_addr, &env.contract.address)? {
-        return Err(ContractError::PairIsNotMigrated {});
-    }
-
     match msg {
         ExecuteMsg::Receive(msg) => receive_cw20(deps, env, info, msg),
         ExecuteMsg::ProvideLiquidity {
@@ -206,7 +208,7 @@ pub fn execute(
 ///
 /// * **cw20_msg** is the CW20 receive message to process.
 pub fn receive_cw20(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
@@ -254,7 +256,7 @@ pub fn receive_cw20(
 }
 
 pub fn update_fees(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     fee_config: FeeConfig,
 ) -> Result<Response, ContractError> {
@@ -497,7 +499,7 @@ pub fn provide_liquidity(
 ///
 /// * **amount** is the amount of LP tokens to burn.
 pub fn withdraw_liquidity(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     sender: Addr,
@@ -572,7 +574,7 @@ pub fn withdraw_liquidity(
 /// NOTE - the address that wants to swap should approve the pair contract to pull the offer token.
 #[allow(clippy::too_many_arguments)]
 pub fn swap(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     sender: Addr,
@@ -871,7 +873,7 @@ pub fn calculate_protocol_fee(
 ///
 /// * **QueryMsg::Config {}** Returns the configuration for the pair contract using a [`ConfigResponse`] object.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Pair {} => to_binary(&CONFIG.load(deps.storage)?.pair_info),
         QueryMsg::Pool {} => to_binary(&query_pool(deps)?),
@@ -918,7 +920,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 /// Returns the amounts of assets in the pair contract as well as the amount of LP
 /// tokens currently minted in an object of type [`PoolResponse`].
-pub fn query_pool(deps: Deps) -> StdResult<PoolResponse> {
+pub fn query_pool(deps: Deps<CoreumQueries>) -> StdResult<PoolResponse> {
     let config = CONFIG.load(deps.storage)?;
     let (assets, total_share) = pool_info(deps.querier, &config)?;
 
@@ -934,7 +936,7 @@ pub fn query_pool(deps: Deps) -> StdResult<PoolResponse> {
 /// The result is returned in a vector that contains objects of type [`Asset`].
 ///
 /// * **amount** is the amount of LP tokens for which we calculate associated amounts of assets.
-pub fn query_share(deps: Deps, amount: Uint128) -> StdResult<Vec<AssetValidated>> {
+pub fn query_share(deps: Deps<CoreumQueries>, amount: Uint128) -> StdResult<Vec<AssetValidated>> {
     let config = CONFIG.load(deps.storage)?;
     let (pools, total_share) = pool_info(deps.querier, &config)?;
     let refund_assets = get_share_in_assets(&pools, amount, total_share);
@@ -999,7 +1001,7 @@ pub fn query_simulation(
 /// * **ask_asset** is the asset to swap to as well as the desired amount of ask
 /// assets to receive from the swap.
 pub fn query_reverse_simulation(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     ask_asset: Asset,
     referral: bool,
     referral_commission: Option<Decimal>,
@@ -1054,7 +1056,10 @@ pub fn query_reverse_simulation(
 }
 
 /// Returns information about cumulative prices for the assets in the pool using a [`CumulativePricesResponse`] object.
-pub fn query_cumulative_prices(deps: Deps<CoreumQueries>, env: Env) -> StdResult<CumulativePricesResponse> {
+pub fn query_cumulative_prices(
+    deps: Deps<CoreumQueries>,
+    env: Env,
+) -> StdResult<CumulativePricesResponse> {
     let config = CONFIG.load(deps.storage)?;
     let (assets, total_share) = pool_info(deps.querier, &config)?;
 
@@ -1091,7 +1096,7 @@ pub fn query_cumulative_prices(deps: Deps<CoreumQueries>, env: Env) -> StdResult
 }
 
 /// Returns the pair contract configuration in a [`ConfigResponse`] object.
-pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<ConfigResponse> {
     let config: Config = CONFIG.load(deps.storage)?;
     Ok(ConfigResponse {
         block_time_last: config.block_time_last,
