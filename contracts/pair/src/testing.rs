@@ -1,4 +1,7 @@
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use coreum_wasm_sdk::{
+    assetft,
+    core::{CoreumMsg, CoreumQueries},
+};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     assert_approx_eq, attr, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
@@ -16,7 +19,8 @@ use dex::fee_config::FeeConfig;
 use dex::oracle::{SamplePeriod, TwapResponse};
 use dex::pair::{
     assert_max_spread, ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo,
-    PoolResponse, ReverseSimulationResponse, SimulationResponse, StakeConfig, TWAP_PRECISION,
+    PoolResponse, ReverseSimulationResponse, SimulationResponse, StakeConfig, LP_TOKEN_PRECISION,
+    TWAP_PRECISION,
 };
 use dex::pair::{MigrateMsg, QueryMsg};
 
@@ -90,28 +94,20 @@ fn proper_initialization() {
     assert_eq!(
         res.messages,
         vec![SubMsg {
-            msg: WasmMsg::Instantiate {
-                code_id: 10u64,
-                msg: to_binary(&TokenInstantiateMsg {
-                    name: "UUSD-MAPP-LP".to_string(),
-                    symbol: "uLP".to_string(),
-                    decimals: 6,
-                    initial_balances: vec![],
-                    mint: Some(MinterResponse {
-                        minter: String::from(MOCK_CONTRACT_ADDR),
-                        cap: None,
-                    }),
-                    marketing: None
-                })
-                .unwrap(),
-                funds: vec![],
-                admin: Some("owner".to_owned()),
-                label: String::from("Dex LP token"),
-            }
+            msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
+                symbol: "UUSD-MAPP-LP".to_string(),
+                subunit: "uLP".to_string(),
+                precision: LP_TOKEN_PRECISION,
+                initial_amount: Uint128::zero(),
+                description: Some("Dex LP Share token".to_string()),
+                features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burnin
+                burn_rate: Some("0".into()),
+                send_commission_rate: None,
+            })
             .into(),
-            id: 1,
+            id: 0,
             gas_limit: None,
-            reply_on: ReplyOn::Success
+            reply_on: ReplyOn::Never
         },]
     );
 
