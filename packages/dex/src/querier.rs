@@ -109,7 +109,15 @@ pub fn query_token_precision(
     asset_info: &AssetInfoValidated,
 ) -> StdResult<u8> {
     let decimals = match asset_info {
-        AssetInfoValidated::Native { .. } => NATIVE_TOKEN_PRECISION,
+        AssetInfoValidated::SmartToken { denom } => {
+            let request: QueryRequest<CoreumQueries> =
+                CoreumQueries::AssetFT(assetft::Query::Token {
+                    denom: denom.into(),
+                })
+                .into();
+            let token_response: assetft::TokenResponse = querier.query(&request)?;
+            token_response.precision.into()
+        }
         AssetInfoValidated::Token(contract_addr) => {
             let res: TokenInfoResponse =
                 querier.query_wasm_smart(contract_addr, &Cw20QueryMsg::TokenInfo {})?;

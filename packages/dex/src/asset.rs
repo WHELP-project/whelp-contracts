@@ -95,7 +95,7 @@ impl AssetValidated {
     pub fn into_msg(&self, recipient: impl Into<String>) -> StdResult<CosmosMsg> {
         let recipient = recipient.into();
         match &self.info {
-            AssetInfoValidated::Token(contract_addr) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            AssetInfoValidated::Cw20Token(contract_addr) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: contract_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient,
@@ -103,7 +103,7 @@ impl AssetValidated {
                 })?,
                 funds: vec![],
             })),
-            AssetInfoValidated::Native(denom) => Ok(CosmosMsg::Bank(BankMsg::Send {
+            AssetInfoValidated::SmartToken(denom) => Ok(CosmosMsg::Bank(BankMsg::Send {
                 to_address: recipient,
                 amount: vec![Coin {
                     denom: denom.to_string(),
@@ -126,8 +126,8 @@ impl AssetValidated {
         }
 
         match &self.info {
-            AssetInfoValidated::Native(_) => self.assert_sent_native_token_balance(info),
-            AssetInfoValidated::Token(contract_addr) => {
+            AssetInfoValidated::SmartToken(_) => self.assert_sent_native_token_balance(info),
+            AssetInfoValidated::Cw20Token(contract_addr) => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.to_string(),
                     msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
@@ -144,20 +144,20 @@ impl AssetValidated {
 
     /// Validates an amount of native tokens being sent.
     pub fn assert_sent_native_token_balance(&self, message_info: &MessageInfo) -> StdResult<()> {
-        if let AssetInfoValidated::Native(denom) = &self.info {
+        if let AssetInfoValidated::SmartToken(denom) = &self.info {
             match message_info.funds.iter().find(|x| x.denom == *denom) {
                 Some(coin) => {
                     if self.amount == coin.amount {
                         Ok(())
                     } else {
-                        Err(StdError::generic_err("Native token balance mismatch between the argument and the transferred"))
+                        Err(StdError::generic_err("SmartToken token balance mismatch between the argument and the transferred"))
                     }
                 }
                 None => {
                     if self.amount.is_zero() {
                         Ok(())
                     } else {
-                        Err(StdError::generic_err("Native token balance mismatch between the argument and the transferred"))
+                        Err(StdError::generic_err("SmartToken token balance mismatch between the argument and the transferred"))
                     }
                 }
             }
@@ -178,31 +178,31 @@ impl AssetValidated {
 #[derive(Eq, Hash)]
 pub enum AssetInfo {
     /// Non-native Token
-    Token(String),
-    /// Native token
-    Native(String),
+    Cw20Token(String),
+    /// SmartToken token
+    SmartToken(String),
 }
 
 impl AssetInfo {
     /// Returns true if the caller is a native token. Otherwise returns false.
     pub fn is_native_token(&self) -> bool {
-        matches!(self, AssetInfo::Native(_))
+        matches!(self, AssetInfo::SmartToken(_))
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
     pub fn validate(&self, api: &dyn Api) -> StdResult<AssetInfoValidated> {
         Ok(match self {
-            AssetInfo::Token(contract_addr) => {
-                AssetInfoValidated::Token(api.addr_validate(contract_addr.as_str())?)
+            AssetInfo::Cw20Token(contract_addr) => {
+                AssetInfoValidated::Cw20Token(contract_addr.to_string())
             }
-            AssetInfo::Native(denom) => {
+            AssetInfo::SmartToken(denom) => {
                 if !denom.starts_with("ibc/") && denom != &denom.to_lowercase() {
                     return Err(StdError::generic_err(format!(
                         "Non-IBC token denom {} should be lowercase",
                         denom
                     )));
                 }
-                AssetInfoValidated::Native(denom.to_string())
+                AssetInfoValidated::SmartToken(denom.to_string())
             }
         })
     }
@@ -212,10 +212,10 @@ impl AssetInfo {
         pool_addr: impl Into<String>,
     ) -> StdResult<Uint128> {
         match self {
-            AssetInfo::Token(contract_addr) => {
+            AssetInfo::Cw20Token(contract_addr) => {
                 query_token_balance(querier, contract_addr, pool_addr)
             }
-            AssetInfo::Native(denom) => query_balance(querier, pool_addr, denom),
+            AssetInfo::SmartToken(denom) => query_balance(querier, pool_addr, denom),
         }
     }
 
@@ -224,8 +224,8 @@ impl AssetInfo {
     /// If the caller object is a token of type [`AssetInfo`] then its `contract_addr` field converts to a byte string.
     pub fn as_bytes(&self) -> &[u8] {
         match self {
-            AssetInfo::Native(denom) => denom.as_bytes(),
-            AssetInfo::Token(contract_addr) => contract_addr.as_bytes(),
+            AssetInfo::SmartToken(denom) => denom.as_bytes(),
+            AssetInfo::Cw20Token(contract_addr) => contract_addr.as_bytes(),
         }
     }
 }
@@ -233,8 +233,8 @@ impl AssetInfo {
 impl fmt::Display for AssetInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AssetInfo::Native(denom) => write!(f, "{}", denom),
-            AssetInfo::Token(contract_addr) => write!(f, "{}", contract_addr),
+            AssetInfo::SmartToken(denom) => write!(f, "{}", denom),
+            AssetInfo::Cw20Token(contract_addr) => write!(f, "{}", contract_addr),
         }
     }
 }
@@ -243,24 +243,24 @@ impl fmt::Display for AssetInfo {
 /// ## Examples
 /// ```
 /// # use cosmwasm_std::Addr;
-/// # use dex::asset::AssetInfo::{Native, Token};
+/// # use dex::asset::AssetInfo::{SmartToken, Token};
 /// Token("terra...".to_string());
-/// Native(String::from("uluna"));
+/// SmartToken(String::from("uluna"));
 /// ```
 #[cw_serde]
 #[derive(Hash, Eq)]
 pub enum AssetInfoValidated {
     /// Non-native Token
-    Token(Addr),
-    /// Native token
-    Native(String),
+    Cw20Token(String),
+    /// SmartToken token
+    SmartToken(String),
 }
 
 impl From<AssetInfoValidated> for AssetInfo {
     fn from(a: AssetInfoValidated) -> Self {
         match a {
-            AssetInfoValidated::Token(addr) => AssetInfo::Token(addr.to_string()),
-            AssetInfoValidated::Native(denom) => AssetInfo::Native(denom),
+            AssetInfoValidated::Cw20Token(addr) => AssetInfo::Cw20Token(addr.to_string()),
+            AssetInfoValidated::SmartToken(denom) => AssetInfo::SmartToken(denom),
         }
     }
 }
@@ -268,8 +268,8 @@ impl From<AssetInfoValidated> for AssetInfo {
 impl fmt::Display for AssetInfoValidated {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AssetInfoValidated::Native(denom) => write!(f, "{}", denom),
-            AssetInfoValidated::Token(contract_addr) => write!(f, "{}", contract_addr),
+            AssetInfoValidated::SmartToken(denom) => write!(f, "{}", denom),
+            AssetInfoValidated::Cw20Token(contract_addr) => write!(f, "{}", contract_addr),
         }
     }
 }
@@ -277,13 +277,13 @@ impl fmt::Display for AssetInfoValidated {
 impl AssetInfoValidated {
     /// Returns true if the caller is a native token. Otherwise returns false.
     pub fn is_native_token(&self) -> bool {
-        matches!(self, AssetInfoValidated::Native(_))
+        matches!(self, AssetInfoValidated::SmartToken(_))
     }
 
     /// Returns `Some(denom)` if this is a native token, or `None` if it is a cw20 token.
     pub fn native_denom(&self) -> Option<&str> {
         match self {
-            AssetInfoValidated::Native(denom) => Some(denom),
+            AssetInfoValidated::SmartToken(denom) => Some(denom),
             _ => None,
         }
     }
@@ -297,18 +297,18 @@ impl AssetInfoValidated {
         account_addr: impl Into<String>,
     ) -> StdResult<Uint128> {
         match self {
-            AssetInfoValidated::Token(contract_addr) => {
+            AssetInfoValidated::Cw20Token(contract_addr) => {
                 query_token_balance(querier, contract_addr, account_addr)
             }
-            AssetInfoValidated::Native(denom) => query_balance(querier, account_addr, denom),
+            AssetInfoValidated::SmartToken(denom) => query_balance(querier, account_addr, denom),
         }
     }
 
     /// Returns the number of decimals that a token has.
     pub fn decimals(&self, querier: &QuerierWrapper<CoreumQueries>) -> StdResult<u8> {
         let decimals = match &self {
-            AssetInfoValidated::Native { .. } => NATIVE_TOKEN_PRECISION,
-            AssetInfoValidated::Token(contract_addr) => {
+            AssetInfoValidated::SmartToken { .. } => NATIVE_TOKEN_PRECISION,
+            AssetInfoValidated::Cw20Token(contract_addr) => {
                 let res: TokenInfoResponse =
                     querier.query_wasm_smart(contract_addr, &Cw20QueryMsg::TokenInfo {})?;
 
@@ -323,12 +323,13 @@ impl AssetInfoValidated {
     /// Otherwise returns **false**.
     pub fn equal(&self, asset: &AssetInfoValidated) -> bool {
         match (self, asset) {
-            (AssetInfoValidated::Native(denom), AssetInfoValidated::Native(other_denom)) => {
-                denom == other_denom
-            }
             (
-                AssetInfoValidated::Token(contract_addr),
-                AssetInfoValidated::Token(other_contract_addr),
+                AssetInfoValidated::SmartToken(denom),
+                AssetInfoValidated::SmartToken(other_denom),
+            ) => denom == other_denom,
+            (
+                AssetInfoValidated::Cw20Token(contract_addr),
+                AssetInfoValidated::Cw20Token(other_contract_addr),
             ) => contract_addr == other_contract_addr,
             _ => false,
         }
@@ -339,8 +340,8 @@ impl AssetInfoValidated {
     /// If the caller object is a token of type [`AssetInfo`] then its `contract_addr` field converts to a byte string.
     pub fn as_bytes(&self) -> &[u8] {
         match self {
-            AssetInfoValidated::Native(denom) => denom.as_bytes(),
-            AssetInfoValidated::Token(contract_addr) => contract_addr.as_bytes(),
+            AssetInfoValidated::SmartToken(denom) => denom.as_bytes(),
+            AssetInfoValidated::Cw20Token(contract_addr) => contract_addr.as_bytes(),
         }
     }
 }
@@ -352,8 +353,8 @@ impl KeyDeserialize for &AssetInfoValidated {
         let (asset_type, denom) = <(u8, &str)>::from_vec(value)?;
 
         match asset_type {
-            0 => Ok(AssetInfoValidated::Native(denom)),
-            1 => Ok(AssetInfoValidated::Token(Addr::unchecked(denom))),
+            0 => Ok(AssetInfoValidated::SmartToken(denom)),
+            1 => Ok(AssetInfoValidated::Cw20Token(denom)),
             _ => Err(StdError::generic_err(
                 "Invalid AssetInfoValidated key, invalid type",
             )),
@@ -376,10 +377,10 @@ impl<'a> PrimaryKey<'a> for &AssetInfoValidated {
 
     fn key(&self) -> Vec<Key> {
         match self {
-            AssetInfoValidated::Native(denom) => {
+            AssetInfoValidated::SmartToken(denom) => {
                 vec![Key::Val8([0]), Key::Ref(denom.as_bytes())]
             }
-            AssetInfoValidated::Token(addr) => vec![Key::Val8([1]), Key::Ref(addr.as_bytes())],
+            AssetInfoValidated::Cw20Token(addr) => vec![Key::Val8([1]), Key::Ref(addr.as_bytes())],
         }
     }
 }
@@ -401,10 +402,10 @@ pub fn format_lp_token_name(
     let mut short_symbols: Vec<String> = vec![];
     for asset_info in asset_infos {
         let short_symbol = match &asset_info {
-            AssetInfoValidated::Native(denom) => {
+            AssetInfoValidated::SmartToken(denom) => {
                 denom.chars().take(TOKEN_SYMBOL_MAX_LENGTH).collect()
             }
-            AssetInfoValidated::Token(contract_addr) => {
+            AssetInfoValidated::Cw20Token(contract_addr) => {
                 let token_symbol = query_token_symbol(querier, contract_addr)?;
                 token_symbol.chars().take(TOKEN_SYMBOL_MAX_LENGTH).collect()
             }
@@ -421,7 +422,7 @@ pub fn format_lp_token_name(
 /// * **amount** amount of native assets.
 pub fn native_asset(denom: impl Into<String>, amount: impl Into<Uint128>) -> AssetValidated {
     AssetValidated {
-        info: AssetInfoValidated::Native(denom.into()),
+        info: AssetInfoValidated::SmartToken(denom.into()),
         amount: amount.into(),
     }
 }
@@ -433,19 +434,19 @@ pub fn native_asset(denom: impl Into<String>, amount: impl Into<Uint128>) -> Ass
 /// * **amount** amount of tokens.
 pub fn token_asset(contract_addr: Addr, amount: impl Into<Uint128>) -> AssetValidated {
     AssetValidated {
-        info: AssetInfoValidated::Token(contract_addr),
+        info: AssetInfoValidated::Cw20Token(contract_addr.to_string()),
         amount: amount.into(),
     }
 }
 
 /// Returns an [`AssetInfo`] object representing the denomination for native asset.
 pub fn native_asset_info(denom: &str) -> AssetInfo {
-    AssetInfo::Native(denom.to_string())
+    AssetInfo::SmartToken(denom.to_string())
 }
 
 /// Returns an [`AssetInfo`] object representing the address of a token contract.
 pub fn token_asset_info(contract_addr: &str) -> AssetInfo {
-    AssetInfo::Token(contract_addr.to_string())
+    AssetInfo::Cw20Token(contract_addr.to_string())
 }
 
 /// Returns [`PairInfo`] by specified pool address.
