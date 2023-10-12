@@ -1,14 +1,14 @@
-use cosmwasm_std::{
-    to_binary, Addr, DepsMut, Env, QuerierWrapper, Reply, Response, StdError, StdResult, Storage,
-    SubMsg, WasmMsg,
+use coreum_wasm_sdk::{
+    assetft,
+    core::{CoreumMsg, CoreumQueries},
 };
-use cw20::MinterResponse;
-use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
+use cosmwasm_std::{
+    Addr, DepsMut, QuerierWrapper, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128,
+};
 use cw_storage_plus::Item;
 use cw_utils::MsgInstantiateContractResponse;
 
 use crate::asset::{format_lp_token_name, AssetInfoValidated};
-use crate::factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg};
 
 use super::{ContractError, PairInfo, StakeConfig};
 
@@ -16,7 +16,7 @@ use super::{ContractError, PairInfo, StakeConfig};
 /// lp token instantiation and staking contract instantiation.
 const TMP_STAKING_CONFIG: Item<StakeConfig> = Item::new("tmp_staking_config");
 
-pub const LP_TOKEN_PRECISION: u8 = 6;
+pub const LP_TOKEN_PRECISION: u32 = 6;
 /// A `reply` call code ID used for token instantiation sub-message.
 const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;
 /// A `reply` call code ID used for staking contract instantiation sub-message.
@@ -25,37 +25,21 @@ const INSTANTIATE_STAKE_REPLY_ID: u64 = 2;
 /// Returns a sub-message to instantiate a new LP token.
 /// It uses [`INSTANTIATE_TOKEN_REPLY_ID`] as id.
 pub fn create_lp_token(
-    querier: &QuerierWrapper,
-    env: &Env,
-    token_code_id: u64,
+    querier: &QuerierWrapper<CoreumQueries>,
     asset_infos: &[AssetInfoValidated],
-    factory_addr: &Addr,
-) -> StdResult<SubMsg> {
+) -> StdResult<SubMsg<CoreumMsg>> {
     let token_name = format_lp_token_name(asset_infos, querier)?;
 
-    let factory_config: FactoryConfigResponse =
-        querier.query_wasm_smart(factory_addr, &FactoryQueryMsg::Config {})?;
-
-    Ok(SubMsg::reply_on_success(
-        WasmMsg::Instantiate {
-            admin: Some(factory_config.owner.to_string()),
-            code_id: token_code_id,
-            msg: to_binary(&TokenInstantiateMsg {
-                name: token_name,
-                symbol: "uLP".to_string(),
-                decimals: LP_TOKEN_PRECISION,
-                initial_balances: vec![],
-                mint: Some(MinterResponse {
-                    minter: env.contract.address.to_string(),
-                    cap: None,
-                }),
-                marketing: None,
-            })?,
-            funds: vec![],
-            label: "Dex LP token".to_owned(),
-        },
-        INSTANTIATE_TOKEN_REPLY_ID,
-    ))
+    Ok(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
+        symbol: token_name,
+        subunit: "uLP".to_string(),
+        precision: LP_TOKEN_PRECISION,
+        initial_amount: Uint128::zero(),
+        description: Some("Dex LP Share token".to_string()),
+        features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burning, 2 - freezing
+        burn_rate: Some("0".into()),
+        send_commission_rate: None,
+    })))
 }
 
 /// Saves this `stake_config` to the storage temporarily
@@ -69,7 +53,7 @@ pub fn save_tmp_staking_config(
 
 /// Handles the replies from the lp token and staking contract instantiation sub-messages.
 pub fn handle_reply(
-    deps: &DepsMut,
+    deps: &DepsMut<CoreumQueries>,
     msg: Reply,
     factory: &Addr,
     pair_info: &mut PairInfo,
@@ -90,7 +74,7 @@ pub fn handle_reply(
 /// lp token contract, reads the temporary staking config and sends a sub-message to instantiate
 /// the staking contract.
 pub fn instantiate_lp_token_reply(
-    deps: &DepsMut,
+    deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
     factory: &Addr,
     pair_info: &mut PairInfo,
@@ -115,7 +99,7 @@ pub fn instantiate_lp_token_reply(
 /// Sets the `pair_info`'s `staking_addr` field to the address of the newly instantiated
 /// staking contract, and returns a response.
 pub fn instantiate_staking_reply(
-    deps: &DepsMut,
+    deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
     pair_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {

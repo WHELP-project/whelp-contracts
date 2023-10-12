@@ -7,14 +7,12 @@ use crate::{
     oracle::{SamplePeriod, TwapResponse},
 };
 
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     to_binary, Addr, Binary, Decimal, Decimal256, QuerierWrapper, StdError, StdResult, Uint128,
     WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
-
-#[cfg(test)]
-pub mod mock_querier;
 
 mod error;
 mod instantiate;
@@ -53,7 +51,7 @@ impl PairInfo {
     /// * **contract_addr** is pair's pool address.
     pub fn query_pools(
         &self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<AssetValidated>> {
         let contract_addr = contract_addr.into();
@@ -73,7 +71,7 @@ impl PairInfo {
     /// * **contract_addr** is pair's pool address.
     pub fn query_pools_decimal(
         &self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<DecimalAsset>> {
         let contract_addr = contract_addr.into();
@@ -137,7 +135,7 @@ impl StakeConfig {
     /// Call this after instantiating the lp token to get a message to instantiate the staking contract
     pub fn into_init_msg(
         self,
-        querier: &QuerierWrapper,
+        querier: &QuerierWrapper<CoreumQueries>,
         lp_token_address: String,
         factory_addr: String,
     ) -> StdResult<WasmMsg> {
