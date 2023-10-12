@@ -4,10 +4,7 @@ use super::error::ContractError;
 
 use crate::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated};
 
-use cosmwasm_std::{
-    from_slice, wasm_execute, Addr, Api, CosmosMsg, Decimal, Fraction, QuerierWrapper, StdError,
-    StdResult, Uint128,
-};
+use cosmwasm_std::{wasm_execute, Addr, Api, CosmosMsg, Decimal, Fraction, StdError, Uint128};
 use cw20::Cw20ExecuteMsg;
 use itertools::Itertools;
 
@@ -15,21 +12,6 @@ use itertools::Itertools;
 pub const DEFAULT_SLIPPAGE: &str = "0.005";
 /// The maximum allowed swap slippage
 pub const MAX_ALLOWED_SLIPPAGE: &str = "0.5";
-
-/// This function makes raw query to the factory contract and
-/// checks whether the pair needs to update an owner or not.
-pub fn migration_check(
-    querier: QuerierWrapper,
-    factory: &Addr,
-    pair_addr: &Addr,
-) -> StdResult<bool> {
-    if let Some(res) = querier.query_wasm_raw(factory, b"pairs_to_migrate".as_slice())? {
-        let res: Vec<Addr> = from_slice(&res)?;
-        Ok(res.contains(pair_addr))
-    } else {
-        Ok(false)
-    }
-}
 
 /// Helper function to check if the given asset infos are valid.
 pub fn check_asset_infos(
