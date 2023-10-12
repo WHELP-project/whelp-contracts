@@ -1,3 +1,4 @@
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, Addr, Coin, Decimal, Empty, OwnedDeps, Querier,
@@ -28,7 +29,7 @@ pub fn mock_dependencies(
 }
 
 pub struct WasmMockQuerier {
-    base: MockQuerier<Empty>,
+    base: MockQuerier<CoreumQueries>,
     token_querier: TokenQuerier,
 }
 
@@ -64,7 +65,7 @@ pub(crate) fn balances_to_map(
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely
-        let request: QueryRequest<Empty> = match from_slice(bin_request) {
+        let request: QueryRequest<CoreumQueries> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
@@ -78,7 +79,7 @@ impl Querier for WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
+    pub fn handle_query(&self, request: &QueryRequest<CoreumQueries>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 if contract_addr == "factory" {
@@ -169,7 +170,7 @@ impl WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new(base: MockQuerier<Empty>) -> Self {
+    pub fn new(base: MockQuerier<CoreumQueries>) -> Self {
         WasmMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
