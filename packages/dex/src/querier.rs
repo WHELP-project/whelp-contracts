@@ -105,20 +105,20 @@ pub fn query_supply(
 ///
 /// * **asset_info** asset details for a specific token.
 pub fn query_token_precision(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     asset_info: &AssetInfoValidated,
 ) -> StdResult<u8> {
     let decimals = match asset_info {
-        AssetInfoValidated::SmartToken { denom } => {
+        AssetInfoValidated::SmartToken(denom) => {
             let request: QueryRequest<CoreumQueries> =
                 CoreumQueries::AssetFT(assetft::Query::Token {
                     denom: denom.into(),
                 })
                 .into();
             let token_response: assetft::TokenResponse = querier.query(&request)?;
-            token_response.precision.into()
+            token_response.token.precision as u8
         }
-        AssetInfoValidated::Token(contract_addr) => {
+        AssetInfoValidated::Cw20Token(contract_addr) => {
             let res: TokenInfoResponse =
                 querier.query_wasm_smart(contract_addr, &Cw20QueryMsg::TokenInfo {})?;
 

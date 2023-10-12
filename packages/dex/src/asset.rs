@@ -35,9 +35,9 @@ impl Asset {
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
-    pub fn validate(&self, api: &dyn Api) -> StdResult<AssetValidated> {
+    pub fn validate(&self) -> StdResult<AssetValidated> {
         Ok(AssetValidated {
-            info: self.info.validate(api)?,
+            info: self.info.validate()?,
             amount: self.amount,
         })
     }
@@ -190,7 +190,7 @@ impl AssetInfo {
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
-    pub fn validate(&self, api: &dyn Api) -> StdResult<AssetInfoValidated> {
+    pub fn validate(&self) -> StdResult<AssetInfoValidated> {
         Ok(match self {
             AssetInfo::Cw20Token(contract_addr) => {
                 AssetInfoValidated::Cw20Token(contract_addr.to_string())
@@ -243,8 +243,8 @@ impl fmt::Display for AssetInfo {
 /// ## Examples
 /// ```
 /// # use cosmwasm_std::Addr;
-/// # use dex::asset::AssetInfo::{SmartToken, Token};
-/// Token("terra...".to_string());
+/// # use dex::asset::AssetInfo::{SmartToken, Cw20Token};
+/// SmartToken("terra...".to_string());
 /// SmartToken(String::from("uluna"));
 /// ```
 #[cw_serde]
