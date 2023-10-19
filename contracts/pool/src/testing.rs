@@ -72,8 +72,8 @@ fn proper_initialization() {
     let msg = InstantiateMsg {
         factory_addr: String::from("factory"),
         asset_infos: vec![
-            AssetInfo::Native("uusd".to_string()),
-            AssetInfo::Token("asset0000".to_string()),
+            AssetInfo::SmartToken("uusd".to_string()),
+            AssetInfo::Cw20Token("asset0000".to_string()),
         ],
         token_code_id: 10u64,
         init_params: None,
@@ -120,8 +120,8 @@ fn proper_initialization() {
     assert_eq!(
         pool_info.asset_infos,
         [
-            AssetInfoValidated::Native("uusd".to_string()),
-            AssetInfoValidated::Token(Addr::unchecked("asset0000"))
+            AssetInfoValidated::SmartToken("uusd".to_string()),
+            AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000"))
         ]
     );
 }
@@ -156,8 +156,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //         factory_addr: String::from("factory"),
@@ -183,11 +183,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //         ],
@@ -251,11 +251,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(200_000000000000000000u128),
 //             },
 //         ],
@@ -278,7 +278,7 @@ fn proper_initialization() {
 //     // Also do a swap, which should also fail
 //     let msg = ExecuteMsg::Swap {
 //         offer_asset: Asset {
-//             info: AssetInfo::Native("uusd".to_string()),
+//             info: AssetInfo::SmartToken("uusd".to_string()),
 //             amount: 1_000u128.into(),
 //         },
 //         to: None,
@@ -385,11 +385,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(99_000000000000000000u128),
 //             },
 //         ],
@@ -445,8 +445,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //         factory_addr: String::from("factory"),
@@ -472,11 +472,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //         ],
@@ -582,11 +582,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(200_000000000000000000u128),
 //             },
 //         ],
@@ -649,11 +649,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(50_000000000000000000u128),
 //             },
 //         ],
@@ -673,7 +673,7 @@ fn proper_initialization() {
 //     match res {
 //         ContractError::Std(StdError::GenericErr { msg, .. }) => assert_eq!(
 //             msg,
-//             "Native token balance mismatch between the argument and the transferred".to_string()
+//             "SmartToken token balance mismatch between the argument and the transferred".to_string()
 //         ),
 //         _ => panic!("Must return generic error"),
 //     }
@@ -708,11 +708,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(98_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //         ],
@@ -744,11 +744,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(98_000000000000000000u128),
 //             },
 //         ],
@@ -780,11 +780,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(99_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //         ],
@@ -815,11 +815,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(99_000000000000000000u128),
 //             },
 //         ],
@@ -840,11 +840,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::zero(),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(99_000000000000000000u128),
 //             },
 //         ],
@@ -864,11 +864,11 @@ fn proper_initialization() {
 //     let msg = ExecuteMsg::ProvideLiquidity {
 //         assets: vec![
 //             Asset {
-//                 info: AssetInfo::Token("asset0000".to_string()),
+//                 info: AssetInfo::Cw20Token("asset0000".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //             Asset {
-//                 info: AssetInfo::Native("uusd".to_string()),
+//                 info: AssetInfo::SmartToken("uusd".to_string()),
 //                 amount: Uint128::from(100_000000000000000000u128),
 //             },
 //         ],
@@ -909,8 +909,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //
@@ -1036,8 +1036,8 @@ fn proper_initialization() {
 //         ),
 //     ]);
 //
-//     let uusd = AssetInfoValidated::Native("uusd".to_string());
-//     let token = AssetInfoValidated::Token(Addr::unchecked("asset0000"));
+//     let uusd = AssetInfoValidated::SmartToken("uusd".to_string());
+//     let token = AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000"));
 //
 //     // instantiate the contract
 //     let msg = InstantiateMsg {
@@ -1200,8 +1200,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //         factory_addr: String::from("factory"),
@@ -1234,7 +1234,7 @@ fn proper_initialization() {
 //     // Normal swap
 //     let msg = ExecuteMsg::Swap {
 //         offer_asset: Asset {
-//             info: AssetInfo::Native("uusd".to_string()),
+//             info: AssetInfo::SmartToken("uusd".to_string()),
 //             amount: offer_amount,
 //         },
 //         ask_asset_info: None,
@@ -1282,7 +1282,7 @@ fn proper_initialization() {
 //     let err = query_simulation(
 //         deps.as_ref(),
 //         Asset {
-//             info: AssetInfo::Native("cny".to_string()),
+//             info: AssetInfo::SmartToken("cny".to_string()),
 //             amount: offer_amount,
 //         },
 //         false,
@@ -1297,7 +1297,7 @@ fn proper_initialization() {
 //     let simulation_res: SimulationResponse = query_simulation(
 //         deps.as_ref(),
 //         Asset {
-//             info: AssetInfo::Native("uusd".to_string()),
+//             info: AssetInfo::SmartToken("uusd".to_string()),
 //             amount: offer_amount,
 //         },
 //         false,
@@ -1312,7 +1312,7 @@ fn proper_initialization() {
 //     let err = query_reverse_simulation(
 //         deps.as_ref(),
 //         Asset {
-//             info: AssetInfo::Native("cny".to_string()),
+//             info: AssetInfo::SmartToken("cny".to_string()),
 //             amount: expected_return_amount,
 //         },
 //         false,
@@ -1327,7 +1327,7 @@ fn proper_initialization() {
 //     let reverse_simulation_res: ReverseSimulationResponse = query_reverse_simulation(
 //         deps.as_ref(),
 //         Asset {
-//             info: AssetInfo::Token("asset0000".to_string()),
+//             info: AssetInfo::Cw20Token("asset0000".to_string()),
 //             amount: expected_return_amount,
 //         },
 //         false,
@@ -1418,8 +1418,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //         factory_addr: String::from("factory"),
@@ -1452,7 +1452,7 @@ fn proper_initialization() {
 //     // Unauthorized access; can not execute swap directy for token swap
 //     let msg = ExecuteMsg::Swap {
 //         offer_asset: Asset {
-//             info: AssetInfo::Token("asset0000".to_string()),
+//             info: AssetInfo::Cw20Token("asset0000".to_string()),
 //             amount: offer_amount,
 //         },
 //         ask_asset_info: None,
@@ -1517,7 +1517,7 @@ fn proper_initialization() {
 //         deps.as_ref(),
 //         Asset {
 //             amount: offer_amount,
-//             info: AssetInfo::Token("asset0000".to_string()),
+//             info: AssetInfo::Cw20Token("asset0000".to_string()),
 //         },
 //         false,
 //         None,
@@ -1532,7 +1532,7 @@ fn proper_initialization() {
 //         deps.as_ref(),
 //         Asset {
 //             amount: expected_return_amount,
-//             info: AssetInfo::Native("uusd".to_string()),
+//             info: AssetInfo::SmartToken("uusd".to_string()),
 //         },
 //         false,
 //         None,
@@ -1681,8 +1681,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //         factory_addr: String::from("factory"),
@@ -1710,11 +1710,11 @@ fn proper_initialization() {
 //         res.assets,
 //         [
 //             AssetValidated {
-//                 info: AssetInfoValidated::Native("uusd".to_string()),
+//                 info: AssetInfoValidated::SmartToken("uusd".to_string()),
 //                 amount: asset_0_amount
 //             },
 //             AssetValidated {
-//                 info: AssetInfoValidated::Token(Addr::unchecked("asset0000")),
+//                 info: AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000")),
 //                 amount: asset_1_amount
 //             }
 //         ]
@@ -1745,8 +1745,8 @@ fn proper_initialization() {
 //
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![
-//             AssetInfo::Native("uusd".to_string()),
-//             AssetInfo::Token("asset0000".to_string()),
+//             AssetInfo::SmartToken("uusd".to_string()),
+//             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
 //         token_code_id: 10u64,
 //         factory_addr: String::from("factory"),
@@ -1855,8 +1855,8 @@ fn proper_initialization() {
 //             &Config {
 //                 pool_info: PairInfo {
 //                     asset_infos: vec![
-//                         AssetInfoValidated::Native("uusd".to_string()),
-//                         AssetInfoValidated::Token(Addr::unchecked("asset0000")),
+//                         AssetInfoValidated::SmartToken("uusd".to_string()),
+//                         AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000")),
 //                     ],
 //                     contract_addr: Addr::unchecked("pool"),
 //                     staking_addr: Addr::unchecked("stake"),

@@ -35,9 +35,9 @@ impl Asset {
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
-    pub fn validate(&self) -> StdResult<AssetValidated> {
+    pub fn validate(&self, api: &dyn Api) -> StdResult<AssetValidated> {
         Ok(AssetValidated {
-            info: self.info.validate()?,
+            info: self.info.validate(api)?,
             amount: self.amount,
         })
     }
@@ -190,10 +190,10 @@ impl AssetInfo {
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
-    pub fn validate(&self) -> StdResult<AssetInfoValidated> {
+    pub fn validate(&self, api: &dyn Api) -> StdResult<AssetInfoValidated> {
         Ok(match self {
             AssetInfo::Cw20Token(contract_addr) => {
-                AssetInfoValidated::Cw20Token(contract_addr.to_string())
+                AssetInfoValidated::Cw20Token(api.addr_validate(contract_addr.as_str())?)
             }
             AssetInfo::SmartToken(denom) => {
                 if !denom.starts_with("ibc/") && denom != &denom.to_lowercase() {
@@ -251,7 +251,7 @@ impl fmt::Display for AssetInfo {
 #[derive(Hash, Eq)]
 pub enum AssetInfoValidated {
     /// Non-native Token
-    Cw20Token(String),
+    Cw20Token(Addr),
     /// SmartToken token
     SmartToken(String),
 }
@@ -354,7 +354,7 @@ impl KeyDeserialize for &AssetInfoValidated {
 
         match asset_type {
             0 => Ok(AssetInfoValidated::SmartToken(denom)),
-            1 => Ok(AssetInfoValidated::Cw20Token(denom)),
+            1 => Ok(AssetInfoValidated::Cw20Token(Addr::unchecked(denom))),
             _ => Err(StdError::generic_err(
                 "Invalid AssetInfoValidated key, invalid type",
             )),
@@ -434,7 +434,7 @@ pub fn native_asset(denom: impl Into<String>, amount: impl Into<Uint128>) -> Ass
 /// * **amount** amount of tokens.
 pub fn token_asset(contract_addr: Addr, amount: impl Into<Uint128>) -> AssetValidated {
     AssetValidated {
-        info: AssetInfoValidated::Cw20Token(contract_addr.to_string()),
+        info: AssetInfoValidated::Cw20Token(contract_addr),
         amount: amount.into(),
     }
 }
