@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::vec;
 
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     attr, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
     Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError,
@@ -44,8 +44,8 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response<CoreumMsg>, ContractError> {
-    let asset_infos = check_asset_infos(deps.api, &msg.asset_infos)?;
+) -> Result<Response, ContractError> {
+    let asset_infos = check_asset_infos(&msg.asset_infos)?;
 
     if asset_infos.len() != 2 {
         return Err(ContractError::InvalidNumberOfAssets { min: 2, max: 2 });
@@ -162,7 +162,7 @@ pub fn execute(
             referral_commission,
             ..
         } => {
-            let offer_asset = offer_asset.validate(deps.api)?;
+            let offer_asset = offer_asset.validate()?;
             if !offer_asset.is_native_token() {
                 return Err(ContractError::Unauthorized {});
             }
@@ -232,7 +232,7 @@ pub fn receive_cw20(
                 info,
                 sender,
                 AssetValidated {
-                    info: AssetInfoValidated::Token(contract_addr),
+                    info: AssetInfoValidated::Cw20Token(contract_addr.to_string()),
                     amount: cw20_msg.amount,
                 },
                 belief_price,
@@ -289,7 +289,7 @@ pub fn provide_liquidity(
     slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut assets = check_assets(deps.api, &assets)?;
+    let mut assets = check_assets(&assets)?;
     check_if_frozen(&deps)?;
 
     if assets.len() > 2 {
@@ -947,7 +947,7 @@ pub fn query_simulation(
     referral: bool,
     referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let mut offer_asset = offer_asset.validate(deps.api)?;
+    let mut offer_asset = offer_asset.validate()?;
     let config = CONFIG.load(deps.storage)?;
 
     let referral_amount = if referral {
@@ -1000,7 +1000,7 @@ pub fn query_reverse_simulation(
     referral: bool,
     referral_commission: Option<Decimal>,
 ) -> StdResult<ReverseSimulationResponse> {
-    let ask_asset = ask_asset.validate(deps.api)?;
+    let ask_asset = ask_asset.validate()?;
     let config = CONFIG.load(deps.storage)?;
 
     let pools = config
