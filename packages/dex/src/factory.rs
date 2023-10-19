@@ -1,7 +1,7 @@
 use crate::{
     asset::{Asset, AssetInfo},
     fee_config::FeeConfig,
-    pair::{PairInfo, StakeConfig},
+    pool::{PairInfo, StakeConfig},
     stake::UnbondingPeriod,
 };
 
@@ -11,54 +11,54 @@ use cw20::Cw20ReceiveMsg;
 use cw_storage_plus::Map;
 use std::fmt::{Display, Formatter, Result};
 
-/// This enum describes available pair types.
+/// This enum describes available pool types.
 /// ## Available pool types
 /// ```
-/// # use dex::factory::PairType::{Custom, Stable, Xyk};
+/// # use dex::factory::PoolType::{Custom, Stable, Xyk};
 /// Xyk {};
 /// Stable {};
 /// Custom(String::from("Custom"));
 /// ```
 #[cw_serde]
-pub enum PairType {
-    /// XYK pair type
+pub enum PoolType {
+    /// XYK pool type
     Xyk {},
-    /// Stable pair type
+    /// Stable pool type
     Stable {},
-    /// Custom pair type
+    /// Custom pool type
     Custom(String),
 }
 
 /// Returns a raw encoded string representing the name of each pool type
-impl Display for PairType {
+impl Display for PoolType {
     fn fmt(&self, fmt: &mut Formatter) -> Result {
         match self {
-            PairType::Xyk {} => fmt.write_str("xyk"),
-            PairType::Stable {} => fmt.write_str("stable"),
-            PairType::Custom(pair_type) => fmt.write_str(format!("custom-{}", pair_type).as_str()),
+            PoolType::Xyk {} => fmt.write_str("xyk"),
+            PoolType::Stable {} => fmt.write_str("stable"),
+            PoolType::Custom(pool_type) => fmt.write_str(format!("custom-{}", pool_type).as_str()),
         }
     }
 }
 
-/// This structure stores a pair type's configuration.
+/// This structure stores a pool type's configuration.
 #[cw_serde]
-pub struct PairConfig {
-    /// ID of contract which is allowed to create pairs of this type
+pub struct PoolConfig {
+    /// ID of contract which is allowed to create pools of this type
     pub code_id: u64,
-    /// The pair type (provided in a [`PairType`])
-    pub pair_type: PairType,
-    /// The default fee configuration for this pair type. Total fee be overridden when creating a pair.
+    /// The pool type (provided in a [`PoolType`])
+    pub pool_type: PoolType,
+    /// The default fee configuration for this pool type. Total fee be overridden when creating a pool.
     pub fee_config: FeeConfig,
-    /// Whether a pair type is disabled or not. If it is disabled, new pairs cannot be
-    /// created, but existing ones can still read the pair configuration
+    /// Whether a pool type is disabled or not. If it is disabled, new pools cannot be
+    /// created, but existing ones can still read the pool configuration
     pub is_disabled: bool,
 }
 
 /// This structure stores the basic settings for creating a new factory contract.
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// IDs of contracts that are allowed to instantiate pairs
-    pub pair_configs: Vec<PairConfig>,
+    /// IDs of contracts that are allowed to instantiate pools
+    pub pool_configs: Vec<PoolConfig>,
     /// CW20 token contract code identifier
     pub token_code_id: u64,
     /// Contract address to send governance fees to (the protocol).
@@ -153,25 +153,25 @@ pub enum ExecuteMsg {
         token_code_id: Option<u64>,
         /// Contract address to send governance fees to (the protocol)
         fee_address: Option<String>,
-        /// Whether only the owner or anyone can create new pairs
-        only_owner_can_create_pairs: Option<bool>,
-        /// The default configuration for the staking contracts of new pairs
+        /// Whether only the owner or anyone can create new pools
+        only_owner_can_create_pools: Option<bool>,
+        /// The default configuration for the staking contracts of new pools
         default_stake_config: Option<PartialDefaultStakeConfig>,
     },
-    /// UpdatePairConfig updates the config for a pair type.
-    UpdatePairConfig {
-        /// New [`PairConfig`] settings for a pair type
-        config: PairConfig,
+    /// UpdatePoolConfig updates the config for a pool type.
+    UpdatePoolConfig {
+        /// New [`PoolConfig`] settings for a pool type
+        config: PoolConfig,
     },
-    /// CreatePair instantiates a new pair contract.
-    CreatePair {
-        /// The pair type (exposed in [`PairType`])
-        pair_type: PairType,
+    /// CreatePool instantiates a new pool contract.
+    CreatePool {
+        /// The pool type (exposed in [`PoolType`])
+        pool_type: PoolType,
         /// The assets to create the pool for
         asset_infos: Vec<AssetInfo>,
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
-        /// The total fees (in bps) charged by a pair of this type.
+        /// The total fees (in bps) charged by a pool of this type.
         /// In relation to the returned amount of tokens.
         /// If not provided, the default is used.
         total_fee_bps: Option<u16>,
@@ -179,15 +179,15 @@ pub enum ExecuteMsg {
         #[serde(default)]
         staking_config: PartialStakeConfig,
     },
-    /// UpdatePairFees updates the fees for a pair.
-    /// This just sends the corresponding message to the pair.
-    UpdatePairFees {
-        /// The pair to update
+    /// UpdatePoolFees updates the fees for a pool.
+    /// This just sends the corresponding message to the pool.
+    UpdatePoolFees {
+        /// The pool to update
         asset_infos: Vec<AssetInfo>,
         /// The new fee config
         fee_config: FeeConfig,
     },
-    /// Deregister removes a previously created pair.
+    /// Deregister removes a previously created pool.
     Deregister {
         /// The assets for which we deregister a pool
         asset_infos: Vec<AssetInfo>,
@@ -204,18 +204,18 @@ pub enum ExecuteMsg {
     DropOwnershipProposal {},
     /// Used to claim contract ownership.
     ClaimOwnership {},
-    /// MarkAsMigrated marks pairs as migrated
-    MarkAsMigrated { pairs: Vec<String> },
-    /// Combines pair creation and creation of distribution flows for the pair staking contract
+    /// MarkAsMigrated marks pools as migrated
+    MarkAsMigrated { pools: Vec<String> },
+    /// Combines pool creation and creation of distribution flows for the pool staking contract
     /// into one message
-    CreatePairAndDistributionFlows {
-        /// The pair type (exposed in [`PairType`])
-        pair_type: PairType,
+    CreatePoolAndDistributionFlows {
+        /// The pool type (exposed in [`PoolType`])
+        pool_type: PoolType,
         /// The assets to create the pool for
         asset_infos: Vec<AssetInfo>,
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
-        /// The total fees (in bps) charged by a pair of this type.
+        /// The total fees (in bps) charged by a pool of this type.
         /// In relation to the returned amount of tokens.
         /// If not provided, the default is used.
         total_fee_bps: Option<u16>,
@@ -225,9 +225,9 @@ pub enum ExecuteMsg {
         /// The distribution flows to create
         distribution_flows: Vec<DistributionFlow>,
     },
-    /// Creates a distribution flow for the pair staking contract
+    /// Creates a distribution flow for the pool staking contract
     CreateDistributionFlow {
-        /// The assets pair for which the distribution flow will be created
+        /// The assets pool for which the distribution flow will be created
         asset_infos: Vec<AssetInfo>,
         /// The asset that will be distributed
         asset: AssetInfo,
@@ -242,15 +242,15 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub enum ReceiveMsg {
-    /// CreatePair instantiates a new pair contract.
-    CreatePair {
-        /// The pair type (exposed in [`PairType`])
-        pair_type: PairType,
+    /// CreatePool instantiates a new pool contract.
+    CreatePool {
+        /// The pool type (exposed in [`PoolType`])
+        pool_type: PoolType,
         /// The assets to create the pool for
         asset_infos: Vec<AssetInfo>,
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
-        /// The total fees (in bps) charged by a pair of this type.
+        /// The total fees (in bps) charged by a pool of this type.
         /// In relation to the returned amount of tokens.
         /// If not provided, the default is used.
         total_fee_bps: Option<u16>,
@@ -258,14 +258,14 @@ pub enum ReceiveMsg {
         #[serde(default)]
         staking_config: PartialStakeConfig,
     },
-    CreatePairAndDistributionFlows {
-        /// The pair type (exposed in [`PairType`])
-        pair_type: PairType,
+    CreatePoolAndDistributionFlows {
+        /// The pool type (exposed in [`PoolType`])
+        pool_type: PoolType,
         /// The assets to create the pool for
         asset_infos: Vec<AssetInfo>,
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
-        /// The total fees (in bps) charged by a pair of this type.
+        /// The total fees (in bps) charged by a pool of this type.
         /// In relation to the returned amount of tokens.
         /// If not provided, the default is used.
         total_fee_bps: Option<u16>,
@@ -308,34 +308,34 @@ pub enum QueryMsg {
     /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
     #[returns(ConfigResponse)]
     Config {},
-    /// Pair returns information about a specific pair according to the specified assets.
+    /// Pool returns information about a specific pool according to the specified assets.
     #[returns(PairInfo)]
-    Pair {
-        /// The assets for which we return a pair
+    Pool {
+        /// The assets for which we return a pool
         asset_infos: Vec<AssetInfo>,
     },
-    /// Pairs returns an array of pairs and their information according to the specified parameters in `start_after` and `limit` variables.
-    #[returns(PairsResponse)]
-    Pairs {
-        /// The pair item to start reading from. It is an [`Option`] type that accepts [`AssetInfo`] elements.
+    /// Pools returns an array of pools and their information according to the specified parameters in `start_after` and `limit` variables.
+    #[returns(PoolsResponse)]
+    Pools {
+        /// The pool item to start reading from. It is an [`Option`] type that accepts [`AssetInfo`] elements.
         start_after: Option<Vec<AssetInfo>>,
-        /// The number of pairs to read and return. It is an [`Option`] type.
+        /// The number of pools to read and return. It is an [`Option`] type.
         limit: Option<u32>,
     },
-    /// FeeInfo returns default fee parameters for a specific pair type.
-    /// If you want to get the fee parameters for a specific pair, use the `Pair` query.
+    /// FeeInfo returns default fee parameters for a specific pool type.
+    /// If you want to get the fee parameters for a specific pool, use the `Pool` query.
     /// The response is returned using a [`FeeInfoResponse`] structure
     #[returns(FeeInfoResponse)]
     FeeInfo {
-        /// The pair type for which we return fee information. Pair type is a [`PairType`] struct
-        pair_type: PairType,
+        /// The pool type for which we return fee information. Pool type is a [`PoolType`] struct
+        pool_type: PoolType,
     },
-    /// Returns a vector that contains blacklisted pair types
-    #[returns(Vec<PairType>)]
-    BlacklistedPairTypes {},
-    /// Returns a vector that contains pair addresses that are not migrated
+    /// Returns a vector that contains blacklisted pool types
+    #[returns(Vec<PoolType>)]
+    BlacklistedPoolTypes {},
+    /// Returns a vector that contains pool addresses that are not migrated
     #[returns(Vec<Addr>)]
-    PairsToMigrate {},
+    PoolsToMigrate {},
     /// Returns true if the given address is an LP token staking contract
     /// Used by the `gauge-adapter` contract
     #[returns(bool)]
@@ -347,25 +347,25 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     /// Addres of owner that is allowed to change contract parameters
     pub owner: Addr,
-    /// IDs of contracts which are allowed to create pairs
-    pub pair_configs: Vec<PairConfig>,
+    /// IDs of contracts which are allowed to create pools
+    pub pool_configs: Vec<PoolConfig>,
     /// CW20 token contract code identifier
     pub token_code_id: u64,
     /// Address of contract to send governance fees to (the protocol)
     pub fee_address: Option<Addr>,
     /// Maximum referral commission
     pub max_referral_commission: Decimal,
-    /// When this is set to `true`, only the owner can create pairs
-    pub only_owner_can_create_pairs: bool,
+    /// When this is set to `true`, only the owner can create pools
+    pub only_owner_can_create_pools: bool,
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
 }
 
 /// A custom struct for each query response that returns an array of objects of type [`PairInfo`].
 #[cw_serde]
-pub struct PairsResponse {
-    /// Arrays of structs containing information about multiple pairs
-    pub pairs: Vec<PairInfo>,
+pub struct PoolsResponse {
+    /// Arrays of structs containing information about multiple pools
+    pub pools: Vec<PairInfo>,
 }
 
 /// A custom struct for each query response that returns an object of type [`FeeInfoResponse`].
@@ -398,9 +398,9 @@ pub enum MigrateMsg {
     AddPermissionlessPoolDeposit(Asset),
 }
 
-/// Map which contains a list of all pairs which are able to convert X <> Y assets.
+/// Map which contains a list of all pools which are able to convert X <> Y assets.
 /// Example: given 3 pools (X, Y), (X,Y,Z) and (X,Y,Z,W), the map will contain the following entries
-/// (pair addresses):
+/// (pool addresses):
 /// `ROUTE[X][Y] = [(X,Y), (X,Y,Z), (X,Y,Z,W)]`
 /// `ROUTE[X][Z] = [(X,Y,Z), (X,Y,Z,W)]`
 /// `ROUTE[X][W] = [(X,Y,Z,W)]`

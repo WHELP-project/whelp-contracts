@@ -56,7 +56,7 @@ pub fn handle_reply(
     deps: &DepsMut<CoreumQueries>,
     msg: Reply,
     factory: &Addr,
-    pair_info: &mut PairInfo,
+    pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
     let msg_id = msg.id;
     // parse the reply
@@ -64,26 +64,26 @@ pub fn handle_reply(
         StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
     })?;
     match msg_id {
-        INSTANTIATE_TOKEN_REPLY_ID => instantiate_lp_token_reply(deps, res, factory, pair_info),
-        INSTANTIATE_STAKE_REPLY_ID => instantiate_staking_reply(deps, res, pair_info),
+        INSTANTIATE_TOKEN_REPLY_ID => instantiate_lp_token_reply(deps, res, factory, pool_info),
+        INSTANTIATE_STAKE_REPLY_ID => instantiate_staking_reply(deps, res, pool_info),
         _ => Err(ContractError::UnknownReply(msg_id)),
     }
 }
 
-/// Sets the `pair_info`'s `liquidity_token` field to the address of the newly instantiated
+/// Sets the `pool_info`'s `liquidity_token` field to the address of the newly instantiated
 /// lp token contract, reads the temporary staking config and sends a sub-message to instantiate
 /// the staking contract.
 pub fn instantiate_lp_token_reply(
     deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
     factory: &Addr,
-    pair_info: &mut PairInfo,
+    pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
-    if pair_info.liquidity_token != Addr::unchecked("") {
+    if pool_info.liquidity_token != Addr::unchecked("") {
         return Err(ContractError::AddrAlreadySet("liquidity_token"));
     }
 
-    pair_info.liquidity_token = deps.api.addr_validate(&res.contract_address)?;
+    pool_info.liquidity_token = deps.api.addr_validate(&res.contract_address)?;
 
     // now that we have the lp token, create the staking contract
     let staking_cfg = TMP_STAKING_CONFIG.load(deps.storage)?;
@@ -93,21 +93,21 @@ pub fn instantiate_lp_token_reply(
             staking_cfg.into_init_msg(&deps.querier, res.contract_address, factory.to_string())?,
             INSTANTIATE_STAKE_REPLY_ID,
         ))
-        .add_attribute("liquidity_token_addr", &pair_info.liquidity_token))
+        .add_attribute("liquidity_token_addr", &pool_info.liquidity_token))
 }
 
-/// Sets the `pair_info`'s `staking_addr` field to the address of the newly instantiated
+/// Sets the `pool_info`'s `staking_addr` field to the address of the newly instantiated
 /// staking contract, and returns a response.
 pub fn instantiate_staking_reply(
     deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
-    pair_info: &mut PairInfo,
+    pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
-    if pair_info.staking_addr != Addr::unchecked("") {
+    if pool_info.staking_addr != Addr::unchecked("") {
         return Err(ContractError::AddrAlreadySet("staking"));
     }
 
-    pair_info.staking_addr = deps.api.addr_validate(&res.contract_address)?;
+    pool_info.staking_addr = deps.api.addr_validate(&res.contract_address)?;
 
-    Ok(Response::new().add_attribute("staking_addr", &pair_info.staking_addr))
+    Ok(Response::new().add_attribute("staking_addr", &pool_info.staking_addr))
 }

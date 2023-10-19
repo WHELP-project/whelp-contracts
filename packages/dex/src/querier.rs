@@ -1,10 +1,10 @@
 use crate::asset::{Asset, AssetInfo, AssetInfoValidated};
 use crate::factory::{
-    ConfigResponse as FactoryConfigResponse, FeeInfoResponse, PairType, PairsResponse,
+    ConfigResponse as FactoryConfigResponse, FeeInfoResponse, PoolType, PoolsResponse,
     QueryMsg as FactoryQueryMsg,
 };
-use crate::pair::{
-    PairInfo, QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse,
+use crate::pool::{
+    PairInfo, QueryMsg as PoolQueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
 
 use coreum_wasm_sdk::{assetft, core::CoreumQueries};
@@ -147,16 +147,16 @@ pub struct FeeInfo {
     pub protocol_fee_rate: Decimal,
 }
 
-/// Returns the fee information for a specific pair type.
+/// Returns the fee information for a specific pool type.
 ///
-/// * **pair_type** pair type we query information for.
+/// * **pool_type** pool type we query information for.
 pub fn query_fee_info(
     querier: &QuerierWrapper,
     factory_contract: impl Into<String>,
-    pair_type: PairType,
+    pool_type: PoolType,
 ) -> StdResult<FeeInfo> {
     let res: FeeInfoResponse =
-        querier.query_wasm_smart(factory_contract, &FactoryQueryMsg::FeeInfo { pair_type })?;
+        querier.query_wasm_smart(factory_contract, &FactoryQueryMsg::FeeInfo { pool_type })?;
 
     Ok(FeeInfo {
         fee_address: res.fee_address,
@@ -165,47 +165,47 @@ pub fn query_fee_info(
     })
 }
 
-/// Accepts two tokens as input and returns a pair's information.
-pub fn query_pair_info(
+/// Accepts two tokens as input and returns a pool's information.
+pub fn query_pool_info(
     querier: &QuerierWrapper,
     factory_contract: impl Into<String>,
     asset_infos: &[AssetInfo],
 ) -> StdResult<PairInfo> {
     querier.query_wasm_smart(
         factory_contract,
-        &FactoryQueryMsg::Pair {
+        &FactoryQueryMsg::Pool {
             asset_infos: asset_infos.to_vec(),
         },
     )
 }
 
 /// Returns a vector that contains items of type [`PairInfo`] which
-/// symbolize pairs instantiated in the Dex factory
-pub fn query_pairs_info(
+/// symbolize pools instantiated in the Dex factory
+pub fn query_pools_info(
     querier: &QuerierWrapper,
     factory_contract: impl Into<String>,
     start_after: Option<Vec<AssetInfo>>,
     limit: Option<u32>,
-) -> StdResult<PairsResponse> {
+) -> StdResult<PoolsResponse> {
     querier.query_wasm_smart(
         factory_contract,
-        &FactoryQueryMsg::Pairs { start_after, limit },
+        &FactoryQueryMsg::Pools { start_after, limit },
     )
 }
 
 /// Returns information about a swap simulation using a [`SimulationResponse`] object.
 ///
-/// * **pair_contract** address of the pair for which we return swap simulation info.
+/// * **pool_contract** address of the pool for which we return swap simulation info.
 ///
 /// * **offer_asset** asset that is being swapped.
 pub fn simulate(
     querier: &QuerierWrapper,
-    pair_contract: impl Into<String>,
+    pool_contract: impl Into<String>,
     offer_asset: &Asset,
 ) -> StdResult<SimulationResponse> {
     querier.query_wasm_smart(
-        pair_contract,
-        &PairQueryMsg::Simulation {
+        pool_contract,
+        &PoolQueryMsg::Simulation {
             offer_asset: offer_asset.clone(),
             ask_asset_info: None,
             referral: false,
@@ -216,17 +216,17 @@ pub fn simulate(
 
 /// Returns information about a reverse swap simulation using a [`ReverseSimulationResponse`] object.
 ///
-/// * **pair_contract**  address of the pair for which we return swap simulation info.
+/// * **pool_contract**  address of the pool for which we return swap simulation info.
 ///
 /// * **ask_asset** represents the asset that we swap to.
 pub fn reverse_simulate(
     querier: &QuerierWrapper,
-    pair_contract: impl Into<String>,
+    pool_contract: impl Into<String>,
     ask_asset: &Asset,
 ) -> StdResult<ReverseSimulationResponse> {
     querier.query_wasm_smart(
-        pair_contract,
-        &PairQueryMsg::ReverseSimulation {
+        pool_contract,
+        &PoolQueryMsg::ReverseSimulation {
             offer_asset_info: None,
             ask_asset: ask_asset.clone(),
             referral: false,

@@ -26,16 +26,16 @@ pub struct Asset {
 }
 ```
 
-### PairInfo
+### PoolInfo
 
-It is used to represent response data coming from a [Pair-Info-Querier](#Pair-Info-Querier).
+It is used to represent response data coming from a [Pool-Info-Querier](#Pool-Info-Querier).
 
 ```rust
-pub struct PairInfo {
+pub struct PoolInfo {
     pub asset_infos: [AssetInfo; 2],
     pub contract_addr: Addr,
     pub liquidity_token: Addr,
-    pub pair_type: PairType,
+    pub pool_type: PoolType,
 }
 ```
 
@@ -76,19 +76,19 @@ pub fn query_supply(
 ) -> StdResult<Uint128>
 ```
 
-### Pair Info Querier
+### Pool Info Querier
 
-Accepts two tokens as input and returns a pair's information.
+Accepts two tokens as input and returns a pool's information.
 
 ```rust
-pub fn query_pair_info(
+pub fn query_pool_info(
     querier: &QuerierWrapper,
     factory_contract: impl Into<String>,
     asset_infos: &[AssetInfo; 2],
-) -> StdResult<PairInfo>
+) -> StdResult<PoolInfo>
 ```
 
-## Swap Pairs Simulating
+## Swap Pools Simulating
 
 ### Simulate
 
@@ -97,7 +97,7 @@ Simulates a swap and returns the output amount, the spread and commission amount
 ```rust
 pub fn simulate(
     querier: &QuerierWrapper,
-    pair_contract: impl Into<String>,
+    pool_contract: impl Into<String>,
     offer_asset: &Asset,
 ) -> StdResult<SimulationResponse>
 ```
@@ -109,7 +109,7 @@ Simulates a reverse swap and returns an input amount, the spread and commission 
 ```rust
 pub fn reverse_simulate(
     querier: &QuerierWrapper,
-    pair_contract: impl Into<String>,
+    pool_contract: impl Into<String>,
     offer_asset: &Asset,
 ) -> StdResult<ReverseSimulationResponse>
 ```

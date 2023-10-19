@@ -6,19 +6,19 @@
 graph LR
 
 subgraph WHELP Dex
-    subgraph Pairs
-        Factory -->|Deploys and manages| XYK_Pair
-        Factory -->|Deploys and manages| Stable_Pair
+    subgraph Pools
+        Factory -->|Deploys and manages| XYK_Pool
+        Factory -->|Deploys and manages| Stable_Pool
     end
     subgraph Staking
-        XYK_Pair -->|Initializes| LP_Token_XYK
-        XYK_Pair -->|Initializes| Stake_Contract_XYK
-        Stable_Pair -->|Initializes| LP_Token_Stable
-        Stable_Pair -->|Initializes| Stake_Contract_Stable
+        XYK_Pool -->|Initializes| LP_Token_XYK
+        XYK_Pool -->|Initializes| Stake_Contract_XYK
+        Stable_Pool -->|Initializes| LP_Token_Stable
+        Stable_Pool -->|Initializes| Stake_Contract_Stable
     end
     subgraph Fees
-        XYK_Pair --> |Sends fees in $COREUM to| Fee_Collector
-        Stable_Pair --> |Sends fees in $COREUM to| Fee_Collector
+        XYK_Pool --> |Sends fees in $COREUM to| Fee_Collector
+        Stable_Pool --> |Sends fees in $COREUM to| Fee_Collector
     end
 end
 ```
@@ -28,17 +28,17 @@ end
 ```mermaid
 sequenceDiagram
     participant User
-    participant XYK_Pair
+    participant XYK_Pool
     participant XYK_LP_Token
     participant XYK_Stake_Contract
 
-    User ->> XYK_Pair: Provides liquidity using
-    XYK_Pair ->> XYK_LP_Token: Issues
+    User ->> XYK_Pool: Provides liquidity using
+    XYK_Pool ->> XYK_LP_Token: Issues
     XYK_LP_Token -->> User: is sent to
     User ->> XYK_Stake_Contract: Bonds XYK_LP_Token in
 ```
 
-## Swapping between assets using a pair contract
+## Swapping between assets using a pool contract
 
 User can execute swap operations on any liquidity pool.
 
@@ -86,9 +86,9 @@ sequenceDiagram
 
 Factory is a contract responsible mainly for creating new liquidity pools. It automates process of deploying several layers of smart contracts and helps to manage them. It allows to set multiple configurable options, like timestamp when trading will be enabled (disabled by default to avoid early swaps).
 
-1. **Pair Management**:
-   - `CreatePair`: Create liquidity pools with asset pairs, fees, and staking parameters.
-   - `UpdatePairConfig`: Modify liquidity pool settings.
+1. **Pool Management**:
+   - `CreatePool`: Create liquidity pools with asset pools, fees, and staking parameters.
+   - `UpdatePoolConfig`: Modify liquidity pool settings.
    - `Deregister`: Deactivate and remove pools while retaining historical data.
    - `DefaultStakeConfig`: Set default values for LP token staking contracts.
 
@@ -102,16 +102,16 @@ Factory is a contract responsible mainly for creating new liquidity pools. It au
    - `Owner Address`: Specify contract owner with specific permissions.
 
 
-## Pair (liquidity pool) contract
+## Pool (liquidity pool) contract
 
-Pair contract is a cornerstone of a decentralized exchange. It allows user to provide liqudiity, swap and withdraw liquidity. When user deposits tokens, contract in returns mints LP Share Tokens, which can be staked in Staking Contract for additional rewards.
+Pool contract is a cornerstone of a decentralized exchange. It allows user to provide liqudiity, swap and withdraw liquidity. When user deposits tokens, contract in returns mints LP Share Tokens, which can be staked in Staking Contract for additional rewards.
 
 1. **Liquidity Pool Management**:
    - **ProvideLiquidity**: Deposit assets to provide liquidity with slippage tolerance.
    - **Swap**: Facilitate asset swaps within the pool with user-specified parameters.
 
 2. **Configuration Updates**:
-   - **UpdateConfig**: Modify the pair's settings, including assets, fees, and options.
+   - **UpdateConfig**: Modify the pool's settings, including assets, fees, and options.
    - **UpdateFees**: Adjust the fee configuration to align with operational requirements.
 
 3. **Contract Ownership** switch mechanism:

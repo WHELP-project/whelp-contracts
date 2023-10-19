@@ -6,10 +6,10 @@ const MAX_PROTOCOL_FEE_BPS: u16 = 10_000;
 
 #[cw_serde]
 pub struct FeeConfig {
-    /// The total fees (in bps) charged by a pair of this type.
+    /// The total fees (in bps) charged by a pool of this type.
     /// In relation to the returned amount of tokens
     pub total_fee_bps: u16,
-    /// The amount of fees (in bps) collected by the protocol from this pair type.
+    /// The amount of fees (in bps) collected by the protocol from this pool type.
     /// In relation to the total fee
     pub protocol_fee_bps: u16,
 }

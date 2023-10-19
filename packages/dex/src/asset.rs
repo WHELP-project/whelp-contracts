@@ -10,8 +10,8 @@ use cosmwasm_std::{
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse, TokenInfoResponse};
 use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 
-use crate::pair::PairInfo;
-use crate::pair::QueryMsg as PairQueryMsg;
+use crate::pool::PairInfo;
+use crate::pool::QueryMsg as PoolQueryMsg;
 use crate::querier::{
     query_balance, query_token_balance, query_token_symbol, NATIVE_TOKEN_PRECISION,
 };
@@ -449,16 +449,16 @@ pub fn token_asset_info(contract_addr: &str) -> AssetInfo {
     AssetInfo::Cw20Token(contract_addr.to_string())
 }
 
-/// Returns [`PairInfo`] by specified pool address.
+/// Returns [`PoolInfo`] by specified pool address.
 ///
 /// * **pool_addr** address of the pool.
 pub fn pair_info_by_pool(querier: &QuerierWrapper, pool: impl Into<String>) -> StdResult<PairInfo> {
     let minter_info: MinterResponse = querier.query_wasm_smart(pool, &Cw20QueryMsg::Minter {})?;
 
-    let pair_info: PairInfo =
-        querier.query_wasm_smart(minter_info.minter, &PairQueryMsg::Pair {})?;
+    let pool_info: PairInfo =
+        querier.query_wasm_smart(minter_info.minter, &PoolQueryMsg::Pool {})?;
 
-    Ok(pair_info)
+    Ok(pool_info)
 }
 
 /// Checks swap parameters.

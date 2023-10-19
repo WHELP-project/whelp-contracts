@@ -2,7 +2,7 @@ use crate::asset::MINIMUM_LIQUIDITY_AMOUNT;
 use cosmwasm_std::{CheckedMultiplyRatioError, ConversionOverflowError, OverflowError, StdError};
 use thiserror::Error;
 
-/// This enum describes pair contract errors
+/// This enum describes pool contract errors
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -44,8 +44,8 @@ pub enum ContractError {
     #[error("Asset mismatch between the requested and the stored asset in contract")]
     AssetMismatch {},
 
-    #[error("Pair is not migrated to the new admin!")]
-    PairIsNotMigrated {},
+    #[error("Pool is not migrated to the new admin!")]
+    PoolIsNotMigrated {},
 
     #[error("Initial liquidity must be more than {}", MINIMUM_LIQUIDITY_AMOUNT)]
     MinimumLiquidityAmountError {},
@@ -84,7 +84,7 @@ pub enum ContractError {
     #[error("It is not possible to provide liquidity with one token for an empty pool")]
     InvalidProvideLPsWithSingleToken {},
 
-    #[error("The asset {0} does not belong to the pair")]
+    #[error("The asset {0} does not belong to the pool")]
     InvalidAsset(String),
 
     #[error("Fee bps in must be smaller than or equal to 10,000")]
@@ -97,7 +97,7 @@ pub enum ContractError {
     SameAssets {},
 
     #[error(
-        "Invalid number of assets. This pair supports at least {min} and at most {max} assets within a pool"
+        "Invalid number of assets. This pool supports at least {min} and at most {max} assets within a pool"
     )]
     InvalidNumberOfAssets { min: usize, max: usize },
 

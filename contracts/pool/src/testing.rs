@@ -14,15 +14,15 @@ use proptest::prelude::*;
 
 use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use dex::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated, MINIMUM_LIQUIDITY_AMOUNT};
-use dex::factory::PairType;
+use dex::factory::PoolType;
 use dex::fee_config::FeeConfig;
 use dex::oracle::{SamplePeriod, TwapResponse};
-use dex::pair::{
+use dex::pool::{
     assert_max_spread, ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo,
     PoolResponse, ReverseSimulationResponse, SimulationResponse, StakeConfig, LP_TOKEN_PRECISION,
     TWAP_PRECISION,
 };
-use dex::pair::{MigrateMsg, QueryMsg};
+use dex::pool::{MigrateMsg, QueryMsg};
 
 use crate::contract::{
     accumulate_prices, compute_swap, execute, instantiate, migrate, query_pool,
@@ -40,11 +40,11 @@ fn store_liquidity_token(deps: DepsMut<CoreumQueries>, contract_addr: String) {
     };
 
     let mut config = CONFIG.load(deps.storage).unwrap();
-    let _res = dex::pair::instantiate_lp_token_reply(
+    let _res = dex::pool::instantiate_lp_token_reply(
         &deps,
         res,
         &config.factory_addr,
-        &mut config.pair_info,
+        &mut config.pool_info,
     )
     .unwrap();
     CONFIG.save(deps.storage, &config).unwrap();
@@ -115,10 +115,10 @@ fn proper_initialization() {
     store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
 
     // It worked, let's query the state
-    let pair_info = CONFIG.load(deps.as_ref().storage).unwrap().pair_info;
-    assert_eq!(Addr::unchecked("liquidity0000"), pair_info.liquidity_token);
+    let pool_info = CONFIG.load(deps.as_ref().storage).unwrap().pool_info;
+    assert_eq!(Addr::unchecked("liquidity0000"), pool_info.liquidity_token);
     assert_eq!(
-        pair_info.asset_infos,
+        pool_info.asset_infos,
         [
             AssetInfoValidated::Native("uusd".to_string()),
             AssetInfoValidated::Token(Addr::unchecked("asset0000"))
@@ -1291,7 +1291,7 @@ fn proper_initialization() {
 //     .unwrap_err();
 //     assert_eq!(
 //         err.to_string(),
-//         "Generic error: Given offer asset does not belong in the pair"
+//         "Generic error: Given offer asset does not belong in the pool"
 //     );
 //
 //     let simulation_res: SimulationResponse = query_simulation(
@@ -1321,7 +1321,7 @@ fn proper_initialization() {
 //     .unwrap_err();
 //     assert_eq!(
 //         err.to_string(),
-//         "Generic error: Given ask asset doesn't belong to pairs"
+//         "Generic error: Given ask asset doesn't belong to pools"
 //     );
 //
 //     let reverse_simulation_res: ReverseSimulationResponse = query_reverse_simulation(
@@ -1853,15 +1853,15 @@ fn proper_initialization() {
 //         let config = accumulate_prices(
 //             &env,
 //             &Config {
-//                 pair_info: PairInfo {
+//                 pool_info: PairInfo {
 //                     asset_infos: vec![
 //                         AssetInfoValidated::Native("uusd".to_string()),
 //                         AssetInfoValidated::Token(Addr::unchecked("asset0000")),
 //                     ],
-//                     contract_addr: Addr::unchecked("pair"),
+//                     contract_addr: Addr::unchecked("pool"),
 //                     staking_addr: Addr::unchecked("stake"),
 //                     liquidity_token: Addr::unchecked("lp_token"),
-//                     pair_type: PairType::Xyk {}, // Implemented in mock querier
+//                     pool_type: PoolType::Xyk {}, // Implemented in mock querier
 //                     fee_config: FeeConfig {
 //                         total_fee_bps: 0,
 //                         protocol_fee_bps: 0,
