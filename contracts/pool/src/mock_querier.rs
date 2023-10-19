@@ -37,7 +37,7 @@ pub struct WasmMockQuerier {
 
 #[derive(Clone, Default)]
 pub struct TokenQuerier {
-    // This lets us iterate over all pairs that match the first string
+    // This lets us iterate over all pools that match the first string
     balances: HashMap<String, HashMap<String, Uint128>>,
 }
 
@@ -97,11 +97,11 @@ impl WasmMockQuerier {
                         Config {} => SystemResult::Ok(
                             to_binary(&ConfigResponse {
                                 owner: Addr::unchecked("owner"),
-                                pair_configs: vec![],
+                                pool_configs: vec![],
                                 token_code_id: 0,
                                 fee_address: Some(Addr::unchecked("fee_address")),
                                 max_referral_commission: Decimal::one(),
-                                only_owner_can_create_pairs: true,
+                                only_owner_can_create_pools: true,
                                 trading_starts: None,
                             })
                             .into(),

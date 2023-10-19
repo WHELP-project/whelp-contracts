@@ -16,15 +16,15 @@ use dex::asset::{
     MINIMUM_LIQUIDITY_AMOUNT,
 };
 use dex::decimal2decimal256;
-use dex::factory::{ConfigResponse as FactoryConfig, PairType};
+use dex::factory::{ConfigResponse as FactoryConfig, PoolType};
 use dex::fee_config::FeeConfig;
-use dex::pair::{
+use dex::pool::{
     add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
     create_lp_token, get_share_in_assets, handle_referral, handle_reply, mint_token_message,
     save_tmp_staking_config, take_referral, ConfigResponse, ContractError, Cw20HookMsg, MigrateMsg,
     DEFAULT_SLIPPAGE, MAX_ALLOWED_SLIPPAGE,
 };
-use dex::pair::{
+use dex::pool::{
     CumulativePricesResponse, ExecuteMsg, InstantiateMsg, PairInfo, PoolResponse, QueryMsg,
     ReverseSimulationResponse, SimulationResponse, TWAP_PRECISION,
 };
@@ -33,7 +33,7 @@ use dex::querier::{query_factory_config, query_supply};
 use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN};
 
 /// Contract name that is used for migration.
-const CONTRACT_NAME: &str = "dex-pair";
+const CONTRACT_NAME: &str = "dex-pool";
 /// Contract version that is used for migration.
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -60,12 +60,12 @@ pub fn instantiate(
     let create_lp_token_msg = create_lp_token(&deps.querier, &asset_infos)?;
 
     let config = Config {
-        pair_info: PairInfo {
+        pool_info: PairInfo {
             contract_addr: env.contract.address,
             liquidity_token: Addr::unchecked(""),
             staking_addr: Addr::unchecked(""),
             asset_infos,
-            pair_type: PairType::Xyk {},
+            pool_type: PoolType::Xyk {},
             fee_config: msg.fee_config,
         },
         factory_addr,
@@ -90,7 +90,7 @@ pub fn reply(
     msg: Reply,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
-    let res = handle_reply(&deps, msg, &config.factory_addr, &mut config.pair_info)?;
+    let res = handle_reply(&deps, msg, &config.factory_addr, &mut config.pool_info)?;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(res)
@@ -130,7 +130,7 @@ pub fn migrate(
 ///             assets,
 ///             slippage_tolerance,
 ///             receiver,
-///         }** Provides liquidity in the pair with the specified input parameters.
+///         }** Provides liquidity in the pool with the specified input parameters.
 ///
 /// * **ExecuteMsg::Swap {
 ///             offer_asset,
@@ -218,7 +218,7 @@ pub fn receive_cw20(
         } => {
             // Only asset contract can execute this message
             check_cw20_in_pool(
-                &CONFIG.load(deps.storage)?.pair_info.asset_infos,
+                &CONFIG.load(deps.storage)?.pool_info.asset_infos,
                 &info.sender,
             )?;
 
@@ -263,13 +263,13 @@ pub fn update_fees(
     }
 
     // update config
-    config.pair_info.fee_config = fee_config;
+    config.pool_info.fee_config = fee_config;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::default())
 }
 
-/// Provides liquidity in the pair with the specified input parameters.
+/// Provides liquidity in the pool with the specified input parameters.
 ///
 /// * **assets** is an array with assets available in the pool.
 ///
@@ -278,9 +278,9 @@ pub fn update_fees(
 ///
 ///
 /// * **receiver** is an optional parameter which defines the receiver of the LP tokens.
-/// If no custom receiver is specified, the pair will mint LP tokens for the function caller.
+/// If no custom receiver is specified, the pool will mint LP tokens for the function caller.
 ///
-/// NOTE - the address that wants to provide liquidity should approve the pair contract to pull its relevant tokens.
+/// NOTE - the address that wants to provide liquidity should approve the pool contract to pull its relevant tokens.
 pub fn provide_liquidity(
     mut deps: DepsMut<CoreumQueries>,
     env: Env,
@@ -305,7 +305,7 @@ pub fn provide_liquidity(
 
     let mut config = CONFIG.load(deps.storage)?;
     let mut pools = config
-        .pair_info
+        .pool_info
         .query_pools(&deps.querier, &env.contract.address)?;
 
     // maps an index in `assets` to the index of the same asset in `pools`
@@ -406,7 +406,7 @@ pub fn provide_liquidity(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
     let share = if total_share.is_zero() {
         // Initial share = collateral amount
         let share: Uint128 = deposits[0]
@@ -419,7 +419,7 @@ pub fn provide_liquidity(
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
         messages.extend(mint_token_message(
-            &config.pair_info.liquidity_token,
+            &config.pool_info.liquidity_token,
             &env.contract.address,
             MINIMUM_LIQUIDITY_AMOUNT,
         )?);
@@ -452,7 +452,7 @@ pub fn provide_liquidity(
     // Mint LP tokens for the sender or for the receiver (if set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
     messages.extend(mint_token_message(
-        &config.pair_info.liquidity_token,
+        &config.pool_info.liquidity_token,
         &receiver,
         share,
     )?);
@@ -489,7 +489,7 @@ pub fn provide_liquidity(
 }
 
 /// Withdraw liquidity from the pool.
-/// * **sender** is the address that will receive assets back from the pair contract.
+/// * **sender** is the address that will receive assets back from the pool contract.
 ///
 /// * **amount** is the amount of LP tokens to burn.
 pub fn withdraw_liquidity(
@@ -501,7 +501,7 @@ pub fn withdraw_liquidity(
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage).unwrap();
 
-    if info.sender != config.pair_info.liquidity_token {
+    if info.sender != config.pool_info.liquidity_token {
         return Err(ContractError::Unauthorized {});
     }
 
@@ -520,7 +520,7 @@ pub fn withdraw_liquidity(
         Decimal::from_ratio(new_pool0, new_pool1),
     )?;
 
-    // Accumulate prices for the pair assets
+    // Accumulate prices for the pool assets
     if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
         accumulate_prices(&env, &config, pools[0].amount, pools[1].amount)?
     {
@@ -535,7 +535,7 @@ pub fn withdraw_liquidity(
         refund_assets[0].clone().into_msg(sender.clone())?,
         refund_assets[1].clone().into_msg(sender.clone())?,
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.pair_info.liquidity_token.to_string(),
+            contract_addr: config.pool_info.liquidity_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Burn { amount })?,
             funds: vec![],
         }),
@@ -565,7 +565,7 @@ pub fn withdraw_liquidity(
 ///
 /// * **to** sets the recipient of the swap operation.
 ///
-/// NOTE - the address that wants to swap should approve the pair contract to pull the offer token.
+/// NOTE - the address that wants to swap should approve the pool contract to pull the offer token.
 #[allow(clippy::too_many_arguments)]
 pub fn swap(
     deps: DepsMut<CoreumQueries>,
@@ -600,7 +600,7 @@ pub fn swap(
 
     // If the asset balance is already increased, we should subtract the user deposit from the pool amount
     let pools = config
-        .pair_info
+        .pool_info
         .query_pools(&deps.querier, &env.contract.address)?
         .into_iter()
         .map(|mut p| {
@@ -709,7 +709,7 @@ fn do_swap(
         offer_pool.amount,
         ask_pool.amount,
         offer_amount,
-        config.pair_info.fee_config.total_fee_rate(),
+        config.pool_info.fee_config.total_fee_rate(),
     )?;
 
     // Check the max spread limit (if it was specified)
@@ -734,7 +734,7 @@ fn do_swap(
         if let Some(f) = calculate_protocol_fee(
             &ask_pool.info,
             commission_amount,
-            config.pair_info.fee_config.protocol_fee_rate(),
+            config.pool_info.fee_config.protocol_fee_rate(),
         ) {
             protocol_fee_amount = f.amount;
             fee_msg = Some(f.into_msg(fee_address)?);
@@ -819,7 +819,7 @@ pub fn accumulate_prices(
     Ok(Some((pcl0, pcl1, block_time)))
 }
 
-/// Calculates the amount of fees the protocol gets according to specified pair parameters.
+/// Calculates the amount of fees the protocol gets according to specified pool parameters.
 /// Returns a [`None`] if the protocol fee is zero, otherwise returns a [`Asset`] struct with the specified attributes.
 ///
 /// * **pool_info** contains information about the pool asset for which the commission will be calculated.
@@ -846,9 +846,9 @@ pub fn calculate_protocol_fee(
 /// Exposes all the queries available in the contract.
 ///
 /// ## Queries
-/// * **QueryMsg::Pair {}** Returns information about the pair in an object of type [`PairInfo`].
+/// * **QueryMsg::Pool {}** Returns information about the pool in an object of type [`PairInfo`].
 ///
-/// * **QueryMsg::Pool {}** Returns information about the amount of assets in the pair contract as
+/// * **QueryMsg::Pool {}** Returns information about the amount of assets in the pool contract as
 /// well as the amount of LP tokens issued using an object of type [`PoolResponse`].
 ///
 /// * **QueryMsg::Share { amount }** Returns the amount of assets that could be withdrawn from the pool
@@ -865,11 +865,11 @@ pub fn calculate_protocol_fee(
 /// * **QueryMsg::HistoricalPrices { duration }** Returns historical price information for the assets in the
 /// pool using a [`HistoricalPricesResponse`] object.
 ///
-/// * **QueryMsg::Config {}** Returns the configuration for the pair contract using a [`ConfigResponse`] object.
+/// * **QueryMsg::Config {}** Returns the configuration for the pool contract using a [`ConfigResponse`] object.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Pair {} => to_binary(&CONFIG.load(deps.storage)?.pair_info),
+        QueryMsg::Pair {} => to_binary(&CONFIG.load(deps.storage)?.pool_info),
         QueryMsg::Pool {} => to_binary(&query_pool(deps)?),
         QueryMsg::Share { amount } => to_binary(&query_share(deps, amount)?),
         QueryMsg::Simulation {
@@ -902,7 +902,7 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
         } => to_binary(&dex::oracle::query_oracle_range(
             deps.storage,
             &env,
-            &CONFIG.load(deps.storage)?.pair_info.asset_infos,
+            &CONFIG.load(deps.storage)?.pool_info.asset_infos,
             duration,
             start_age,
             end_age,
@@ -912,7 +912,7 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
     }
 }
 
-/// Returns the amounts of assets in the pair contract as well as the amount of LP
+/// Returns the amounts of assets in the pool contract as well as the amount of LP
 /// tokens currently minted in an object of type [`PoolResponse`].
 pub fn query_pool(deps: Deps<CoreumQueries>) -> StdResult<PoolResponse> {
     let config = CONFIG.load(deps.storage)?;
@@ -958,8 +958,8 @@ pub fn query_simulation(
     };
 
     let pools = config
-        .pair_info
-        .query_pools(&deps.querier, &config.pair_info.contract_addr)?;
+        .pool_info
+        .query_pools(&deps.querier, &config.pool_info.contract_addr)?;
 
     let offer_pool: AssetValidated;
     let ask_pool: AssetValidated;
@@ -971,7 +971,7 @@ pub fn query_simulation(
         ask_pool = pools[0].clone();
     } else {
         return Err(StdError::generic_err(
-            "Given offer asset does not belong in the pair",
+            "Given offer asset does not belong in the pool",
         ));
     }
 
@@ -979,7 +979,7 @@ pub fn query_simulation(
         offer_pool.amount,
         ask_pool.amount,
         offer_asset.amount,
-        config.pair_info.fee_config.total_fee_rate(),
+        config.pool_info.fee_config.total_fee_rate(),
     )?;
 
     Ok(SimulationResponse {
@@ -1004,8 +1004,8 @@ pub fn query_reverse_simulation(
     let config = CONFIG.load(deps.storage)?;
 
     let pools = config
-        .pair_info
-        .query_pools(&deps.querier, &config.pair_info.contract_addr)?;
+        .pool_info
+        .query_pools(&deps.querier, &config.pool_info.contract_addr)?;
 
     let offer_pool: AssetValidated;
     let ask_pool: AssetValidated;
@@ -1017,7 +1017,7 @@ pub fn query_reverse_simulation(
         offer_pool = pools[0].clone();
     } else {
         return Err(StdError::generic_err(
-            "Given ask asset doesn't belong to pairs",
+            "Given ask asset doesn't belong to pools",
         ));
     }
 
@@ -1025,7 +1025,7 @@ pub fn query_reverse_simulation(
         offer_pool.amount,
         ask_pool.amount,
         ask_asset.amount,
-        config.pair_info.fee_config.total_fee_rate(),
+        config.pool_info.fee_config.total_fee_rate(),
     )?;
 
     // `offer_pool.info` is already validated
@@ -1089,7 +1089,7 @@ pub fn query_cumulative_prices(
     Ok(resp)
 }
 
-/// Returns the pair contract configuration in a [`ConfigResponse`] object.
+/// Returns the pool contract configuration in a [`ConfigResponse`] object.
 pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<ConfigResponse> {
     let config: Config = CONFIG.load(deps.storage)?;
     Ok(ConfigResponse {
@@ -1227,9 +1227,9 @@ pub fn pool_info(
     config: &Config,
 ) -> StdResult<(Vec<AssetValidated>, Uint128)> {
     let pools = config
-        .pair_info
-        .query_pools(&querier, &config.pair_info.contract_addr)?;
-    let total_share = query_supply(&querier, &config.pair_info.liquidity_token)?;
+        .pool_info
+        .query_pools(&querier, &config.pool_info.contract_addr)?;
+    let total_share = query_supply(&querier, &config.pool_info.liquidity_token)?;
 
     Ok((pools, total_share))
 }

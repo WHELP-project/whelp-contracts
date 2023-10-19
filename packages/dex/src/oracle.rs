@@ -37,8 +37,8 @@ pub struct LastUpdates {
 
 /// This is the last snapshot of the price accumulator.
 /// This only works on 2 pools:
-///   A is config.pair_info.asset_infos[0],
-///   B is config.pair_info.asset_infos[1],
+///   A is config.pool_info.asset_infos[0],
+///   B is config.pool_info.asset_infos[1],
 /// We keep this pattern and limit how much data is written
 #[cw_serde]
 pub struct Accumulator {

@@ -1,5 +1,5 @@
 [package]
-name = "dex-pair"
+name = "dex-pool"
 version = { workspace = true }
 authors = ["Jakub <jakub@moonbite.space>"]
 edition = { workspace = true }

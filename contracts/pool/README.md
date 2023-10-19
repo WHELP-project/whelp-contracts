@@ -1,4 +1,4 @@
-# Dex Constant Product Pair
+# Dex Constant Product Pool
 
 The constant product pool uses the widely known xy=k formula. More details around how the pool functions can be found [here](https://docs.astroport.fi/astroport/astroport/astro-pools/constant-product-pools).
 
@@ -12,7 +12,7 @@ Whenever liquidity is deposited into a pool, special tokens known as "liquidity 
 
 When providing liquidity from a smart contract, the most important thing to keep in mind is that the amount of tokens deposited into a pool and the amount of tokens withdrawn later from the pool will most likely not be the same. This is because of the way constant product pools work where, as the token prices in the pool change, so do the respective token amounts that a LP can withdraw.
 
-As an example, let's say the global ratio between two tokens x:y is 10:2 (i.e. 1 x = 0.2 y), but the current ratio between the tokens in an dex pair is 5:2 (1 x = 0.4 y). Let's also say that someone may decide to LP in the x:y dex pool at the current 5:2 ratio. As the dex pool gets arbitraged to the global ratio, the amount of x & y tokens that the LP can withdraw changes because the total amounts of x & y tokens in the pool also change.
+As an example, let's say the global ratio between two tokens x:y is 10:2 (i.e. 1 x = 0.2 y), but the current ratio between the tokens in an dex pool is 5:2 (1 x = 0.4 y). Let's also say that someone may decide to LP in the x:y dex pool at the current 5:2 ratio. As the dex pool gets arbitraged to the global ratio, the amount of x & y tokens that the LP can withdraw changes because the total amounts of x & y tokens in the pool also change.
 
 > Note that before executing the `provide_liqudity` operation, a user must allow the pool contract to take tokens from their wallet
 
@@ -40,7 +40,7 @@ Please note that dex has the default value for the spread set to 0.5% and the ma
 
 ## InstantiateMsg
 
-Initializes a new x*y=k pair.
+Initializes a new x*y=k pool.
 
 ```json
 {
@@ -191,13 +191,13 @@ The contract configuration cannot be updated.
 
 All query messages are described below. A custom struct is defined for each query response.
 
-### `pair`
+### `pool`
 
-Retrieve a pair's configuration (type, assets traded in it etc)
+Retrieve a pool's configuration (type, assets traded in it etc)
 
 ```json
 {
-  "pair": {}
+  "pool": {}
 }
 ```
 
@@ -213,7 +213,7 @@ Returns the amount of tokens in the pool for all assets as well as the amount of
 
 ### `config`
 
-Get the pair contract configuration.
+Get the pool contract configuration.
 
 ```json
 {
@@ -273,7 +273,7 @@ Reverse simulates a swap (specifies the ask instead of the offer) and returns th
 
 ### `cumulative_prices`
 
-Returns the cumulative prices for the assets in the pair.
+Returns the cumulative prices for the assets in the pool.
 
 ```json
 {

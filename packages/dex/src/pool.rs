@@ -19,7 +19,7 @@ mod instantiate;
 mod referral;
 mod utils;
 
-use crate::factory::PairType;
+use crate::factory::PoolType;
 pub use error::ContractError;
 pub use instantiate::*;
 pub use referral::*;
@@ -28,27 +28,27 @@ pub use utils::*;
 /// Decimal precision for TWAP results
 pub const TWAP_PRECISION: u8 = 6;
 
-/// This structure stores the main parameters for an Dex pair
+/// This structure stores the main parameters for an Dex pool
 #[cw_serde]
 pub struct PairInfo {
     /// Asset information for the assets in the pool
     pub asset_infos: Vec<AssetInfoValidated>,
-    /// Pair contract address
+    /// Pool contract address
     pub contract_addr: Addr,
-    /// Pair LP token address
+    /// Pool LP token address
     pub liquidity_token: Addr,
     /// Staking contract address
     pub staking_addr: Addr,
-    /// The pool type (xyk, stableswap etc) available in [`PairType`]
-    pub pair_type: PairType,
-    /// The fee configuration for the pair
+    /// The pool type (xyk, stableswap etc) available in [`PoolType`]
+    pub pool_type: PoolType,
+    /// The fee configuration for the pool
     pub fee_config: FeeConfig,
 }
 
 impl PairInfo {
     /// Returns the balance for each asset in the pool.
     ///
-    /// * **contract_addr** is pair's pool address.
+    /// * **contract_addr** is pool's pool address.
     pub fn query_pools(
         &self,
         querier: &QuerierWrapper<CoreumQueries>,
@@ -68,7 +68,7 @@ impl PairInfo {
 
     /// Returns the balance for each asset in the pool in decimal.
     ///
-    /// * **contract_addr** is pair's pool address.
+    /// * **contract_addr** is pool's pool address.
     pub fn query_pools_decimal(
         &self,
         querier: &QuerierWrapper<CoreumQueries>,
@@ -102,7 +102,7 @@ pub struct InstantiateMsg {
     pub factory_addr: String,
     /// Optional binary serialised parameters for custom pool types
     pub init_params: Option<Binary>,
-    /// The fees for this pair
+    /// The fees for this pool
     pub fee_config: FeeConfig,
     pub staking_config: StakeConfig,
     /// The block time until which trading is disabled
@@ -189,9 +189,9 @@ pub enum ExecuteMsg {
         /// This is capped by the configured max commission
         referral_commission: Option<Decimal>,
     },
-    /// Update the pair configuration
+    /// Update the pool configuration
     UpdateConfig { params: Binary },
-    /// Update the fees for this pair
+    /// Update the fees for this pool
     UpdateFees { fee_config: FeeConfig },
     /// ProposeNewOwner creates a proposal to change contract ownership.
     /// The validity period for the proposal is set in the `expires_in` variable.
@@ -241,7 +241,7 @@ pub enum MigrateMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    /// Returns information about a pair in an object of type [`super::asset::PairInfo`].
+    /// Returns information about a pool in an object of type [`super::asset::PairInfo`].
     #[returns(PairInfo)]
     Pair {},
     /// Returns information about a pool in an object of type [`PoolResponse`].
@@ -363,7 +363,7 @@ pub struct CumulativePricesResponse {
     pub assets: Vec<AssetValidated>,
     /// The total amount of LP tokens currently issued
     pub total_share: Uint128,
-    /// The vector contains cumulative prices for each pair of assets in the pool
+    /// The vector contains cumulative prices for each pool of assets in the pool
     pub cumulative_prices: Vec<(AssetInfoValidated, AssetInfoValidated, Uint128)>,
 }
 
