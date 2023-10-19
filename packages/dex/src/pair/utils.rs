@@ -6,6 +6,7 @@ use crate::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated};
 
 use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Fraction, StdError, Uint128};
 use cw20::Cw20ExecuteMsg;
+
 use itertools::Itertools;
 
 /// The default swap slippage

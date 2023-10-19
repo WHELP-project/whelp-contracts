@@ -14,9 +14,6 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ReceiveMsg;
 
-#[cfg(test)]
-pub mod mock_querier;
-
 mod error;
 mod instantiate;
 mod referral;

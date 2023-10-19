@@ -57,13 +57,7 @@ pub fn instantiate(
 
     let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
 
-    let create_lp_token_msg = create_lp_token(
-        &deps.querier,
-        &env,
-        msg.token_code_id,
-        &asset_infos,
-        &factory_addr,
-    )?;
+    let create_lp_token_msg = create_lp_token(&deps.querier, &asset_infos)?;
 
     let config = Config {
         pair_info: PairInfo {
