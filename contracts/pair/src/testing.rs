@@ -100,7 +100,7 @@ fn proper_initialization() {
                 precision: LP_TOKEN_PRECISION,
                 initial_amount: Uint128::zero(),
                 description: Some("Dex LP Share token".to_string()),
-                features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burnin
+                features: Some(vec![0, 1, 2]),
                 burn_rate: Some("0".into()),
                 send_commission_rate: None,
             })
