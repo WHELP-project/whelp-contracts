@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::vec;
 
-use coreum_wasm_sdk::core::CoreumQueries;
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
     Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError,
@@ -44,7 +44,7 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<CoreumMsg>, ContractError> {
     let asset_infos = check_asset_infos(&msg.asset_infos)?;
 
     if asset_infos.len() != 2 {
