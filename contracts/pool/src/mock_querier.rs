@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use coreum_wasm_sdk::{
+    assetft,
+    core::{CoreumMsg, CoreumQueries},
+};
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, Addr, Coin, Decimal, Empty, OwnedDeps, Querier,
@@ -165,6 +168,35 @@ impl WasmMockQuerier {
                 } else {
                     panic!("DO NOT ENTER HERE");
                 }
+            }
+            QueryRequest::Custom(CoreumQueries::AssetFT(assetft::Query::Balance {
+                account,
+                denom,
+            })) => {
+                let balances: &HashMap<String, Uint128> =
+                    match self.token_querier.balances.get(denom) {
+                        Some(balances) => balances,
+                        None => {
+                            return SystemResult::Err(SystemError::Unknown {});
+                        }
+                    };
+                dbg!("trying to get: {:?}, {:?}", account, balances);
+                let balance = match balances.get(account) {
+                    Some(v) => v,
+                    None => {
+                        return SystemResult::Err(SystemError::Unknown {});
+                    }
+                };
+
+                SystemResult::Ok(
+                    to_binary(&assetft::BalanceResponse {
+                        balance: balance.to_string(),
+                        whitelisted: Uint128::zero().to_string(),
+                        frozen: Uint128::zero().to_string(),
+                        locked: Uint128::zero().to_string(),
+                    })
+                    .into(),
+                )
             }
             _ => self.base.handle_query(request),
         }
