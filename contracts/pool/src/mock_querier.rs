@@ -179,6 +179,7 @@ impl WasmMockQuerier {
                     match dbg!(self.token_querier.balances.get(denom)) {
                         Some(balances) => balances,
                         None => {
+                            dbg!("it fails here chatgpt");
                             return SystemResult::Err(SystemError::Unknown {});
                         }
                     };

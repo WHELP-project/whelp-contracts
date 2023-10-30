@@ -289,9 +289,12 @@ pub fn provide_liquidity(
     slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
+    dbg!("provide liquidity");
     let mut assets = check_assets(deps.api, &assets)?;
+    dbg!("check #1");
     check_if_frozen(&deps)?;
 
+    dbg!("check #3");
     if assets.len() > 2 {
         return Err(ContractError::TooManyAssets {
             max: 2,
@@ -299,15 +302,19 @@ pub fn provide_liquidity(
         });
     }
 
+    dbg!("check #4");
     if assets.is_empty() || !assets.iter().any(|a| !a.amount.is_zero()) {
         return Err(ContractError::InvalidZeroAmount {});
     }
 
+    dbg!("check #5");
     let mut config = CONFIG.load(deps.storage)?;
+    dbg!("check #7");
     let mut pools = config
         .pool_info
         .query_pools(&deps.querier, &env.contract.address)?;
 
+    dbg!("check #2");
     // maps an index in `assets` to the index of the same asset in `pools`
     let mut pool_indices = assets
         .iter()
@@ -340,6 +347,7 @@ pub fn provide_liquidity(
     dbg!("asset received");
 
     if assets.len() == 1 {
+        dbg!("here?");
         let offer_asset = assets.pop().unwrap();
         if pool_indices[0] == 0 {
             pool_indices.push(1);
