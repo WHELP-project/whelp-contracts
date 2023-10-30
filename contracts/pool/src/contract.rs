@@ -323,16 +323,21 @@ pub fn provide_liquidity(
 
     let mut messages = vec![];
 
+    dbg!("Query pools info #2");
     for (i, asset) in assets.iter().enumerate() {
         // take asset / make sure it actually got sent
         asset.receive(&env, &info, &mut messages)?;
         // If the asset is native token, the pool balance is already increased
         // To calculate the total amount of deposits properly, we should subtract the user deposit from the pool
         if asset.info.is_native_token() {
+            dbg!("I'm native");
             let pool = &mut pools[pool_indices[i]].amount;
+            dbg!(asset.amount.clone());
+            dbg!(pool.clone());
             *pool = pool.checked_sub(asset.amount)?;
         }
     }
+    dbg!("asset received");
 
     if assets.len() == 1 {
         let offer_asset = assets.pop().unwrap();

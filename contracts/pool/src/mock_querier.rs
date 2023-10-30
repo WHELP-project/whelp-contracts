@@ -173,20 +173,22 @@ impl WasmMockQuerier {
                 account,
                 denom,
             })) => {
+                dbg!("account: {:?}", account);
+                dbg!("denom: {:?}", denom);
                 let balances: &HashMap<String, Uint128> =
-                    match self.token_querier.balances.get(denom) {
+                    match dbg!(self.token_querier.balances.get(denom)) {
                         Some(balances) => balances,
                         None => {
                             return SystemResult::Err(SystemError::Unknown {});
                         }
                     };
-                dbg!("trying to get: {:?}, {:?}", account, balances);
                 let balance = match balances.get(account) {
                     Some(v) => v,
                     None => {
                         return SystemResult::Err(SystemError::Unknown {});
                     }
                 };
+                dbg!("balance: {:?}", balance);
 
                 SystemResult::Ok(
                     to_binary(&assetft::BalanceResponse {
@@ -218,6 +220,8 @@ impl WasmMockQuerier {
 
     pub fn with_balance(&mut self, balances: &[(&String, &[Coin])]) {
         for (addr, balance) in balances {
+            dbg!(addr);
+            dbg!(balance);
             self.base.update_balance(addr.to_string(), balance.to_vec());
         }
     }
