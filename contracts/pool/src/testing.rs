@@ -96,7 +96,7 @@ fn proper_initialization() {
         vec![SubMsg {
             msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
                 symbol: "UUSD-MAPP-LP".to_string(),
-                subunit: "uLP".to_string(),
+                subunit: "uuusd-mapp-lp".to_string(),
                 precision: LP_TOKEN_PRECISION,
                 initial_amount: Uint128::zero(),
                 description: Some("Dex LP Share token".to_string()),

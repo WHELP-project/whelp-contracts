@@ -31,8 +31,8 @@ pub fn create_lp_token(
     let token_name = format_lp_token_name(asset_infos, querier)?;
 
     Ok(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
-        symbol: token_name,
-        subunit: "uLP".to_string(),
+        symbol: token_name.clone(),
+        subunit: "u".to_string() + &token_name.to_lowercase(),
         precision: LP_TOKEN_PRECISION,
         initial_amount: Uint128::zero(),
         description: Some("Dex LP Share token".to_string()),
