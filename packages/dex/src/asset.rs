@@ -416,7 +416,7 @@ pub fn format_lp_token_name(
         };
         short_symbols.push(short_symbol);
     }
-    Ok(format!("{}-LP", short_symbols.iter().join("-")).to_uppercase())
+    Ok(format!("{}-lp", short_symbols.iter().join("-")).to_lowercase())
 }
 
 /// Returns an [`Asset`] object representing a native token and an amount of tokens.

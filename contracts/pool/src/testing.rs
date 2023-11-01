@@ -95,7 +95,7 @@ fn proper_initialization() {
         res.messages,
         vec![SubMsg {
             msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
-                symbol: "UUSD-MAPP-LP".to_string(),
+                symbol: "uusd-mapp-lp".to_string(),
                 subunit: "uuusd-mapp-lp".to_string(),
                 precision: LP_TOKEN_PRECISION,
                 initial_amount: Uint128::zero(),
