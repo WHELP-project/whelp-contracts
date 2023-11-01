@@ -25,8 +25,8 @@ use dex::pool::{
 use dex::pool::{MigrateMsg, QueryMsg};
 
 use crate::contract::{
-    accumulate_prices, compute_swap, execute, instantiate, query_pool,
-    query_reverse_simulation, query_share, query_simulation,
+    accumulate_prices, compute_swap, execute, instantiate, query_pool, query_reverse_simulation,
+    query_share, query_simulation,
 };
 use crate::contract::{compute_offer_amount, query};
 use crate::state::{Config, CONFIG};
@@ -34,19 +34,7 @@ use crate::state::{Config, CONFIG};
 use crate::mock_querier::mock_dependencies;
 
 fn store_liquidity_token(deps: DepsMut<CoreumQueries>, contract_addr: String) {
-    let res = MsgInstantiateContractResponse {
-        contract_address: contract_addr,
-        data: None,
-    };
-
     let mut config = CONFIG.load(deps.storage).unwrap();
-    let _res = dex::pool::instantiate_lp_token_reply(
-        &deps,
-        res,
-        &config.factory_addr,
-        &mut config.pool_info,
-    )
-    .unwrap();
     CONFIG.save(deps.storage, &config).unwrap();
 }
 
@@ -95,8 +83,8 @@ fn proper_initialization() {
         res.messages,
         vec![SubMsg {
             msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
-                symbol: "uusd-mapp-lp".to_string(),
-                subunit: "uuusd-mapp-lp".to_string(),
+                symbol: "uusdmapplp-cosmos2contract".to_string(),
+                subunit: "uuusdmapplp-cosmos2contract".to_string(),
                 precision: LP_TOKEN_PRECISION,
                 initial_amount: Uint128::zero(),
                 description: Some("Dex LP Share token".to_string()),
@@ -105,18 +93,15 @@ fn proper_initialization() {
                 send_commission_rate: Some("0.00000".into()),
             })
             .into(),
-            id: 1,
+            id: 0,
             gas_limit: None,
-            reply_on: ReplyOn::Success
+            reply_on: ReplyOn::Never
         },]
     );
 
-    // Store liquidity token
-    store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
-
     // It worked, let's query the state
     let pool_info = CONFIG.load(deps.as_ref().storage).unwrap().pool_info;
-    assert_eq!(Addr::unchecked("liquidity0000"), pool_info.liquidity_token);
+    assert_eq!("uusdmapplp-cosmos2contract", pool_info.liquidity_token);
     assert_eq!(
         pool_info.asset_infos,
         [

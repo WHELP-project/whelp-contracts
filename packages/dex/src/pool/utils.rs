@@ -4,7 +4,7 @@ use super::error::ContractError;
 
 use crate::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated};
 
-use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Api, Decimal, Fraction, StdError, Uint128};
+use cosmwasm_std::{wasm_execute, Addr, Api, CosmosMsg, Decimal, Fraction, StdError, Uint128};
 use cw20::Cw20ExecuteMsg;
 
 use itertools::Itertools;

@@ -401,6 +401,7 @@ const TOKEN_SYMBOL_MAX_LENGTH: usize = 4;
 /// Returns a formatted LP token name
 pub fn format_lp_token_name(
     asset_infos: &[AssetInfoValidated],
+    issuer: &Addr,
     querier: &QuerierWrapper<CoreumQueries>,
 ) -> StdResult<String> {
     let mut short_symbols: Vec<String> = vec![];
@@ -416,7 +417,7 @@ pub fn format_lp_token_name(
         };
         short_symbols.push(short_symbol);
     }
-    Ok(format!("{}-lp", short_symbols.iter().join("-")).to_lowercase())
+    Ok(format!("{}lp-{}", short_symbols.iter().join(""), issuer).to_lowercase())
 }
 
 /// Returns an [`Asset`] object representing a native token and an amount of tokens.
