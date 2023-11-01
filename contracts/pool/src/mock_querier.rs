@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use coreum_wasm_sdk::{
+    assetft,
+    core::{CoreumMsg, CoreumQueries},
+};
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, Addr, Coin, Decimal, Empty, OwnedDeps, Querier,
@@ -166,6 +169,38 @@ impl WasmMockQuerier {
                     panic!("DO NOT ENTER HERE");
                 }
             }
+            QueryRequest::Custom(CoreumQueries::AssetFT(assetft::Query::Balance {
+                account,
+                denom,
+            })) => {
+                dbg!("account: {:?}", account);
+                dbg!("denom: {:?}", denom);
+                let balances: &HashMap<String, Uint128> =
+                    match dbg!(self.token_querier.balances.get(denom)) {
+                        Some(balances) => balances,
+                        None => {
+                            dbg!("it fails here chatgpt");
+                            return SystemResult::Err(SystemError::Unknown {});
+                        }
+                    };
+                let balance = match balances.get(account) {
+                    Some(v) => v,
+                    None => {
+                        return SystemResult::Err(SystemError::Unknown {});
+                    }
+                };
+                dbg!("balance: {:?}", balance);
+
+                SystemResult::Ok(
+                    to_binary(&assetft::BalanceResponse {
+                        balance: balance.to_string(),
+                        whitelisted: Uint128::zero().to_string(),
+                        frozen: Uint128::zero().to_string(),
+                        locked: Uint128::zero().to_string(),
+                    })
+                    .into(),
+                )
+            }
             _ => self.base.handle_query(request),
         }
     }
@@ -186,6 +221,8 @@ impl WasmMockQuerier {
 
     pub fn with_balance(&mut self, balances: &[(&String, &[Coin])]) {
         for (addr, balance) in balances {
+            dbg!(addr);
+            dbg!(balance);
             self.base.update_balance(addr.to_string(), balance.to_vec());
         }
     }

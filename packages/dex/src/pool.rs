@@ -35,8 +35,8 @@ pub struct PairInfo {
     pub asset_infos: Vec<AssetInfoValidated>,
     /// Pool contract address
     pub contract_addr: Addr,
-    /// Pool LP token address
-    pub liquidity_token: Addr,
+    /// Pool LP token denom
+    pub liquidity_token: String,
     /// Staking contract address
     pub staking_addr: Addr,
     /// The pool type (xyk, stableswap etc) available in [`PoolType`]
@@ -54,6 +54,7 @@ impl PairInfo {
         querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<AssetValidated>> {
+        dbg!("here in the end?");
         let contract_addr = contract_addr.into();
         self.asset_infos
             .iter()

@@ -35,9 +35,9 @@ impl Asset {
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
-    pub fn validate(&self) -> StdResult<AssetValidated> {
+    pub fn validate(&self, api: &dyn Api) -> StdResult<AssetValidated> {
         Ok(AssetValidated {
-            info: self.info.validate()?,
+            info: self.info.validate(api)?,
             amount: self.amount,
         })
     }
@@ -125,6 +125,8 @@ impl AssetValidated {
             return Ok(());
         }
 
+        dbg!(self.amount);
+        dbg!(self.info.clone());
         match &self.info {
             AssetInfoValidated::SmartToken(_) => self.assert_sent_native_token_balance(info),
             AssetInfoValidated::Cw20Token(contract_addr) => {
@@ -145,8 +147,10 @@ impl AssetValidated {
     /// Validates an amount of native tokens being sent.
     pub fn assert_sent_native_token_balance(&self, message_info: &MessageInfo) -> StdResult<()> {
         if let AssetInfoValidated::SmartToken(denom) = &self.info {
+            dbg!("assert sent native token balance");
             match message_info.funds.iter().find(|x| x.denom == *denom) {
                 Some(coin) => {
+                    dbg!(coin);
                     if self.amount == coin.amount {
                         Ok(())
                     } else {
@@ -190,10 +194,10 @@ impl AssetInfo {
     }
 
     /// Checks that the tokens' denom or contract addr is lowercased and valid.
-    pub fn validate(&self) -> StdResult<AssetInfoValidated> {
+    pub fn validate(&self, api: &dyn Api) -> StdResult<AssetInfoValidated> {
         Ok(match self {
             AssetInfo::Cw20Token(contract_addr) => {
-                AssetInfoValidated::Cw20Token(contract_addr.to_string())
+                AssetInfoValidated::Cw20Token(api.addr_validate(contract_addr.as_str())?)
             }
             AssetInfo::SmartToken(denom) => {
                 if !denom.starts_with("ibc/") && denom != &denom.to_lowercase() {
@@ -251,7 +255,7 @@ impl fmt::Display for AssetInfo {
 #[derive(Hash, Eq)]
 pub enum AssetInfoValidated {
     /// Non-native Token
-    Cw20Token(String),
+    Cw20Token(Addr),
     /// SmartToken token
     SmartToken(String),
 }
@@ -354,7 +358,7 @@ impl KeyDeserialize for &AssetInfoValidated {
 
         match asset_type {
             0 => Ok(AssetInfoValidated::SmartToken(denom)),
-            1 => Ok(AssetInfoValidated::Cw20Token(denom)),
+            1 => Ok(AssetInfoValidated::Cw20Token(Addr::unchecked(denom))),
             _ => Err(StdError::generic_err(
                 "Invalid AssetInfoValidated key, invalid type",
             )),
@@ -397,6 +401,7 @@ const TOKEN_SYMBOL_MAX_LENGTH: usize = 4;
 /// Returns a formatted LP token name
 pub fn format_lp_token_name(
     asset_infos: &[AssetInfoValidated],
+    issuer: &Addr,
     querier: &QuerierWrapper<CoreumQueries>,
 ) -> StdResult<String> {
     let mut short_symbols: Vec<String> = vec![];
@@ -412,7 +417,7 @@ pub fn format_lp_token_name(
         };
         short_symbols.push(short_symbol);
     }
-    Ok(format!("{}-LP", short_symbols.iter().join("-")).to_uppercase())
+    Ok(format!("{}lp-{}", short_symbols.iter().join(""), issuer).to_lowercase())
 }
 
 /// Returns an [`Asset`] object representing a native token and an amount of tokens.
@@ -434,7 +439,7 @@ pub fn native_asset(denom: impl Into<String>, amount: impl Into<Uint128>) -> Ass
 /// * **amount** amount of tokens.
 pub fn token_asset(contract_addr: Addr, amount: impl Into<Uint128>) -> AssetValidated {
     AssetValidated {
-        info: AssetInfoValidated::Cw20Token(contract_addr.to_string()),
+        info: AssetInfoValidated::Cw20Token(contract_addr),
         amount: amount.into(),
     }
 }

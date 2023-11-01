@@ -4,7 +4,7 @@ use super::error::ContractError;
 
 use crate::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated};
 
-use cosmwasm_std::{wasm_execute, Addr, CosmosMsg, Decimal, Fraction, StdError, Uint128};
+use cosmwasm_std::{wasm_execute, Addr, Api, CosmosMsg, Decimal, Fraction, StdError, Uint128};
 use cw20::Cw20ExecuteMsg;
 
 use itertools::Itertools;
@@ -16,6 +16,7 @@ pub const MAX_ALLOWED_SLIPPAGE: &str = "0.5";
 
 /// Helper function to check if the given asset infos are valid.
 pub fn check_asset_infos(
+    api: &dyn Api,
     asset_infos: &[AssetInfo],
 ) -> Result<Vec<AssetInfoValidated>, ContractError> {
     if !asset_infos.iter().all_unique() {
@@ -24,20 +25,20 @@ pub fn check_asset_infos(
 
     asset_infos
         .iter()
-        .map(|asset_info| asset_info.validate())
+        .map(|asset_info| asset_info.validate(api))
         .collect::<Result<Vec<_>, _>>()
         .map_err(Into::into)
 }
 
 /// Helper function to check that the assets in a given array are valid.
-pub fn check_assets(assets: &[Asset]) -> Result<Vec<AssetValidated>, ContractError> {
+pub fn check_assets(api: &dyn Api, assets: &[Asset]) -> Result<Vec<AssetValidated>, ContractError> {
     if !assets.iter().map(|a| a.info.clone()).all_unique() {
         return Err(ContractError::DoublingAssets {});
     }
 
     assets
         .iter()
-        .map(|asset| asset.validate())
+        .map(|asset| asset.validate(api))
         .collect::<Result<Vec<_>, _>>()
         .map_err(Into::into)
 }
