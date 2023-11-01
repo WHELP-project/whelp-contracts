@@ -83,8 +83,8 @@ fn proper_initialization() {
         res.messages,
         vec![SubMsg {
             msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
-                symbol: "uusdmapplp-cosmos2contract".to_string(),
-                subunit: "uuusdmapplp-cosmos2contract".to_string(),
+                symbol: "uusdmapplp".to_string(),
+                subunit: "uuusdmapplp".to_string(),
                 precision: LP_TOKEN_PRECISION,
                 initial_amount: Uint128::zero(),
                 description: Some("Dex LP Share token".to_string()),
@@ -101,7 +101,7 @@ fn proper_initialization() {
 
     // It worked, let's query the state
     let pool_info = CONFIG.load(deps.as_ref().storage).unwrap().pool_info;
-    assert_eq!("uusdmapplp-cosmos2contract", pool_info.liquidity_token);
+    assert_eq!("uusdmapplp", pool_info.liquidity_token);
     assert_eq!(
         pool_info.asset_infos,
         [

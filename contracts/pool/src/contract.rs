@@ -61,7 +61,7 @@ pub fn instantiate(
 
     let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
 
-    let lp_token_name = format_lp_token_name(&asset_infos, &env.contract.address, &deps.querier)?;
+    let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
     let config = Config {
         pool_info: PairInfo {
@@ -86,7 +86,7 @@ pub fn instantiate(
     Ok(
         Response::new().add_submessage(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
             symbol: lp_token_name.clone(),
-            subunit: "u".to_string() + &lp_token_name.to_lowercase(),
+            subunit: format!("u{}", lp_token_name),
             precision: LP_TOKEN_PRECISION,
             initial_amount: Uint128::zero(),
             description: Some("Dex LP Share token".to_string()),
