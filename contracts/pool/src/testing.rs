@@ -25,7 +25,7 @@ use dex::pool::{
 use dex::pool::{MigrateMsg, QueryMsg};
 
 use crate::contract::{
-    accumulate_prices, compute_swap, execute, instantiate, migrate, query_pool,
+    accumulate_prices, compute_swap, execute, instantiate, query_pool,
     query_reverse_simulation, query_share, query_simulation,
 };
 use crate::contract::{compute_offer_amount, query};
@@ -102,12 +102,12 @@ fn proper_initialization() {
                 description: Some("Dex LP Share token".to_string()),
                 features: Some(vec![0, 1, 2]),
                 burn_rate: Some("0".into()),
-                send_commission_rate: None,
+                send_commission_rate: Some("0.00000".into()),
             })
             .into(),
-            id: 0,
+            id: 1,
             gas_limit: None,
-            reply_on: ReplyOn::Never
+            reply_on: ReplyOn::Success
         },]
     );
 

@@ -20,7 +20,7 @@ pub const LP_TOKEN_PRECISION: u32 = 6;
 /// A `reply` call code ID used for token instantiation sub-message.
 const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;
 /// A `reply` call code ID used for staking contract instantiation sub-message.
-const INSTANTIATE_STAKE_REPLY_ID: u64 = 2;
+const _INSTANTIATE_STAKE_REPLY_ID: u64 = 2;
 
 /// Returns a sub-message to instantiate a new LP token.
 /// It uses [`INSTANTIATE_TOKEN_REPLY_ID`] as id.
@@ -30,7 +30,7 @@ pub fn create_lp_token(
 ) -> StdResult<SubMsg<CoreumMsg>> {
     let token_name = format_lp_token_name(asset_infos, querier)?;
 
-    Ok(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
+    Ok(SubMsg::reply_on_success(CoreumMsg::AssetFT(assetft::Msg::Issue {
         symbol: token_name.clone(),
         subunit: "u".to_string() + &token_name.to_lowercase(),
         precision: LP_TOKEN_PRECISION,
@@ -38,8 +38,8 @@ pub fn create_lp_token(
         description: Some("Dex LP Share token".to_string()),
         features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burning, 2 - freezing
         burn_rate: Some("0".into()),
-        send_commission_rate: None,
-    })))
+        send_commission_rate: Some("0.00000".into()),
+    }), INSTANTIATE_TOKEN_REPLY_ID))
 }
 
 /// Saves this `stake_config` to the storage temporarily
@@ -65,7 +65,7 @@ pub fn handle_reply(
     })?;
     match msg_id {
         INSTANTIATE_TOKEN_REPLY_ID => instantiate_lp_token_reply(deps, res, factory, pool_info),
-        INSTANTIATE_STAKE_REPLY_ID => instantiate_staking_reply(deps, res, pool_info),
+        // INSTANTIATE_STAKE_REPLY_ID => instantiate_staking_reply(deps, res, pool_info),
         _ => Err(ContractError::UnknownReply(msg_id)),
     }
 }
@@ -76,7 +76,7 @@ pub fn handle_reply(
 pub fn instantiate_lp_token_reply(
     deps: &DepsMut<CoreumQueries>,
     res: MsgInstantiateContractResponse,
-    factory: &Addr,
+    _factory: &Addr,
     pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
     if pool_info.liquidity_token != Addr::unchecked("") {
@@ -86,28 +86,27 @@ pub fn instantiate_lp_token_reply(
     pool_info.liquidity_token = deps.api.addr_validate(&res.contract_address)?;
 
     // now that we have the lp token, create the staking contract
-    let staking_cfg = TMP_STAKING_CONFIG.load(deps.storage)?;
+    // let staking_cfg = TMP_STAKING_CONFIG.load(deps.storage)?;
 
     Ok(Response::new()
-        .add_submessage(SubMsg::reply_on_success(
-            staking_cfg.into_init_msg(&deps.querier, res.contract_address, factory.to_string())?,
-            INSTANTIATE_STAKE_REPLY_ID,
-        ))
+        // .add_submessage(SubMsg::new(
+        //     staking_cfg.into_init_msg(&deps.querier, res.contract_address, factory.to_string())?,
+        // ))
         .add_attribute("liquidity_token_addr", &pool_info.liquidity_token))
 }
 
-/// Sets the `pool_info`'s `staking_addr` field to the address of the newly instantiated
-/// staking contract, and returns a response.
-pub fn instantiate_staking_reply(
-    deps: &DepsMut<CoreumQueries>,
-    res: MsgInstantiateContractResponse,
-    pool_info: &mut PairInfo,
-) -> Result<Response, ContractError> {
-    if pool_info.staking_addr != Addr::unchecked("") {
-        return Err(ContractError::AddrAlreadySet("staking"));
-    }
-
-    pool_info.staking_addr = deps.api.addr_validate(&res.contract_address)?;
-
-    Ok(Response::new().add_attribute("staking_addr", &pool_info.staking_addr))
-}
+// Sets the `pool_info`'s `staking_addr` field to the address of the newly instantiated
+// staking contract, and returns a response.
+// pub fn instantiate_staking_reply(
+//     deps: &DepsMut<CoreumQueries>,
+//     res: MsgInstantiateContractResponse,
+//     pool_info: &mut PairInfo,
+// ) -> Result<Response, ContractError> {
+//     if pool_info.staking_addr != Addr::unchecked("") {
+//         return Err(ContractError::AddrAlreadySet("staking"));
+//     }
+//
+//     pool_info.staking_addr = deps.api.addr_validate(&res.contract_address)?;
+//
+//     Ok(Response::new().add_attribute("staking_addr", &pool_info.staking_addr))
+// }

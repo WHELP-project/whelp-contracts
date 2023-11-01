@@ -96,28 +96,6 @@ pub fn reply(
     Ok(res)
 }
 
-/// Manages the contract migration.
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(
-    deps: DepsMut<CoreumQueries>,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response, ContractError> {
-    match msg {
-        MigrateMsg::UpdateFreeze {
-            frozen,
-            circuit_breaker,
-        } => {
-            FROZEN.save(deps.storage, &frozen)?;
-            if let Some(circuit_breaker) = circuit_breaker {
-                CIRCUIT_BREAKER.save(deps.storage, &deps.api.addr_validate(&circuit_breaker)?)?;
-            }
-        }
-    }
-
-    Ok(Response::new())
-}
-
 /// Exposes all the execute functions available in the contract.
 ///
 /// ## Variants
