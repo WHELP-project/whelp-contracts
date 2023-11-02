@@ -428,6 +428,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "dex-pool-stable"
+version = "0.1.0"
+dependencies = [
+ "coreum-wasm-sdk",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw20",
+ "cw20-base",
+ "dex",
+ "proptest",
+]
+
+[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
