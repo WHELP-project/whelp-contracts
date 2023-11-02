@@ -125,8 +125,6 @@ impl AssetValidated {
             return Ok(());
         }
 
-        dbg!(self.amount);
-        dbg!(self.info.clone());
         match &self.info {
             AssetInfoValidated::SmartToken(_) => self.assert_sent_native_token_balance(info),
             AssetInfoValidated::Cw20Token(contract_addr) => {
@@ -147,10 +145,8 @@ impl AssetValidated {
     /// Validates an amount of native tokens being sent.
     pub fn assert_sent_native_token_balance(&self, message_info: &MessageInfo) -> StdResult<()> {
         if let AssetInfoValidated::SmartToken(denom) = &self.info {
-            dbg!("assert sent native token balance");
             match message_info.funds.iter().find(|x| x.denom == *denom) {
                 Some(coin) => {
-                    dbg!(coin);
                     if self.amount == coin.amount {
                         Ok(())
                     } else {

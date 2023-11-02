@@ -54,7 +54,6 @@ impl PairInfo {
         querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<AssetValidated>> {
-        dbg!("here in the end?");
         let contract_addr = contract_addr.into();
         self.asset_infos
             .iter()

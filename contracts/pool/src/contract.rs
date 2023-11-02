@@ -315,24 +315,18 @@ pub fn provide_liquidity(
 
     let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
 
-    dbg!("Query pools info #2");
     for (i, asset) in assets.iter().enumerate() {
         // take asset / make sure it actually got sent
         asset.receive(&env, &info, &mut messages)?;
         // If the asset is native token, the pool balance is already increased
         // To calculate the total amount of deposits properly, we should subtract the user deposit from the pool
         if asset.info.is_native_token() {
-            dbg!("I'm native");
             let pool = &mut pools[pool_indices[i]].amount;
-            dbg!(asset.amount.clone());
-            dbg!(pool.clone());
             *pool = pool.checked_sub(asset.amount)?;
         }
     }
-    dbg!("asset received");
 
     if assets.len() == 1 {
-        dbg!("here?");
         let offer_asset = assets.pop().unwrap();
         if pool_indices[0] == 0 {
             pool_indices.push(1);
@@ -404,7 +398,7 @@ pub fn provide_liquidity(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
+    let total_share = dbg!(query_supply(&deps.querier, &config.pool_info.liquidity_token)?);
     let share = if total_share.is_zero() {
         // Initial share = collateral amount
         let share: Uint128 = deposits[0]
@@ -416,7 +410,6 @@ pub fn provide_liquidity(
             .checked_sub(MINIMUM_LIQUIDITY_AMOUNT)
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
-        // TODO: mint -> mint & send
         messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
             coin: coin(
                 MINIMUM_LIQUIDITY_AMOUNT.u128(),
@@ -451,7 +444,6 @@ pub fn provide_liquidity(
 
     // Mint LP tokens for the sender or for the receiver (if set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
-    // TODO: mint -> mint & send
     messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
         coin: coin(share.u128(), &config.pool_info.liquidity_token),
     })));
