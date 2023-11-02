@@ -6,9 +6,9 @@ use coreum_wasm_sdk::{
     core::{CoreumMsg, CoreumQueries},
 };
 use cosmwasm_std::{
-    attr, coin, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
-    Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, StdError, StdResult,
-    Uint128, Uint256, WasmMsg,
+    attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
+    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply,
+    StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -426,11 +426,6 @@ pub fn provide_liquidity(
                 &config.pool_info.liquidity_token,
             ),
         })));
-        //     mint_token_message(
-        //     &config.pool_info.liquidity_token,
-        //     &env.contract.address,
-        //     MINIMUM_LIQUIDITY_AMOUNT,
-        // )?);
 
         // share cannot become zero after minimum liquidity subtraction
         if share.is_zero() {
@@ -460,11 +455,19 @@ pub fn provide_liquidity(
     // Mint LP tokens for the sender or for the receiver (if set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
     // TODO: mint -> mint & send
-    // messages.extend(mint_token_message(
-    //     &config.pool_info.liquidity_token,
-    //     &receiver,
-    //     share,
-    // )?);
+    messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+        coin: coin(
+            MINIMUM_LIQUIDITY_AMOUNT.u128(),
+            &config.pool_info.liquidity_token,
+        ),
+    })));
+    messages.push(CosmosMsg::Bank(BankMsg::Send {
+        to_address: receiver.to_string(),
+        amount: vec![Coin {
+            denom: config.pool_info.liquidity_token.clone(),
+            amount: share,
+        }],
+    }));
 
     // Calculate new pool amounts
     let new_pool0 = pools[0].amount + deposits[0].amount;

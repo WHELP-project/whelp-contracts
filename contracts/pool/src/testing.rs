@@ -5,8 +5,7 @@ use coreum_wasm_sdk::{
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     assert_approx_eq, attr, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
-    CosmosMsg, Decimal, DepsMut, Env, Fraction, ReplyOn, Response, StdError, SubMsg, Timestamp,
-    Uint128, WasmMsg,
+    CosmosMsg, Decimal, DepsMut, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 use cw_utils::MsgInstantiateContractResponse;
@@ -32,6 +31,9 @@ use crate::contract::{compute_offer_amount, query};
 use crate::state::{Config, CONFIG};
 // TODO: Copied here just as a temporary measure
 use crate::mock_querier::mock_dependencies;
+
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 fn store_liquidity_token(deps: DepsMut<CoreumQueries>, contract_addr: String) {
     let mut config = CONFIG.load(deps.storage).unwrap();
