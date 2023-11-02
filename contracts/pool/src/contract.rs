@@ -64,8 +64,8 @@ pub fn instantiate(
 
     let config = Config {
         pool_info: PairInfo {
-            contract_addr: env.contract.address,
-            liquidity_token: lp_token_name.clone(),
+            contract_addr: env.contract.address.clone(),
+            liquidity_token: format!("{}-{}", lp_token_name.clone(), env.contract.address),
             staking_addr: Addr::unchecked(""),
             asset_infos,
             pool_type: PoolType::Xyk {},
@@ -281,12 +281,9 @@ pub fn provide_liquidity(
     slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
-    dbg!("provide liquidity");
     let mut assets = check_assets(deps.api, &assets)?;
-    dbg!("check #1");
     check_if_frozen(&deps)?;
 
-    dbg!("check #3");
     if assets.len() > 2 {
         return Err(ContractError::TooManyAssets {
             max: 2,
@@ -294,19 +291,15 @@ pub fn provide_liquidity(
         });
     }
 
-    dbg!("check #4");
     if assets.is_empty() || !assets.iter().any(|a| !a.amount.is_zero()) {
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    dbg!("check #5");
     let mut config = CONFIG.load(deps.storage)?;
-    dbg!("check #7");
     let mut pools = config
         .pool_info
         .query_pools(&deps.querier, &env.contract.address)?;
 
-    dbg!("check #2");
     // maps an index in `assets` to the index of the same asset in `pools`
     let mut pool_indices = assets
         .iter()
@@ -338,63 +331,63 @@ pub fn provide_liquidity(
     }
     dbg!("asset received");
 
-    // if assets.len() == 1 {
-    //     dbg!("here?");
-    //     let offer_asset = assets.pop().unwrap();
-    //     if pool_indices[0] == 0 {
-    //         pool_indices.push(1);
-    //     } else {
-    //         pool_indices.push(0);
-    //     }
-    //     // We cannot swap with an empty pool.
-    //     if pools[pool_indices[1]].amount.is_zero() {
-    //         return Err(ContractError::InvalidProvideLPsWithSingleToken {});
-    //     }
+    if assets.len() == 1 {
+        dbg!("here?");
+        let offer_asset = assets.pop().unwrap();
+        if pool_indices[0] == 0 {
+            pool_indices.push(1);
+        } else {
+            pool_indices.push(0);
+        }
+        // We cannot swap with an empty pool.
+        if pools[pool_indices[1]].amount.is_zero() {
+            return Err(ContractError::InvalidProvideLPsWithSingleToken {});
+        }
 
-    //     // use half for swapping
-    //     let input_asset = AssetValidated {
-    //         info: offer_asset.info.clone(),
-    //         amount: offer_asset.amount / Uint128::from(2u128),
-    //     };
+        // use half for swapping
+        let input_asset = AssetValidated {
+            info: offer_asset.info.clone(),
+            amount: offer_asset.amount / Uint128::from(2u128),
+        };
 
-    //     // Get config from the factory
-    //     let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
-    //     // swap half of the asset for the other first
-    //     let SwapResult {
-    //         return_asset,
-    //         protocol_fee_msg,
-    //         protocol_fee_amount,
-    //         ..
-    //     } = do_swap(
-    //         deps.branch(),
-    //         &env,
-    //         &mut config,
-    //         &factory_config,
-    //         &pools,
-    //         &input_asset,
-    //         None,
-    //         None,
-    //     )?;
+        // Get config from the factory
+        // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+        // swap half of the asset for the other first
+        let SwapResult {
+            return_asset,
+            protocol_fee_msg,
+            protocol_fee_amount,
+            ..
+        } = do_swap(
+            deps.branch(),
+            &env,
+            &mut config,
+            // &factory_config,
+            &pools,
+            &input_asset,
+            None,
+            None,
+        )?;
 
-    //     // pay swap fee
-    //     if let Some(msg) = protocol_fee_msg {
-    //         messages.push(msg);
-    //         // remove from pool, protocol fee is denominated in returned asset, so index 1
-    //         pools[pool_indices[1]].amount -= protocol_fee_amount;
-    //     }
+        // pay swap fee
+        if let Some(msg) = protocol_fee_msg {
+            messages.push(msg);
+            // remove from pool, protocol fee is denominated in returned asset, so index 1
+            pools[pool_indices[1]].amount -= protocol_fee_amount;
+        }
 
-    //     // swap input should now be considered part of the pool (since we swapped it for the other asset),
-    //     // but return_asset should not (since it is considered the lp's deposit from now on)
-    //     pools[pool_indices[0]].amount += input_asset.amount;
-    //     pools[pool_indices[1]].amount -= return_asset.amount;
+        // swap input should now be considered part of the pool (since we swapped it for the other asset),
+        // but return_asset should not (since it is considered the lp's deposit from now on)
+        pools[pool_indices[0]].amount += input_asset.amount;
+        pools[pool_indices[1]].amount -= return_asset.amount;
 
-    //     // now pretend the other half and the returned assets were sent
-    //     let remaining_half = AssetValidated {
-    //         info: input_asset.info,
-    //         amount: offer_asset.amount - input_asset.amount,
-    //     };
-    //     assets = vec![remaining_half, return_asset];
-    // }
+        // now pretend the other half and the returned assets were sent
+        let remaining_half = AssetValidated {
+            info: input_asset.info,
+            amount: offer_asset.amount - input_asset.amount,
+        };
+        assets = vec![remaining_half, return_asset];
+    }
 
     let deposits = [
         assets

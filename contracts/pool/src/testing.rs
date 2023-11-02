@@ -101,7 +101,7 @@ fn proper_initialization() {
 
     // It worked, let's query the state
     let pool_info = CONFIG.load(deps.as_ref().storage).unwrap().pool_info;
-    assert_eq!("uusdmapplp", pool_info.liquidity_token);
+    assert_eq!("uusdmapplp-cosmos2contract", pool_info.liquidity_token);
     assert_eq!(
         pool_info.asset_infos,
         [

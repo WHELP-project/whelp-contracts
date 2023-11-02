@@ -17,7 +17,7 @@ use crate::querier::{
 };
 
 /// Minimum initial LP share
-pub const MINIMUM_LIQUIDITY_AMOUNT: Uint128 = Uint128::new(1_000);
+pub const MINIMUM_LIQUIDITY_AMOUNT: Uint128 = Uint128::new(100);
 
 /// This enum describes a Terra asset (native or CW20).
 #[cw_serde]
