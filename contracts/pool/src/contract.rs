@@ -189,6 +189,7 @@ pub fn execute(
             FROZEN.save(deps.storage, &frozen)?;
             Ok(Response::new())
         }
+        ExecuteMsg::WithdrawLiquidity {} => withdraw_liquidity(deps, env, info),
         _ => Err(ContractError::NonSupported {}),
     }
 }
@@ -236,10 +237,6 @@ pub fn receive_cw20(
                 referral_address,
                 referral_commission,
             )
-        }
-        Cw20HookMsg::WithdrawLiquidity { .. } => {
-            let sender = deps.api.addr_validate(&cw20_msg.sender)?;
-            withdraw_liquidity(deps, env, info, sender, cw20_msg.amount)
         }
     }
 }
@@ -505,14 +502,15 @@ pub fn withdraw_liquidity(
     deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
-    sender: Addr,
-    amount: Uint128,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage).unwrap();
 
-    if info.sender != config.pool_info.liquidity_token {
+    if info.funds[0].denom != config.pool_info.liquidity_token {
         return Err(ContractError::Unauthorized {});
     }
+
+    let sender = info.sender.clone();
+    let amount = info.funds[0].amount;
 
     let (pools, total_share) = pool_info(deps.querier, &config)?;
     let refund_assets = get_share_in_assets(&pools, amount, total_share);
@@ -543,11 +541,9 @@ pub fn withdraw_liquidity(
     let messages: Vec<CosmosMsg<CoreumMsg>> = vec![
         refund_assets[0].clone().into_msg(sender.clone())?,
         refund_assets[1].clone().into_msg(sender.clone())?,
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.pool_info.liquidity_token.to_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Burn { amount })?,
-            funds: vec![],
-        }),
+        CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Burn {
+            coin: coin(amount.u128(), &config.pool_info.liquidity_token),
+        })),
     ];
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![

@@ -177,6 +177,8 @@ pub enum ExecuteMsg {
         /// The receiver of LP tokens
         receiver: Option<String>,
     },
+    /// Withdraw liquidity from the pool
+    WithdrawLiquidity {},
     /// Swap performs a swap in the pool
     Swap {
         offer_asset: Asset,
@@ -225,8 +227,6 @@ pub enum Cw20HookMsg {
         /// This is capped by and defaulting to the configured max commission
         referral_commission: Option<Decimal>,
     },
-    /// Withdraw liquidity from the pool
-    WithdrawLiquidity { assets: Vec<Asset> },
 }
 
 #[cw_serde]
