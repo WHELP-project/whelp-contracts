@@ -7,12 +7,12 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply,
-    StdError, StdResult, Uint128, Uint256, WasmMsg,
+    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, Reply, StdError,
+    StdResult, Uint128, Uint256,
 };
 
 use cw2::set_contract_version;
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cw20::Cw20ReceiveMsg;
 
 use dex::{
     asset::{
@@ -20,17 +20,15 @@ use dex::{
         AssetValidated, MINIMUM_LIQUIDITY_AMOUNT,
     },
     decimal2decimal256,
-    factory::{ConfigResponse as FactoryConfig, PoolType},
+    factory::PoolType,
     fee_config::FeeConfig,
     pool::{
-        add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
-        get_share_in_assets, handle_referral, handle_reply, mint_token_message,
-        save_tmp_staking_config, take_referral, ConfigResponse, ContractError,
+        assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
+        get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
         LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
-    querier::{query_factory_config, query_supply},
 };
 
 use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
@@ -266,7 +264,7 @@ pub fn receive_cw20(
 
 pub fn update_fees(
     deps: DepsMut<CoreumQueries>,
-    info: MessageInfo,
+    _info: MessageInfo,
     fee_config: FeeConfig,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
@@ -606,12 +604,12 @@ pub fn swap(
     env: Env,
     info: MessageInfo,
     sender: Addr,
-    mut offer_asset: AssetValidated,
+    offer_asset: AssetValidated,
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
     to: Option<Addr>,
-    referral_address: Option<Addr>,
-    referral_commission: Option<Decimal>,
+    _referral_address: Option<Addr>,
+    _referral_commission: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     offer_asset.assert_sent_native_token_balance(&info)?;
     let original_offer_asset = offer_asset.clone();
@@ -762,8 +760,8 @@ fn do_swap(
     };
 
     // Compute the protocol fee
-    let mut fee_msg = None;
-    let mut protocol_fee_amount = Uint128::zero();
+    let fee_msg = None;
+    let protocol_fee_amount = Uint128::zero();
     // if let Some(ref fee_address) = factory_config.fee_address {
     //     if let Some(f) = calculate_protocol_fee(
     //         &ask_pool.info,
@@ -978,10 +976,10 @@ pub fn query_share(deps: Deps<CoreumQueries>, amount: Uint128) -> StdResult<Vec<
 pub fn query_simulation(
     deps: Deps<CoreumQueries>,
     offer_asset: Asset,
-    referral: bool,
-    referral_commission: Option<Decimal>,
+    _referral: bool,
+    _referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let mut offer_asset = offer_asset.validate(deps.api)?;
+    let offer_asset = offer_asset.validate(deps.api)?;
     let config = CONFIG.load(deps.storage)?;
 
     let referral_amount = Uint128::zero() /*if referral {
@@ -1031,8 +1029,8 @@ pub fn query_simulation(
 pub fn query_reverse_simulation(
     deps: Deps<CoreumQueries>,
     ask_asset: Asset,
-    referral: bool,
-    referral_commission: Option<Decimal>,
+    _referral: bool,
+    _referral_commission: Option<Decimal>,
 ) -> StdResult<ReverseSimulationResponse> {
     let ask_asset = ask_asset.validate(deps.api)?;
     let config = CONFIG.load(deps.storage)?;

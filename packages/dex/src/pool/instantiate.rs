@@ -13,8 +13,7 @@ pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 const TMP_STAKING_CONFIG: Item<StakeConfig> = Item::new("tmp_staking_config");
 
 pub const LP_TOKEN_PRECISION: u32 = 6;
-/// A `reply` call code ID used for token instantiation sub-message.
-const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;
+
 /// A `reply` call code ID used for staking contract instantiation sub-message.
 const _INSTANTIATE_STAKE_REPLY_ID: u64 = 2;
 
@@ -29,28 +28,25 @@ pub fn save_tmp_staking_config(
 
 /// Handles the replies from the lp token and staking contract instantiation sub-messages.
 pub fn handle_reply(
-    deps: &DepsMut<CoreumQueries>,
+    _deps: &DepsMut<CoreumQueries>,
     msg: Reply,
     // factory: &Addr,
-    pool_info: &mut PairInfo,
+    _pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
     let msg_id = msg.id;
     // parse the reply
-    let res = cw_utils::parse_reply_execute_data(msg).map_err(|_| {
+    let _res = cw_utils::parse_reply_execute_data(msg).map_err(|_| {
         StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
     })?;
-    match msg_id {
-        // INSTANTIATE_STAKE_REPLY_ID => instantiate_staking_reply(deps, res, pool_info),
-        _ => Err(ContractError::UnknownReply(msg_id)),
-    }
+    Err(ContractError::UnknownReply(msg_id))
 }
 
 /// Sets the `pool_info`'s `liquidity_token` field to the address of the newly instantiated
 /// lp token contract, reads the temporary staking config and sends a sub-message to instantiate
 /// the staking contract.
 pub fn instantiate_lp_token_reply(
-    deps: &DepsMut<CoreumQueries>,
-    res: MsgExecuteContractResponse,
+    _deps: &DepsMut<CoreumQueries>,
+    _res: MsgExecuteContractResponse,
     _factory: &Addr,
     pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
