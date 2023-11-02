@@ -530,15 +530,15 @@ pub fn withdraw_liquidity(
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage).unwrap();
 
-    if dbg!(info.funds[0].denom.clone()) != dbg!(config.pool_info.liquidity_token.clone()) {
+    if info.funds[0].denom.clone() != config.pool_info.liquidity_token.clone() {
         return Err(ContractError::Unauthorized {});
     }
 
     let sender = info.sender.clone();
     let amount = info.funds[0].amount;
 
-    let (pools, total_share) = pool_info(deps.querier, &config)?;
-    let refund_assets = get_share_in_assets(&pools, amount, total_share);
+    let (pools, total_share) = dbg!(pool_info(deps.as_ref(), &config)?);
+    let refund_assets = dbg!(get_share_in_assets(&pools, amount, total_share));
 
     // Calculate new pool amounts
     let mut new_pools = pools
@@ -950,7 +950,7 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
 /// tokens currently minted in an object of type [`PoolResponse`].
 pub fn query_pool(deps: Deps<CoreumQueries>) -> StdResult<PoolResponse> {
     let config = CONFIG.load(deps.storage)?;
-    let (assets, total_share) = pool_info(deps.querier, &config)?;
+    let (assets, total_share) = pool_info(deps, &config)?;
 
     let resp = PoolResponse {
         assets,
@@ -966,7 +966,7 @@ pub fn query_pool(deps: Deps<CoreumQueries>) -> StdResult<PoolResponse> {
 /// * **amount** is the amount of LP tokens for which we calculate associated amounts of assets.
 pub fn query_share(deps: Deps<CoreumQueries>, amount: Uint128) -> StdResult<Vec<AssetValidated>> {
     let config = CONFIG.load(deps.storage)?;
-    let (pools, total_share) = pool_info(deps.querier, &config)?;
+    let (pools, total_share) = pool_info(deps, &config)?;
     let refund_assets = get_share_in_assets(&pools, amount, total_share);
 
     Ok(refund_assets)
@@ -1089,7 +1089,7 @@ pub fn query_cumulative_prices(
     env: Env,
 ) -> StdResult<CumulativePricesResponse> {
     let config = CONFIG.load(deps.storage)?;
-    let (assets, total_share) = pool_info(deps.querier, &config)?;
+    let (assets, total_share) = pool_info(deps, &config)?;
 
     let mut price0_cumulative_last = config.price0_cumulative_last;
     let mut price1_cumulative_last = config.price1_cumulative_last;
@@ -1257,13 +1257,15 @@ fn assert_slippage_tolerance(
 
 /// Returns the total amount of assets in the pool as well as the total amount of LP tokens currently minted.
 pub fn pool_info(
-    querier: QuerierWrapper<CoreumQueries>,
+    deps: Deps<CoreumQueries>,
     config: &Config,
 ) -> StdResult<(Vec<AssetValidated>, Uint128)> {
     let pools = config
         .pool_info
-        .query_pools(&querier, &config.pool_info.contract_addr)?;
-    let total_share = query_supply(&querier, &config.pool_info.liquidity_token)?;
+        .query_pools(&deps.querier, &config.pool_info.contract_addr)?;
+    // FIXME: For some reason this query doesn't work; use a local storage workaround
+    // let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
+    let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
 
     Ok((pools, total_share))
 }
