@@ -68,7 +68,7 @@ pub fn instantiate(
     let config = Config {
         pool_info: PairInfo {
             contract_addr: env.contract.address.clone(),
-            liquidity_token: format!("{}-{}", lp_token_name.clone(), env.contract.address),
+            liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
             staking_addr: Addr::unchecked(""),
             asset_infos,
             pool_type: PoolType::Xyk {},
@@ -456,10 +456,7 @@ pub fn provide_liquidity(
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
     // TODO: mint -> mint & send
     messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
-        coin: coin(
-            MINIMUM_LIQUIDITY_AMOUNT.u128(),
-            &config.pool_info.liquidity_token,
-        ),
+        coin: coin(share.u128(), &config.pool_info.liquidity_token),
     })));
     messages.push(CosmosMsg::Bank(BankMsg::Send {
         to_address: receiver.to_string(),

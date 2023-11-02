@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::fmt;
 
-use coreum_wasm_sdk::core::{CoreumQueries, CoreumMsg};
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_binary, Addr, Api, BankMsg, Coin, ConversionOverflowError, CosmosMsg, Decimal256, Env,

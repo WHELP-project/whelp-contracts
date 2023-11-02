@@ -1,4 +1,4 @@
-use coreum_wasm_sdk::core::{CoreumQueries, CoreumMsg};
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{Addr, DepsMut, Reply, StdError, StdResult, Storage};
 use cw_storage_plus::Item;
 use cw_utils::MsgExecuteContractResponse;
