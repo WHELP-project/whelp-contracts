@@ -35,11 +35,6 @@ use crate::mock_querier::mock_dependencies;
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
-fn store_liquidity_token(deps: DepsMut<CoreumQueries>, contract_addr: String) {
-    let mut config = CONFIG.load(deps.storage).unwrap();
-    CONFIG.save(deps.storage, &config).unwrap();
-}
-
 fn default_stake_config() -> StakeConfig {
     StakeConfig {
         staking_code_id: 11,
@@ -162,9 +157,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
     let info = mock_info("addr0000", &[]);
     // We can just call .unwrap() to assert this was a success
     let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
-
-    // Store liquidity token
-    store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
 
     // Successfully provide liquidity for the existing pool
     let msg = ExecuteMsg::ProvideLiquidity {
@@ -448,9 +440,6 @@ fn provide_liquidity() {
     // We can just call .unwrap() to assert this was a success
     let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
 
-    // Store liquidity token
-    store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
-
     // Successfully provide liquidity for the existing pool
     let msg = ExecuteMsg::ProvideLiquidity {
         assets: vec![
@@ -703,295 +692,320 @@ fn provide_liquidity() {
             amount: Uint128::from(100_000000000000000000u128),
         }],
     );
-    // let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-    // assert_eq!(res, ContractError::MaxSlippageAssertion {});
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::MaxSlippageAssertion {});
 
-    // // Initialize token balance to 1:1
-    // deps.querier.with_balance(&[(
-    //     &String::from(MOCK_CONTRACT_ADDR),
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::new(100_000000000000000000 + 98_000000000000000000 /* user deposit must be pre-applied */),
-    //     }],
-    // )]);
+    // Initialize token balance to 1:1
+    deps.querier.with_balance(&[(
+        &String::from(MOCK_CONTRACT_ADDR),
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::new(100_000000000000000000 + 98_000000000000000000 /* user deposit must be pre-applied */),
+        }],
+    )]);
 
-    // // Failed because the price is under slippage_tolerance
-    // let msg = ExecuteMsg::ProvideLiquidity {
-    //     assets: vec![
-    //         Asset {
-    //             info: AssetInfo::Cw20Token("asset0000".to_string()),
-    //             amount: Uint128::from(100_000000000000000000u128),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::SmartToken("uusd".to_string()),
-    //             amount: Uint128::from(98_000000000000000000u128),
-    //         },
-    //     ],
-    //     slippage_tolerance: Some(Decimal::percent(1)),
-    //     receiver: None,
-    // };
+    // Failed because the price is under slippage_tolerance
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::from(100_000000000000000000u128),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(98_000000000000000000u128),
+            },
+        ],
+        slippage_tolerance: Some(Decimal::percent(1)),
+        receiver: None,
+    };
 
-    // let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
-    // let info = mock_info(
-    //     "addr0001",
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::from(98_000000000000000000u128),
-    //     }],
-    // );
-    // let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-    // assert_eq!(res, ContractError::MaxSlippageAssertion {});
+    let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
+    let info = mock_info(
+        "addr0001",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(98_000000000000000000u128),
+        }],
+    );
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::MaxSlippageAssertion {});
 
-    // // Initialize token amount with a 1:1 ratio
-    // deps.querier.with_balance(&[(
-    //     &String::from(MOCK_CONTRACT_ADDR),
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::new(100_000000000000000000 + 100_000000000000000000 /* user deposit must be pre-applied */),
-    //     }],
-    // )]);
+    // Initialize token amount with a 1:1 ratio
+    deps.querier.with_balance(&[(
+        &String::from(MOCK_CONTRACT_ADDR),
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::new(100_000000000000000000 + 100_000000000000000000 /* user deposit must be pre-applied */),
+        }],
+    )]);
 
-    // // Successfully provides liquidity
-    // let msg = ExecuteMsg::ProvideLiquidity {
-    //     assets: vec![
-    //         Asset {
-    //             info: AssetInfo::Cw20Token("asset0000".to_string()),
-    //             amount: Uint128::from(99_000000000000000000u128),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::SmartToken("uusd".to_string()),
-    //             amount: Uint128::from(100_000000000000000000u128),
-    //         },
-    //     ],
-    //     slippage_tolerance: Some(Decimal::percent(1)),
-    //     receiver: None,
-    // };
+    // Successfully provides liquidity
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::from(99_000000000000000000u128),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(100_000000000000000000u128),
+            },
+        ],
+        slippage_tolerance: Some(Decimal::percent(1)),
+        receiver: None,
+    };
 
-    // let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
-    // let info = mock_info(
-    //     "addr0001",
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::from(100_000000000000000000u128),
-    //     }],
-    // );
-    // let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
+    let info = mock_info(
+        "addr0001",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(100_000000000000000000u128),
+        }],
+    );
+    let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
-    // // Initialize token balance to 1:1
-    // deps.querier.with_balance(&[(
-    //     &String::from(MOCK_CONTRACT_ADDR),
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::new(100_000000000000000000 + 99_000000000000000000 /* user deposit must be pre-applied */),
-    //     }],
-    // )]);
+    // Initialize token balance to 1:1
+    deps.querier.with_balance(&[(
+        &String::from(MOCK_CONTRACT_ADDR),
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::new(100_000000000000000000 + 99_000000000000000000 /* user deposit must be pre-applied */),
+        }],
+    )]);
 
-    // // Successfully provides liquidity
-    // let msg = ExecuteMsg::ProvideLiquidity {
-    //     assets: vec![
-    //         Asset {
-    //             info: AssetInfo::Cw20Token("asset0000".to_string()),
-    //             amount: Uint128::from(100_000000000000000000u128),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::SmartToken("uusd".to_string()),
-    //             amount: Uint128::from(99_000000000000000000u128),
-    //         },
-    //     ],
-    //     slippage_tolerance: Some(Decimal::percent(1)),
-    //     receiver: None,
-    // };
+    // Successfully provides liquidity
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::from(100_000000000000000000u128),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(99_000000000000000000u128),
+            },
+        ],
+        slippage_tolerance: Some(Decimal::percent(1)),
+        receiver: None,
+    };
 
-    // let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
-    // let info = mock_info(
-    //     "addr0001",
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::from(99_000000000000000000u128),
-    //     }],
-    // );
-    // execute(deps.as_mut(), env, info, msg).unwrap();
+    let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
+    let info = mock_info(
+        "addr0001",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(99_000000000000000000u128),
+        }],
+    );
+    execute(deps.as_mut(), env, info, msg).unwrap();
 
-    // let msg = ExecuteMsg::ProvideLiquidity {
-    //     assets: vec![
-    //         Asset {
-    //             info: AssetInfo::Cw20Token("asset0000".to_string()),
-    //             amount: Uint128::zero(),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::SmartToken("uusd".to_string()),
-    //             amount: Uint128::from(99_000000000000000000u128),
-    //         },
-    //     ],
-    //     slippage_tolerance: Some(Decimal::percent(1)),
-    //     receiver: None,
-    // };
-    // let info = mock_info(
-    //     "addr0001",
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::from(99_000000000000000000u128),
-    //     }],
-    // );
-    // let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    // assert_eq!(err, ContractError::InvalidZeroAmount {});
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::zero(),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(99_000000000000000000u128),
+            },
+        ],
+        slippage_tolerance: Some(Decimal::percent(1)),
+        receiver: None,
+    };
+    let info = mock_info(
+        "addr0001",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(99_000000000000000000u128),
+        }],
+    );
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(err, ContractError::InvalidZeroAmount {});
 
-    // let msg = ExecuteMsg::ProvideLiquidity {
-    //     assets: vec![
-    //         Asset {
-    //             info: AssetInfo::Cw20Token("asset0000".to_string()),
-    //             amount: Uint128::from(100_000000000000000000u128),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::SmartToken("uusd".to_string()),
-    //             amount: Uint128::from(100_000000000000000000u128),
-    //         },
-    //     ],
-    //     slippage_tolerance: Some(Decimal::percent(51)),
-    //     receiver: None,
-    // };
-    // let info = mock_info(
-    //     "addr0001",
-    //     &[Coin {
-    //         denom: "uusd".to_string(),
-    //         amount: Uint128::from(100_000000000000000000u128),
-    //     }],
-    // );
-    // let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    // assert_eq!(err, ContractError::AllowedSpreadAssertion {});
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::from(100_000000000000000000u128),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(100_000000000000000000u128),
+            },
+        ],
+        slippage_tolerance: Some(Decimal::percent(51)),
+        receiver: None,
+    };
+    let info = mock_info(
+        "addr0001",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(100_000000000000000000u128),
+        }],
+    );
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(err, ContractError::AllowedSpreadAssertion {});
 }
 
-// #[test]
-// fn withdraw_liquidity() {
-//     let mut deps = mock_dependencies(&[Coin {
-//         denom: "uusd".to_string(),
-//         amount: Uint128::new(100u128),
-//     }]);
-//
-//     deps.querier.with_token_balances(&[
-//         (
-//             &String::from("liquidity0000"),
-//             &[
-//                 (&String::from("addr0000"), &Uint128::new(100u128)),
-//                 (&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(1000u128)), // MIN_LIQUIDITY_AMOUNT
-//             ],
-//         ),
-//         (
-//             &String::from("asset0000"),
-//             &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100u128))],
-//         ),
-//     ]);
-//
-//     let msg = InstantiateMsg {
-//         asset_infos: vec![
-//             AssetInfo::SmartToken("uusd".to_string()),
-//             AssetInfo::Cw20Token("asset0000".to_string()),
-//         ],
-//         token_code_id: 10u64,
-//
-//         factory_addr: String::from("factory"),
-//         init_params: None,
-//         staking_config: default_stake_config(),
-//         trading_starts: 0,
-//         fee_config: FeeConfig {
-//             total_fee_bps: 0,
-//             protocol_fee_bps: 0,
-//         },
-//         circuit_breaker: None,
-//     };
-//
-//     let env = mock_env();
-//     let info = mock_info("addr0000", &[]);
-//     // We can just call .unwrap() to assert this was a success
-//     let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
-//
-//     // Store liquidity token
-//     store_liquidity_token(deps.as_mut(), "liquidity0000".to_string());
-//
-//     // need to initialize oracle, because we don't call `provide_liquidity` in this test
-//     dex::oracle::initialize_oracle(
-//         &mut deps.storage,
-//         &mock_env_with_block_time(0),
-//         Decimal::one(),
-//     )
-//     .unwrap();
-//
-//     // Withdraw liquidity
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: String::from("addr0000"),
-//         msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets: vec![] }).unwrap(),
-//         amount: Uint128::new(100u128),
-//     });
-//
-//     let env = mock_env();
-//     let info = mock_info("liquidity0000", &[]);
-//     let res = execute(deps.as_mut(), env, info, msg).unwrap();
-//     let log_withdrawn_share = res.attributes.get(2).expect("no log");
-//     let log_refund_assets = res.attributes.get(3).expect("no log");
-//     let msg_refund_0 = res.messages.get(0).expect("no message");
-//     let msg_refund_1 = res.messages.get(1).expect("no message");
-//     let msg_burn_liquidity = res.messages.get(2).expect("no message");
-//     assert_eq!(
-//         msg_refund_0,
-//         &SubMsg {
-//             msg: CosmosMsg::Bank(BankMsg::Send {
-//                 to_address: String::from("addr0000"),
-//                 amount: vec![Coin {
-//                     denom: "uusd".to_string(),
-//                     amount: Uint128::from(9u128),
-//                 }],
-//             }),
-//             id: 0,
-//             gas_limit: None,
-//             reply_on: ReplyOn::Never,
-//         }
-//     );
-//     assert_eq!(
-//         msg_refund_1,
-//         &SubMsg {
-//             msg: WasmMsg::Execute {
-//                 contract_addr: String::from("asset0000"),
-//                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-//                     recipient: String::from("addr0000"),
-//                     amount: Uint128::from(9u128),
-//                 })
-//                 .unwrap(),
-//                 funds: vec![],
-//             }
-//             .into(),
-//             id: 0,
-//             gas_limit: None,
-//             reply_on: ReplyOn::Never,
-//         }
-//     );
-//     assert_eq!(
-//         msg_burn_liquidity,
-//         &SubMsg {
-//             msg: WasmMsg::Execute {
-//                 contract_addr: String::from("liquidity0000"),
-//                 msg: to_binary(&Cw20ExecuteMsg::Burn {
-//                     amount: Uint128::from(100u128),
-//                 })
-//                 .unwrap(),
-//                 funds: vec![],
-//             }
-//             .into(),
-//             id: 0,
-//             gas_limit: None,
-//             reply_on: ReplyOn::Never,
-//         }
-//     );
-//
-//     assert_eq!(
-//         log_withdrawn_share,
-//         &attr("withdrawn_share", 100u128.to_string())
-//     );
-//     assert_eq!(
-//         log_refund_assets,
-//         &attr("refund_assets", "9uusd, 9asset0000")
-//     );
-// }
-//
+#[test]
+fn withdraw_liquidity() {
+    let mut deps = mock_dependencies(&[Coin {
+        denom: "uusd".to_string(),
+        amount: Uint128::new(100u128),
+    }]);
+
+    deps.querier.with_token_balances(&[
+        (
+            &String::from("liquidity0000"),
+            &[
+                (&String::from("addr0000"), &Uint128::new(100u128)),
+                (&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(1000u128)), // MIN_LIQUIDITY_AMOUNT
+            ],
+        ),
+        (
+            &String::from("asset0000"),
+            &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(10000u128))],
+        ),
+    ]);
+
+    let msg = InstantiateMsg {
+        asset_infos: vec![
+            AssetInfo::SmartToken("uusd".to_string()),
+            AssetInfo::Cw20Token("asset0000".to_string()),
+        ],
+        token_code_id: 10u64,
+
+        // factory_addr: String::from("factory"),
+        init_params: None,
+        staking_config: default_stake_config(),
+        trading_starts: 0,
+        fee_config: FeeConfig {
+            total_fee_bps: 0,
+            protocol_fee_bps: 0,
+        },
+        circuit_breaker: None,
+    };
+
+    let env = mock_env();
+    let info = mock_info("addr0000", &[]);
+    // We can just call .unwrap() to assert this was a success
+    let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
+
+    // need to initialize oracle, because we don't call `provide_liquidity` in this test
+    dex::oracle::initialize_oracle(
+        &mut deps.storage,
+        &mock_env_with_block_time(0),
+        Decimal::one(),
+    )
+    .unwrap();
+
+    // Successfully provide liquidity for the existing pool
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::from(10000u128),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(10000u128),
+            },
+        ],
+        slippage_tolerance: None,
+        receiver: None,
+    };
+
+    let env = mock_env();
+    deps.querier.with_balance(&[(
+        &String::from(MOCK_CONTRACT_ADDR),
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::new(10000),
+        }],
+    )]);
+    let info = mock_info(
+        "addr0000",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(10000u128),
+        }],
+    );
+    // Do one successful action before freezing just for sanity
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Withdraw liquidity
+    let msg = ExecuteMsg::WithdrawLiquidity {};
+    let env = mock_env();
+    let info = mock_info("addr0000", &[coin(100, "uuusdmapplp-cosmos2contract")]);
+    let res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+    let log_withdrawn_share = res.attributes.get(2).expect("no log");
+    let log_refund_assets = res.attributes.get(3).expect("no log");
+    let msg_refund_0 = res.messages.get(0).expect("no message");
+    let msg_refund_1 = res.messages.get(1).expect("no message");
+    let msg_burn_liquidity = res.messages.get(2).expect("no message");
+    assert_eq!(
+        msg_refund_0,
+        &SubMsg {
+            msg: CosmosMsg::Bank(BankMsg::Send {
+                to_address: String::from("addr0000"),
+                amount: vec![Coin {
+                    denom: "uusd".to_string(),
+                    amount: Uint128::from(100u128),
+                }],
+            }),
+            id: 0,
+            gas_limit: None,
+            reply_on: ReplyOn::Never,
+        }
+    );
+    assert_eq!(
+        msg_refund_1,
+        &SubMsg {
+            msg: WasmMsg::Execute {
+                contract_addr: String::from("asset0000"),
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: String::from("addr0000"),
+                    amount: Uint128::from(100u128),
+                })
+                .unwrap(),
+                funds: vec![],
+            }
+            .into(),
+            id: 0,
+            gas_limit: None,
+            reply_on: ReplyOn::Never,
+        }
+    );
+    assert_eq!(
+        msg_burn_liquidity,
+        &SubMsg {
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Burn {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
+                    amount: Uint128::from(100_u128),
+                },
+            }))
+            .into(),
+            id: 0,
+            gas_limit: None,
+            reply_on: ReplyOn::Never,
+        }
+    );
+
+    assert_eq!(
+        log_withdrawn_share,
+        &attr("withdrawn_share", 100u128.to_string())
+    );
+    assert_eq!(
+        log_refund_assets,
+        &attr("refund_assets", "100uusd, 100asset0000")
+    );
+}
+
 // #[test]
 // fn query_twap() {
 //     let mut deps = mock_dependencies(&[]);

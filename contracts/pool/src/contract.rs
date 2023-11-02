@@ -537,8 +537,8 @@ pub fn withdraw_liquidity(
     let sender = info.sender.clone();
     let amount = info.funds[0].amount;
 
-    let (pools, total_share) = dbg!(pool_info(deps.as_ref(), &config)?);
-    let refund_assets = dbg!(get_share_in_assets(&pools, amount, total_share));
+    let (pools, total_share) = pool_info(deps.as_ref(), &config)?;
+    let refund_assets = get_share_in_assets(&pools, amount, total_share);
 
     // Calculate new pool amounts
     let mut new_pools = pools
