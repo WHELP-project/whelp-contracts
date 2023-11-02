@@ -4,7 +4,7 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    assert_approx_eq, attr, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
+    assert_approx_eq, attr, coin, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
     CosmosMsg, Decimal, DepsMut, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
@@ -24,8 +24,8 @@ use dex::pool::{
 use dex::pool::{MigrateMsg, QueryMsg};
 
 use crate::contract::{
-    accumulate_prices, compute_swap, execute, instantiate, query_pool, query_reverse_simulation,
-    query_share, query_simulation,
+    accumulate_prices, compute_swap, execute, instantiate, migrate, query_pool,
+    query_reverse_simulation, query_share, query_simulation,
 };
 use crate::contract::{compute_offer_amount, query};
 use crate::state::{Config, CONFIG};
@@ -147,7 +147,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
         token_code_id: 10u64,
-        factory_addr: String::from("factory"),
+        // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -250,100 +250,96 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
         receiver: None,
     };
 
-let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
-let info = mock_info(
-    "addr0000",
-    &[Coin {
-        denom: "uusd".to_string(),
-        amount: Uint128::from(200_000000000000000000u128),
-    }],
-);
+    let env = mock_env_with_block_time(env.block.time.seconds() + 1000);
+    let info = mock_info(
+        "addr0000",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(200_000000000000000000u128),
+        }],
+    );
 
-// Assert an error and that its frozen
-let res: ContractError = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-assert_eq!(res, ContractError::ContractFrozen {});
-// Also do a swap, which should also fail
-let msg = ExecuteMsg::Swap {
-    offer_asset: Asset {
-        info: AssetInfo::SmartToken("uusd".to_string()),
-        amount: 1_000u128.into(),
-    },
-    to: None,
-    max_spread: None,
-    belief_price: None,
-    ask_asset_info: None,
-    referral_address: None,
-    referral_commission: None,
-};
-
-let info = mock_info(
-    "addr0000",
-    &[Coin {
-        denom: "uusd".to_string(),
-        amount: Uint128::from(1000u128),
-    }],
-);
-// Assert an error and that its frozen
-let res: ContractError = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
-assert_eq!(res, ContractError::ContractFrozen {});
-
-let msg = ExecuteMsg::UpdateFees {
-    fee_config: FeeConfig {
-        total_fee_bps: 5,
-        protocol_fee_bps: 5,
-    },
-};
-let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-assert_eq!(res, ContractError::ContractFrozen {});
-
-// Normal sell but with CW20
-let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-    sender: String::from("addr0000"),
-    amount: offer_amount,
-    msg: to_binary(&Cw20HookMsg::Swap {
-        ask_asset_info: None,
-        belief_price: None,
-        max_spread: Some(Decimal::percent(50)),
+    // Assert an error and that its frozen
+    let res: ContractError = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ContractFrozen {});
+    // Also do a swap, which should also fail
+    let msg = ExecuteMsg::Swap {
+        offer_asset: Asset {
+            info: AssetInfo::SmartToken("uusd".to_string()),
+            amount: 1_000u128.into(),
+        },
         to: None,
+        max_spread: None,
+        belief_price: None,
+        ask_asset_info: None,
         referral_address: None,
         referral_commission: None,
-    })
-    .unwrap(),
-});
-let info = mock_info("asset0000", &[]);
+    };
 
-let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-assert_eq!(res, ContractError::ContractFrozen {});
+    let info = mock_info(
+        "addr0000",
+        &[Coin {
+            denom: "uusd".to_string(),
+            amount: Uint128::from(1000u128),
+        }],
+    );
+    // Assert an error and that its frozen
+    let res: ContractError = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+    assert_eq!(res, ContractError::ContractFrozen {});
 
-// But we can withdraw liquidity
+    let msg = ExecuteMsg::UpdateFees {
+        fee_config: FeeConfig {
+            total_fee_bps: 5,
+            protocol_fee_bps: 5,
+        },
+    };
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ContractFrozen {});
 
-// Withdraw liquidity
-let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-    sender: String::from("addr0000"),
-    msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets: vec![] }).unwrap(),
-    amount: Uint128::new(100u128),
-});
+    // Normal sell but with CW20
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: String::from("addr0000"),
+        amount: offer_amount,
+        msg: to_binary(&Cw20HookMsg::Swap {
+            ask_asset_info: None,
+            belief_price: None,
+            max_spread: Some(Decimal::percent(50)),
+            to: None,
+            referral_address: None,
+            referral_commission: None,
+        })
+        .unwrap(),
+    });
+    let info = mock_info("asset0000", &[]);
 
-let info = mock_info("liquidity0000", &[]);
-// We just want to ensure it doesn't fail with a ContractFrozen error
-execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ContractFrozen {});
 
-// Unfreeze the pool again using the Freeze message rather than another migrate
-let msg = ExecuteMsg::Freeze { frozen: false };
-// First try a failing case with addr0001
-let info = mock_info("addr0001", &[]);
-// Rather than being unfrozen it returns unauthorized as addr0000 is the only addr that can currently call Freeze unless another migration changes that
-let err = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap_err();
-assert_eq!(err, ContractError::Unauthorized {});
-// But the assigned circuit_breaker address can do an unfreeze with the ExecuteMsg variant
-let info = mock_info("addr0000", &[]);
-// And it works
-execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    // But we can withdraw liquidity
 
-// Testing actions working again after unfreeze
+    // Withdraw liquidity
+    let msg = ExecuteMsg::WithdrawLiquidity {};
 
-// Initialize token balance to 1:1
-deps.querier.with_balance(&[(
+    let info = mock_info("addr0000", &[coin(100, "uuusdmapplp-cosmos2contract")]);
+    // We just want to ensure it doesn't fail with a ContractFrozen error
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Unfreeze the pool again using the Freeze message rather than another migrate
+    let msg = ExecuteMsg::Freeze { frozen: false };
+    // First try a failing case with addr0001
+    let info = mock_info("addr0001", &[]);
+    // Rather than being unfrozen it returns unauthorized as addr0000 is the only addr that can currently call Freeze unless another migration changes that
+    let err = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap_err();
+    assert_eq!(err, ContractError::Unauthorized {});
+    // But the assigned circuit_breaker address can do an unfreeze with the ExecuteMsg variant
+    let info = mock_info("addr0000", &[]);
+    // And it works
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Testing actions working again after unfreeze
+
+    // Initialize token balance to 1:1
+    deps.querier.with_balance(&[(
     &String::from(MOCK_CONTRACT_ADDR),
     &[Coin {
         denom: "uusd".to_string(),
@@ -351,65 +347,65 @@ deps.querier.with_balance(&[(
     }],
 )]);
 
-deps.querier.with_token_balances(&[
-    (
-        &String::from("liquidity0000"),
-        &[(
-            &String::from(MOCK_CONTRACT_ADDR),
-            &Uint128::new(100_000000000000000000),
-        )],
-    ),
-    (
-        &String::from("asset0000"),
-        &[(
-            &String::from(MOCK_CONTRACT_ADDR),
-            &Uint128::new(100_000000000000000000),
-        )],
-    ),
-]);
+    deps.querier.with_token_balances(&[
+        (
+            &String::from("liquidity0000"),
+            &[(
+                &String::from(MOCK_CONTRACT_ADDR),
+                &Uint128::new(100_000000000000000000),
+            )],
+        ),
+        (
+            &String::from("asset0000"),
+            &[(
+                &String::from(MOCK_CONTRACT_ADDR),
+                &Uint128::new(100_000000000000000000),
+            )],
+        ),
+    ]);
 
-// Successfully provides liquidity
-let msg = ExecuteMsg::ProvideLiquidity {
-    assets: vec![
-        Asset {
-            info: AssetInfo::Cw20Token("asset0000".to_string()),
-            amount: Uint128::from(100_000000000000000000u128),
-        },
-        Asset {
-            info: AssetInfo::SmartToken("uusd".to_string()),
+    // Successfully provides liquidity
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: AssetInfo::Cw20Token("asset0000".to_string()),
+                amount: Uint128::from(100_000000000000000000u128),
+            },
+            Asset {
+                info: AssetInfo::SmartToken("uusd".to_string()),
+                amount: Uint128::from(99_000000000000000000u128),
+            },
+        ],
+        slippage_tolerance: Some(Decimal::percent(1)),
+        receiver: None,
+    };
+
+    let info = mock_info(
+        "addr0001",
+        &[Coin {
+            denom: "uusd".to_string(),
             amount: Uint128::from(99_000000000000000000u128),
-        },
-    ],
-    slippage_tolerance: Some(Decimal::percent(1)),
-    receiver: None,
-};
+        }],
+    );
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
-let info = mock_info(
-    "addr0001",
-    &[Coin {
-        denom: "uusd".to_string(),
-        amount: Uint128::from(99_000000000000000000u128),
-    }],
-);
-execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    // Normal sell but with CW20
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: String::from("addr0000"),
+        amount: offer_amount,
+        msg: to_binary(&Cw20HookMsg::Swap {
+            ask_asset_info: None,
+            belief_price: None,
+            max_spread: Some(Decimal::percent(50)),
+            to: None,
+            referral_address: None,
+            referral_commission: None,
+        })
+        .unwrap(),
+    });
+    let info = mock_info("asset0000", &[]);
 
-// Normal sell but with CW20
-let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-    sender: String::from("addr0000"),
-    amount: offer_amount,
-    msg: to_binary(&Cw20HookMsg::Swap {
-        ask_asset_info: None,
-        belief_price: None,
-        max_spread: Some(Decimal::percent(50)),
-        to: None,
-        referral_address: None,
-        referral_commission: None,
-    })
-    .unwrap(),
-});
-let info = mock_info("asset0000", &[]);
-
-execute(deps.as_mut(), env, info, msg).unwrap();
+    execute(deps.as_mut(), env, info, msg).unwrap();
 }
 
 #[test]

@@ -26,9 +26,9 @@ use dex::{
         add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
         get_share_in_assets, handle_referral, handle_reply, mint_token_message,
         save_tmp_staking_config, take_referral, ConfigResponse, ContractError,
-        CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo, PoolResponse,
-        QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION, MigrateMsg
+        CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
+        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
+        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
     querier::{query_factory_config, query_supply},
 };
