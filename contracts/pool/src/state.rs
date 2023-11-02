@@ -26,3 +26,6 @@ pub const CONFIG: Item<Config> = Item::new("config");
 pub const CIRCUIT_BREAKER: Item<Addr> = Item::new("circuit_breaker");
 // Whether the contract is frozen or not
 pub const FROZEN: Item<bool> = Item::new("frozen");
+
+/// Stores the total amount of LP share tokens minted (workaround)
+pub const LP_SHARE_AMOUNT: Item<Uint128> = Item::new("lp_share_amount");
