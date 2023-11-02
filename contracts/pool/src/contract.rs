@@ -28,7 +28,7 @@ use dex::{
         save_tmp_staking_config, take_referral, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo, PoolResponse,
         QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION, MigrateMsg
     },
     querier::{query_factory_config, query_supply},
 };
@@ -97,6 +97,28 @@ pub fn instantiate(
             send_commission_rate: Some("0.00000".into()),
         }))),
     )
+}
+
+/// Manages the contract migration.
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(
+    deps: DepsMut<CoreumQueries>,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::UpdateFreeze {
+            frozen,
+            circuit_breaker,
+        } => {
+            FROZEN.save(deps.storage, &frozen)?;
+            if let Some(circuit_breaker) = circuit_breaker {
+                CIRCUIT_BREAKER.save(deps.storage, &deps.api.addr_validate(&circuit_breaker)?)?;
+            }
+        }
+    }
+
+    Ok(Response::new())
 }
 
 /// The entry point to the contract for processing replies from submessages.
@@ -398,7 +420,7 @@ pub fn provide_liquidity(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let total_share = dbg!(query_supply(&deps.querier, &config.pool_info.liquidity_token)?);
+    let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
     let share = if total_share.is_zero() {
         // Initial share = collateral amount
         let share: Uint128 = deposits[0]
@@ -497,7 +519,7 @@ pub fn withdraw_liquidity(
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage).unwrap();
 
-    if info.funds[0].denom != config.pool_info.liquidity_token {
+    if dbg!(info.funds[0].denom.clone()) != dbg!(config.pool_info.liquidity_token.clone()) {
         return Err(ContractError::Unauthorized {});
     }
 
