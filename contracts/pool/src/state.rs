@@ -9,7 +9,7 @@ pub struct Config {
     /// General pool information (e.g pool type)
     pub pool_info: PairInfo,
     /// The factory contract address
-    pub factory_addr: Addr,
+    // pub factory_addr: Addr,
     /// The last timestamp when the pool contract update the asset cumulative prices
     pub block_time_last: u64,
     /// The last cumulative price for asset 0

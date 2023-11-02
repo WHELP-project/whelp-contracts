@@ -58,7 +58,7 @@ fn proper_initialization() {
     )]);
 
     let msg = InstantiateMsg {
-        factory_addr: String::from("factory"),
+        // factory_addr: String::from("factory"),
         asset_infos: vec![
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
@@ -441,7 +441,7 @@ fn provide_liquidity() {
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
         token_code_id: 10u64,
-        factory_addr: String::from("factory"),
+        // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,

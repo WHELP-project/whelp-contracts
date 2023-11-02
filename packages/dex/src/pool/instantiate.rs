@@ -1,9 +1,5 @@
-use coreum_wasm_sdk::{
-    core::CoreumQueries,
-};
-use cosmwasm_std::{
-    Addr, DepsMut, Reply, Response, StdError, StdResult, Storage,
-};
+use coreum_wasm_sdk::core::CoreumQueries;
+use cosmwasm_std::{Addr, DepsMut, Reply, Response, StdError, StdResult, Storage};
 use cw_storage_plus::Item;
 use cw_utils::MsgExecuteContractResponse;
 
@@ -32,7 +28,7 @@ pub fn save_tmp_staking_config(
 pub fn handle_reply(
     deps: &DepsMut<CoreumQueries>,
     msg: Reply,
-    factory: &Addr,
+    // factory: &Addr,
     pool_info: &mut PairInfo,
 ) -> Result<Response, ContractError> {
     let msg_id = msg.id;
@@ -41,7 +37,6 @@ pub fn handle_reply(
         StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
     })?;
     match msg_id {
-        INSTANTIATE_TOKEN_REPLY_ID => instantiate_lp_token_reply(deps, res, factory, pool_info),
         // INSTANTIATE_STAKE_REPLY_ID => instantiate_staking_reply(deps, res, pool_info),
         _ => Err(ContractError::UnknownReply(msg_id)),
     }

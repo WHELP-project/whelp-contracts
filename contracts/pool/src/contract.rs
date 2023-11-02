@@ -23,13 +23,12 @@ use dex::{
     factory::{ConfigResponse as FactoryConfig, PoolType},
     fee_config::FeeConfig,
     pool::{
-        LP_TOKEN_PRECISION,
         add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
         get_share_in_assets, handle_referral, handle_reply, mint_token_message,
         save_tmp_staking_config, take_referral, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo, PoolResponse,
         QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
     querier::{query_factory_config, query_supply},
 };
@@ -59,7 +58,7 @@ pub fn instantiate(
 
     msg.validate_fees()?;
 
-    let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
+    // let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
 
     let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
@@ -72,7 +71,7 @@ pub fn instantiate(
             pool_type: PoolType::Xyk {},
             fee_config: msg.fee_config,
         },
-        factory_addr,
+        // factory_addr,
         block_time_last: 0,
         price0_cumulative_last: Uint128::zero(),
         price1_cumulative_last: Uint128::zero(),
@@ -105,7 +104,7 @@ pub fn reply(
     msg: Reply,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
-    let res = handle_reply(&deps, msg, &config.factory_addr, &mut config.pool_info)?;
+    let res = handle_reply(&deps, msg, &mut config.pool_info)?;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(res)
@@ -251,9 +250,9 @@ pub fn update_fees(
     check_if_frozen(&deps)?;
 
     // check permissions
-    if info.sender != config.factory_addr {
-        return Err(ContractError::Unauthorized {});
-    }
+    // if info.sender != config.factory_addr {
+    //     return Err(ContractError::Unauthorized {});
+    // }
 
     // update config
     config.pool_info.fee_config = fee_config;
@@ -339,63 +338,63 @@ pub fn provide_liquidity(
     }
     dbg!("asset received");
 
-    if assets.len() == 1 {
-        dbg!("here?");
-        let offer_asset = assets.pop().unwrap();
-        if pool_indices[0] == 0 {
-            pool_indices.push(1);
-        } else {
-            pool_indices.push(0);
-        }
-        // We cannot swap with an empty pool.
-        if pools[pool_indices[1]].amount.is_zero() {
-            return Err(ContractError::InvalidProvideLPsWithSingleToken {});
-        }
+    // if assets.len() == 1 {
+    //     dbg!("here?");
+    //     let offer_asset = assets.pop().unwrap();
+    //     if pool_indices[0] == 0 {
+    //         pool_indices.push(1);
+    //     } else {
+    //         pool_indices.push(0);
+    //     }
+    //     // We cannot swap with an empty pool.
+    //     if pools[pool_indices[1]].amount.is_zero() {
+    //         return Err(ContractError::InvalidProvideLPsWithSingleToken {});
+    //     }
 
-        // use half for swapping
-        let input_asset = AssetValidated {
-            info: offer_asset.info.clone(),
-            amount: offer_asset.amount / Uint128::from(2u128),
-        };
+    //     // use half for swapping
+    //     let input_asset = AssetValidated {
+    //         info: offer_asset.info.clone(),
+    //         amount: offer_asset.amount / Uint128::from(2u128),
+    //     };
 
-        // Get config from the factory
-        let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
-        // swap half of the asset for the other first
-        let SwapResult {
-            return_asset,
-            protocol_fee_msg,
-            protocol_fee_amount,
-            ..
-        } = do_swap(
-            deps.branch(),
-            &env,
-            &mut config,
-            &factory_config,
-            &pools,
-            &input_asset,
-            None,
-            None,
-        )?;
+    //     // Get config from the factory
+    //     let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+    //     // swap half of the asset for the other first
+    //     let SwapResult {
+    //         return_asset,
+    //         protocol_fee_msg,
+    //         protocol_fee_amount,
+    //         ..
+    //     } = do_swap(
+    //         deps.branch(),
+    //         &env,
+    //         &mut config,
+    //         &factory_config,
+    //         &pools,
+    //         &input_asset,
+    //         None,
+    //         None,
+    //     )?;
 
-        // pay swap fee
-        if let Some(msg) = protocol_fee_msg {
-            messages.push(msg);
-            // remove from pool, protocol fee is denominated in returned asset, so index 1
-            pools[pool_indices[1]].amount -= protocol_fee_amount;
-        }
+    //     // pay swap fee
+    //     if let Some(msg) = protocol_fee_msg {
+    //         messages.push(msg);
+    //         // remove from pool, protocol fee is denominated in returned asset, so index 1
+    //         pools[pool_indices[1]].amount -= protocol_fee_amount;
+    //     }
 
-        // swap input should now be considered part of the pool (since we swapped it for the other asset),
-        // but return_asset should not (since it is considered the lp's deposit from now on)
-        pools[pool_indices[0]].amount += input_asset.amount;
-        pools[pool_indices[1]].amount -= return_asset.amount;
+    //     // swap input should now be considered part of the pool (since we swapped it for the other asset),
+    //     // but return_asset should not (since it is considered the lp's deposit from now on)
+    //     pools[pool_indices[0]].amount += input_asset.amount;
+    //     pools[pool_indices[1]].amount -= return_asset.amount;
 
-        // now pretend the other half and the returned assets were sent
-        let remaining_half = AssetValidated {
-            info: input_asset.info,
-            amount: offer_asset.amount - input_asset.amount,
-        };
-        assets = vec![remaining_half, return_asset];
-    }
+    //     // now pretend the other half and the returned assets were sent
+    //     let remaining_half = AssetValidated {
+    //         info: input_asset.info,
+    //         amount: offer_asset.amount - input_asset.amount,
+    //     };
+    //     assets = vec![remaining_half, return_asset];
+    // }
 
     let deposits = [
         assets
@@ -594,17 +593,17 @@ pub fn swap(
 
     let mut config = CONFIG.load(deps.storage)?;
     // Get config from the factory
-    let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+    // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
 
     let mut messages = Vec::new();
 
-    handle_referral(
-        &factory_config,
-        referral_address,
-        referral_commission,
-        &mut offer_asset,
-        &mut messages,
-    )?;
+    // handle_referral(
+    //     &factory_config,
+    //     referral_address,
+    //     referral_commission,
+    //     &mut offer_asset,
+    //     &mut messages,
+    // )?;
 
     // If the asset balance is already increased, we should subtract the user deposit from the pool amount
     let pools = config
@@ -630,7 +629,7 @@ pub fn swap(
         deps,
         &env,
         &mut config,
-        &factory_config,
+        // &factory_config,
         &pools,
         &offer_asset,
         belief_price,
@@ -688,7 +687,7 @@ fn do_swap(
     deps: DepsMut<CoreumQueries>,
     env: &Env,
     config: &mut Config,
-    factory_config: &FactoryConfig,
+    // factory_config: &FactoryConfig,
     pools: &[AssetValidated],
     offer_asset: &AssetValidated,
     belief_price: Option<Decimal>,
@@ -738,16 +737,16 @@ fn do_swap(
     // Compute the protocol fee
     let mut fee_msg = None;
     let mut protocol_fee_amount = Uint128::zero();
-    if let Some(ref fee_address) = factory_config.fee_address {
-        if let Some(f) = calculate_protocol_fee(
-            &ask_pool.info,
-            commission_amount,
-            config.pool_info.fee_config.protocol_fee_rate(),
-        ) {
-            protocol_fee_amount = f.amount;
-            fee_msg = Some(f.into_msg(fee_address)?);
-        }
-    }
+    // if let Some(ref fee_address) = factory_config.fee_address {
+    //     if let Some(f) = calculate_protocol_fee(
+    //         &ask_pool.info,
+    //         commission_amount,
+    //         config.pool_info.fee_config.protocol_fee_rate(),
+    //     ) {
+    //         protocol_fee_amount = f.amount;
+    //         fee_msg = Some(f.into_msg(fee_address)?);
+    //     }
+    // }
 
     // Calculate new pool amounts
     let (new_pool0, new_pool1) = if pools[0].info.equal(&ask_pool.info) {
@@ -958,12 +957,12 @@ pub fn query_simulation(
     let mut offer_asset = offer_asset.validate(deps.api)?;
     let config = CONFIG.load(deps.storage)?;
 
-    let referral_amount = if referral {
+    let referral_amount = Uint128::zero() /*if referral {
         let factory_config = query_factory_config(&deps.querier, config.factory_addr)?;
         take_referral(&factory_config, referral_commission, &mut offer_asset)?
     } else {
         Uint128::zero()
-    };
+    }*/;
 
     let pools = config
         .pool_info
@@ -1041,19 +1040,19 @@ pub fn query_reverse_simulation(
         info: offer_pool.info,
         amount: offer_amount,
     };
-    let (offer_asset, referral_amount) = add_referral(
-        &deps.querier,
-        &config.factory_addr,
-        referral,
-        referral_commission,
-        offer_asset,
-    )?;
+    // let (offer_asset, referral_amount) = add_referral(
+    //     &deps.querier,
+    //     &config.factory_addr,
+    //     referral,
+    //     referral_commission,
+    //     offer_asset,
+    // )?;
 
     Ok(ReverseSimulationResponse {
         offer_amount: offer_asset.amount,
         spread_amount,
         commission_amount,
-        referral_amount,
+        referral_amount: Uint128::zero(),
     })
 }
 
