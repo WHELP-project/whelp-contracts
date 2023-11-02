@@ -5,8 +5,7 @@ use coreum_wasm_sdk::{
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     assert_approx_eq, attr, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
-    CosmosMsg, Decimal, DepsMut, Env, Fraction, ReplyOn, Response, StdError, SubMsg, Timestamp,
-    Uint128, WasmMsg,
+    CosmosMsg, Decimal, DepsMut, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 use cw_utils::MsgInstantiateContractResponse;
@@ -33,6 +32,9 @@ use crate::state::{Config, CONFIG};
 // TODO: Copied here just as a temporary measure
 use crate::mock_querier::mock_dependencies;
 
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
+
 fn store_liquidity_token(deps: DepsMut<CoreumQueries>, contract_addr: String) {
     let mut config = CONFIG.load(deps.storage).unwrap();
     CONFIG.save(deps.storage, &config).unwrap();
@@ -58,7 +60,7 @@ fn proper_initialization() {
     )]);
 
     let msg = InstantiateMsg {
-        factory_addr: String::from("factory"),
+        // factory_addr: String::from("factory"),
         asset_infos: vec![
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
@@ -83,8 +85,8 @@ fn proper_initialization() {
         res.messages,
         vec![SubMsg {
             msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
-                symbol: "uusdmapplp-cosmos2contract".to_string(),
-                subunit: "uuusdmapplp-cosmos2contract".to_string(),
+                symbol: "uusdmapplp".to_string(),
+                subunit: "uuusdmapplp".to_string(),
                 precision: LP_TOKEN_PRECISION,
                 initial_amount: Uint128::zero(),
                 description: Some("Dex LP Share token".to_string()),
@@ -101,7 +103,7 @@ fn proper_initialization() {
 
     // It worked, let's query the state
     let pool_info = CONFIG.load(deps.as_ref().storage).unwrap().pool_info;
-    assert_eq!("uusdmapplp-cosmos2contract", pool_info.liquidity_token);
+    assert_eq!("uuusdmapplp-cosmos2contract", pool_info.liquidity_token);
     assert_eq!(
         pool_info.asset_infos,
         [
@@ -426,13 +428,6 @@ fn provide_liquidity() {
             &String::from("liquidity0000"),
             &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(0))],
         ),
-        (
-            &String::from("uusd"),
-            &[(
-                &String::from(MOCK_CONTRACT_ADDR),
-                &Uint128::new(200000000000000000000u128),
-            )],
-        ),
     ]);
 
     let msg = InstantiateMsg {
@@ -441,7 +436,7 @@ fn provide_liquidity() {
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
         token_code_id: 10u64,
-        factory_addr: String::from("factory"),
+        // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -510,15 +505,12 @@ fn provide_liquidity() {
     assert_eq!(
         mint_min_liquidity_msg,
         &SubMsg {
-            msg: WasmMsg::Execute {
-                contract_addr: String::from("liquidity0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: String::from(MOCK_CONTRACT_ADDR),
-                    amount: Uint128::from(1000_u128),
-                })
-                .unwrap(),
-                funds: vec![],
-            }
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
+                    amount: Uint128::from(1_000_u128),
+                },
+            }))
             .into(),
             id: 0,
             gas_limit: None,
@@ -528,15 +520,12 @@ fn provide_liquidity() {
     assert_eq!(
         mint_receiver_msg,
         &SubMsg {
-            msg: WasmMsg::Execute {
-                contract_addr: String::from("liquidity0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: String::from("addr0000"),
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
                     amount: Uint128::from(99_999999999999999000u128),
-                })
-                .unwrap(),
-                funds: vec![],
-            }
+                },
+            }))
             .into(),
             id: 0,
             gas_limit: None,
@@ -621,15 +610,12 @@ fn provide_liquidity() {
     assert_eq!(
         mint_msg,
         &SubMsg {
-            msg: WasmMsg::Execute {
-                contract_addr: String::from("liquidity0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: String::from("addr0000"),
-                    amount: Uint128::from(50_000000000000000000u128),
-                })
-                .unwrap(),
-                funds: vec![],
-            }
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
+                    amount: Uint128::from(1_000_u128),
+                },
+            }))
             .into(),
             id: 0,
             gas_limit: None,

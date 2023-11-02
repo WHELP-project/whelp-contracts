@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::fmt;
 
-use coreum_wasm_sdk::core::CoreumQueries;
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_binary, Addr, Api, BankMsg, Coin, ConversionOverflowError, CosmosMsg, Decimal256, Env,
@@ -17,7 +17,7 @@ use crate::querier::{
 };
 
 /// Minimum initial LP share
-pub const MINIMUM_LIQUIDITY_AMOUNT: Uint128 = Uint128::new(1_000);
+pub const MINIMUM_LIQUIDITY_AMOUNT: Uint128 = Uint128::new(1000);
 
 /// This enum describes a Terra asset (native or CW20).
 #[cw_serde]
@@ -92,7 +92,7 @@ impl AssetValidated {
     /// Before the token is sent, we need to deduct a tax.
     ///
     /// For a token of type [`AssetInfo`] we use the default method [`Cw20ExecuteMsg::Transfer`] and so there's no need to deduct any other tax.
-    pub fn into_msg(&self, recipient: impl Into<String>) -> StdResult<CosmosMsg> {
+    pub fn into_msg(&self, recipient: impl Into<String>) -> StdResult<CosmosMsg<CoreumMsg>> {
         let recipient = recipient.into();
         match &self.info {
             AssetInfoValidated::Cw20Token(contract_addr) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -119,14 +119,12 @@ impl AssetValidated {
         &self,
         env: &Env,
         info: &MessageInfo,
-        messages: &mut Vec<CosmosMsg>,
+        messages: &mut Vec<CosmosMsg<CoreumMsg>>,
     ) -> StdResult<()> {
         if self.amount.is_zero() {
             return Ok(());
         }
 
-        dbg!(self.amount);
-        dbg!(self.info.clone());
         match &self.info {
             AssetInfoValidated::SmartToken(_) => self.assert_sent_native_token_balance(info),
             AssetInfoValidated::Cw20Token(contract_addr) => {
@@ -147,10 +145,8 @@ impl AssetValidated {
     /// Validates an amount of native tokens being sent.
     pub fn assert_sent_native_token_balance(&self, message_info: &MessageInfo) -> StdResult<()> {
         if let AssetInfoValidated::SmartToken(denom) = &self.info {
-            dbg!("assert sent native token balance");
             match message_info.funds.iter().find(|x| x.denom == *denom) {
                 Some(coin) => {
-                    dbg!(coin);
                     if self.amount == coin.amount {
                         Ok(())
                     } else {
@@ -401,7 +397,6 @@ const TOKEN_SYMBOL_MAX_LENGTH: usize = 4;
 /// Returns a formatted LP token name
 pub fn format_lp_token_name(
     asset_infos: &[AssetInfoValidated],
-    issuer: &Addr,
     querier: &QuerierWrapper<CoreumQueries>,
 ) -> StdResult<String> {
     let mut short_symbols: Vec<String> = vec![];
@@ -417,7 +412,7 @@ pub fn format_lp_token_name(
         };
         short_symbols.push(short_symbol);
     }
-    Ok(format!("{}lp-{}", short_symbols.iter().join(""), issuer).to_lowercase())
+    Ok(format!("{}lp", short_symbols.iter().join("")).to_lowercase())
 }
 
 /// Returns an [`Asset`] object representing a native token and an amount of tokens.

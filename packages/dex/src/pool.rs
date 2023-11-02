@@ -54,7 +54,6 @@ impl PairInfo {
         querier: &QuerierWrapper<CoreumQueries>,
         contract_addr: impl Into<String>,
     ) -> StdResult<Vec<AssetValidated>> {
-        dbg!("here in the end?");
         let contract_addr = contract_addr.into();
         self.asset_infos
             .iter()
@@ -100,7 +99,7 @@ pub struct InstantiateMsg {
     /// The token contract code ID used for the tokens in the pool
     pub token_code_id: u64,
     /// The factory contract address
-    pub factory_addr: String,
+    // pub factory_addr: String,
     /// Optional binary serialised parameters for custom pool types
     pub init_params: Option<Binary>,
     /// The fees for this pool
@@ -177,6 +176,8 @@ pub enum ExecuteMsg {
         /// The receiver of LP tokens
         receiver: Option<String>,
     },
+    /// Withdraw liquidity from the pool
+    WithdrawLiquidity {},
     /// Swap performs a swap in the pool
     Swap {
         offer_asset: Asset,
@@ -225,8 +226,6 @@ pub enum Cw20HookMsg {
         /// This is capped by and defaulting to the configured max commission
         referral_commission: Option<Decimal>,
     },
-    /// Withdraw liquidity from the pool
-    WithdrawLiquidity { assets: Vec<Asset> },
 }
 
 #[cw_serde]

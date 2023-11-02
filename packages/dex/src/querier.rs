@@ -10,7 +10,7 @@ use crate::pool::{
 use coreum_wasm_sdk::{assetft, core::CoreumQueries};
 use cosmwasm_std::{
     Addr, AllBalanceResponse, BankQuery, Coin, Decimal, QuerierWrapper, QueryRequest, StdResult,
-    Uint128,
+    SupplyResponse, Uint128,
 };
 
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
@@ -26,17 +26,9 @@ pub fn query_balance(
     account_addr: impl Into<String>,
     denom: impl Into<String>,
 ) -> StdResult<Uint128> {
-    let request: QueryRequest<CoreumQueries> = CoreumQueries::AssetFT(assetft::Query::Balance {
-        account: account_addr.into(),
-        denom: denom.into(),
-    })
-    .into();
-    let balance_response: assetft::BalanceResponse = querier.query(&request)?;
-    Ok(balance_response
-        .balance
-        .parse::<u128>()
-        .expect("Failed to parse the string")
-        .into())
+    querier
+        .query_balance(account_addr, denom)
+        .map(|coin| coin.amount)
 }
 
 /// Returns the total balances for all coins at a specified account address.
@@ -88,17 +80,18 @@ pub fn query_token_symbol(
     Ok(res.symbol)
 }
 
-/// Returns the total supply of a specific token.
+/// Returns the total supply of a specific Smart Token.
 ///
 /// * **contract_addr** token contract address.
 pub fn query_supply(
     querier: &QuerierWrapper<CoreumQueries>,
-    contract_addr: impl Into<String>,
+    denom: impl Into<String>,
 ) -> StdResult<Uint128> {
-    let res: TokenInfoResponse =
-        querier.query_wasm_smart(contract_addr, &Cw20QueryMsg::TokenInfo {})?;
+    let supply: SupplyResponse = querier.query(&QueryRequest::Bank(BankQuery::Supply {
+        denom: denom.into(),
+    }))?;
 
-    Ok(res.total_supply)
+    Ok(supply.amount.amount)
 }
 
 /// Returns the number of decimals that a token has.
