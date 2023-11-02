@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::fmt;
 
-use coreum_wasm_sdk::core::CoreumQueries;
+use coreum_wasm_sdk::core::{CoreumQueries, CoreumMsg};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_binary, Addr, Api, BankMsg, Coin, ConversionOverflowError, CosmosMsg, Decimal256, Env,
@@ -92,7 +92,7 @@ impl AssetValidated {
     /// Before the token is sent, we need to deduct a tax.
     ///
     /// For a token of type [`AssetInfo`] we use the default method [`Cw20ExecuteMsg::Transfer`] and so there's no need to deduct any other tax.
-    pub fn into_msg(&self, recipient: impl Into<String>) -> StdResult<CosmosMsg> {
+    pub fn into_msg(&self, recipient: impl Into<String>) -> StdResult<CosmosMsg<CoreumMsg>> {
         let recipient = recipient.into();
         match &self.info {
             AssetInfoValidated::Cw20Token(contract_addr) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -119,7 +119,7 @@ impl AssetValidated {
         &self,
         env: &Env,
         info: &MessageInfo,
-        messages: &mut Vec<CosmosMsg>,
+        messages: &mut Vec<CosmosMsg<CoreumMsg>>,
     ) -> StdResult<()> {
         if self.amount.is_zero() {
             return Ok(());

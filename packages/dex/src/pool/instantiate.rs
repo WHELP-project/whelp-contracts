@@ -1,9 +1,12 @@
-use coreum_wasm_sdk::core::CoreumQueries;
-use cosmwasm_std::{Addr, DepsMut, Reply, Response, StdError, StdResult, Storage};
+use coreum_wasm_sdk::core::{CoreumQueries, CoreumMsg};
+use cosmwasm_std::{Addr, DepsMut, Reply, StdError, StdResult, Storage};
 use cw_storage_plus::Item;
 use cw_utils::MsgExecuteContractResponse;
 
 use super::{ContractError, PairInfo, StakeConfig};
+
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 /// Stores some config options for the staking contract in-between
 /// lp token instantiation and staking contract instantiation.

@@ -4,7 +4,7 @@ use crate::{
     querier::query_factory_config,
 };
 
-use coreum_wasm_sdk::core::CoreumQueries;
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Decimal256, QuerierWrapper, Uint128, Uint256};
 
 use super::ContractError;
@@ -19,7 +19,7 @@ pub fn handle_referral(
     referral_address: Option<Addr>,
     referral_commission: Option<Decimal>,
     offer_asset: &mut AssetValidated,
-    messages: &mut Vec<CosmosMsg>,
+    messages: &mut Vec<CosmosMsg<CoreumMsg>>,
 ) -> Result<(), ContractError> {
     if let Some(referral_address) = referral_address {
         let commission_amount = take_referral(factory_config, referral_commission, offer_asset)?;

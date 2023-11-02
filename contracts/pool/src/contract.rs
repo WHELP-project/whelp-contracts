@@ -6,9 +6,9 @@ use coreum_wasm_sdk::{
     core::{CoreumMsg, CoreumQueries},
 };
 use cosmwasm_std::{
-    attr, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
-    Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError,
-    StdResult, SubMsg, Uint128, Uint256, WasmMsg,
+    attr, coin, ensure, entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Decimal,
+    Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply, StdError, StdResult,
+    Uint128, Uint256, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -35,6 +35,9 @@ use dex::{
 
 use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN};
 
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
+
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "dex-pool";
 /// Contract version that is used for migration.
@@ -47,7 +50,7 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response<CoreumMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let asset_infos = check_asset_infos(deps.api, &msg.asset_infos)?;
 
     if asset_infos.len() != 2 {
@@ -313,7 +316,7 @@ pub fn provide_liquidity(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let mut messages = vec![];
+    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
 
     dbg!("Query pools info #2");
     for (i, asset) in assets.iter().enumerate() {
@@ -417,7 +420,13 @@ pub fn provide_liquidity(
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
         // TODO: mint -> mint & send
-        // messages.extend(mint_token_message(
+        messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+            coin: coin(
+                MINIMUM_LIQUIDITY_AMOUNT.u128(),
+                &config.pool_info.liquidity_token,
+            ),
+        })));
+        //     mint_token_message(
         //     &config.pool_info.liquidity_token,
         //     &env.contract.address,
         //     MINIMUM_LIQUIDITY_AMOUNT,
@@ -531,7 +540,7 @@ pub fn withdraw_liquidity(
     }
 
     // Update the pool info
-    let messages: Vec<CosmosMsg> = vec![
+    let messages: Vec<CosmosMsg<CoreumMsg>> = vec![
         refund_assets[0].clone().into_msg(sender.clone())?,
         refund_assets[1].clone().into_msg(sender.clone())?,
         CosmosMsg::Wasm(WasmMsg::Execute {
@@ -588,7 +597,7 @@ pub fn swap(
     // Get config from the factory
     // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
 
-    let mut messages = Vec::new();
+    let mut messages: Vec<CosmosMsg<CoreumMsg>> = Vec::new();
 
     // handle_referral(
     //     &factory_config,
@@ -668,7 +677,7 @@ struct SwapResult {
     spread_amount: Uint128,
     commission_amount: Uint128,
     protocol_fee_amount: Uint128,
-    protocol_fee_msg: Option<CosmosMsg>,
+    protocol_fee_msg: Option<CosmosMsg<CoreumMsg>>,
 }
 /// Helper method that executes a swap of one asset for another without needing to receive or send out the coins.
 /// Instead it returns the amount of the ask asset, as well as the protocol fee.
