@@ -428,13 +428,6 @@ fn provide_liquidity() {
             &String::from("liquidity0000"),
             &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(0))],
         ),
-        (
-            &String::from("uusd"),
-            &[(
-                &String::from(MOCK_CONTRACT_ADDR),
-                &Uint128::new(200000000000000000000u128),
-            )],
-        ),
     ]);
 
     let msg = InstantiateMsg {
@@ -512,15 +505,12 @@ fn provide_liquidity() {
     assert_eq!(
         mint_min_liquidity_msg,
         &SubMsg {
-            msg: WasmMsg::Execute {
-                contract_addr: String::from("liquidity0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: String::from(MOCK_CONTRACT_ADDR),
-                    amount: Uint128::from(1000_u128),
-                })
-                .unwrap(),
-                funds: vec![],
-            }
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
+                    amount: Uint128::from(1_000_u128),
+                },
+            }))
             .into(),
             id: 0,
             gas_limit: None,
@@ -530,15 +520,12 @@ fn provide_liquidity() {
     assert_eq!(
         mint_receiver_msg,
         &SubMsg {
-            msg: WasmMsg::Execute {
-                contract_addr: String::from("liquidity0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: String::from("addr0000"),
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
                     amount: Uint128::from(99_999999999999999000u128),
-                })
-                .unwrap(),
-                funds: vec![],
-            }
+                },
+            }))
             .into(),
             id: 0,
             gas_limit: None,
@@ -623,15 +610,12 @@ fn provide_liquidity() {
     assert_eq!(
         mint_msg,
         &SubMsg {
-            msg: WasmMsg::Execute {
-                contract_addr: String::from("liquidity0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: String::from("addr0000"),
-                    amount: Uint128::from(50_000000000000000000u128),
-                })
-                .unwrap(),
-                funds: vec![],
-            }
+            msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                coin: Coin {
+                    denom: String::from("uuusdmapplp-cosmos2contract"),
+                    amount: Uint128::from(1_000_u128),
+                },
+            }))
             .into(),
             id: 0,
             gas_limit: None,
