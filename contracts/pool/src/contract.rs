@@ -33,7 +33,7 @@ use dex::{
     querier::{query_factory_config, query_supply},
 };
 
-use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN};
+use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -83,6 +83,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
     FROZEN.save(deps.storage, &false)?;
+    LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
     save_tmp_staking_config(deps.storage, &msg.staking_config)?;
 
     Ok(
@@ -420,7 +421,9 @@ pub fn provide_liquidity(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
+    // FIXME: For some reason this query doesn't work; use a local storage workaround
+    // let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
+    let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
     let share = if total_share.is_zero() {
         // Initial share = collateral amount
         let share: Uint128 = deposits[0]
@@ -438,6 +441,10 @@ pub fn provide_liquidity(
                 &config.pool_info.liquidity_token,
             ),
         })));
+        LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
+            amount += MINIMUM_LIQUIDITY_AMOUNT;
+            Ok(amount)
+        })?;
 
         // share cannot become zero after minimum liquidity subtraction
         if share.is_zero() {
@@ -476,6 +483,10 @@ pub fn provide_liquidity(
             amount: share,
         }],
     }));
+    LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
+        amount += share;
+        Ok(amount)
+    })?;
 
     // Calculate new pool amounts
     let new_pool0 = pools[0].amount + deposits[0].amount;
@@ -559,6 +570,10 @@ pub fn withdraw_liquidity(
             coin: coin(amount.u128(), &config.pool_info.liquidity_token),
         })),
     ];
+    LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
+        amount -= amount;
+        Ok(amount)
+    })?;
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "withdraw_liquidity"),

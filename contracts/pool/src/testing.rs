@@ -609,7 +609,7 @@ fn provide_liquidity() {
             msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
                 coin: Coin {
                     denom: String::from("uuusdmapplp-cosmos2contract"),
-                    amount: Uint128::from(1_000_u128),
+                    amount: Uint128::from(50_000_000_000_000_000_000u128),
                 },
             }))
             .into(),
