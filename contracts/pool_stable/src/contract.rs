@@ -8,7 +8,7 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply,
+    CosmosMsg, Decimal, Decimal256, Deps, Fraction, DepsMut, Env, MessageInfo, QuerierWrapper, Reply,
     StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 
@@ -30,8 +30,8 @@ use dex::{
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
         StablePoolUpdateParams, DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE,
-        TWAP_PRECISION,
     },
+    DecimalCheckedOps
 };
 
 use crate::{
@@ -56,7 +56,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Creates a new contract with the specified parameters in the [`InstantiateMsg`].
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut<CoreumQueries>,
+    mut deps: DepsMut<CoreumQueries>,
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -211,6 +211,7 @@ pub fn execute(
         ExecuteMsg::UpdateFees { fee_config } => update_fees(deps, info, fee_config),
         ExecuteMsg::Swap {
             offer_asset,
+            ask_asset_info,
             belief_price,
             max_spread,
             to,
@@ -232,6 +233,7 @@ pub fn execute(
                 info.clone(),
                 info.sender,
                 offer_asset,
+                ask_asset_info,
                 belief_price,
                 max_spread,
                 to_addr,
@@ -266,6 +268,7 @@ pub fn receive_cw20(
 ) -> Result<Response, ContractError> {
     match from_binary(&cw20_msg.msg)? {
         Cw20HookMsg::Swap {
+            ask_asset_info,
             belief_price,
             max_spread,
             to,
@@ -292,6 +295,7 @@ pub fn receive_cw20(
                     info: AssetInfoValidated::Cw20Token(contract_addr),
                     amount: cw20_msg.amount,
                 },
+                ask_asset_info,
                 belief_price,
                 max_spread,
                 to_addr,
@@ -673,6 +677,7 @@ pub fn swap(
     info: MessageInfo,
     sender: Addr,
     offer_asset: AssetValidated,
+    ask_asset_info: Option<AssetInfo>,
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
     to: Option<Addr>,
@@ -680,7 +685,7 @@ pub fn swap(
     _referral_commission: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     offer_asset.assert_sent_native_token_balance(&info)?;
-    let original_offer_asset = offer_asset.clone();
+    let ask_asset_info = ask_asset_info.map(|a| a.validate(deps.api)).transpose()?;
 
     check_if_frozen(&deps)?;
 
@@ -698,42 +703,122 @@ pub fn swap(
     //     &mut messages,
     // )?;
 
-    // If the asset balance is already increased, we should subtract the user deposit from the pool amount
+    // If the asset balance already increased
+    // We should subtract the user deposit from the pool offer asset amount
     let pools = config
         .pool_info
         .query_pools(&deps.querier, &env.contract.address)?
         .into_iter()
-        .map(|mut p| {
-            if p.info.equal(&original_offer_asset.info) {
-                p.amount = p.amount.checked_sub(original_offer_asset.amount)?;
+        .map(|mut pool| {
+            if pool.info.equal(&offer_asset.info) {
+                pool.amount = pool.amount.checked_sub(offer_asset.amount)?;
             }
-            Ok(p)
+            let token_precision = get_precision(deps.storage, &pool.info)?;
+            Ok(DecimalAsset {
+                info: pool.info,
+                amount: Decimal256::with_precision(pool.amount, token_precision)?,
+            })
         })
         .collect::<StdResult<Vec<_>>>()?;
 
+    let (offer_pool, ask_pool) =
+        select_pools(Some(&offer_asset.info), ask_asset_info.as_ref(), &pools)?;
+
+    let offer_precision = get_precision(deps.storage, &offer_pool.info)?;
+
+    // Check if the liquidity is non-zero
+    check_swap_parameters(
+        pools
+            .iter()
+            .map(|pool| {
+                pool.amount
+                    .to_uint128_with_precision(get_precision(deps.storage, &pool.info)?)
+            })
+            .collect::<StdResult<Vec<Uint128>>>()?,
+        offer_asset.amount,
+    )?;
+
+    let save_config = update_target_rate(deps.querier, &mut config, &env)?;
     let SwapResult {
-        return_asset,
-        ask_info,
+        return_amount,
         spread_amount,
-        commission_amount,
-        protocol_fee_amount,
-        protocol_fee_msg,
-    } = do_swap(
-        deps,
+    } = compute_swap(
+        deps.storage,
         &env,
-        &mut config,
-        // &factory_config,
+        &config,
+        &offer_asset.to_decimal_asset(offer_precision)?,
+        &offer_pool,
+        &ask_pool,
         &pools,
-        &offer_asset,
+    )?;
+
+    let commission_amount = config
+        .pool_info
+        .fee_config
+        .total_fee_rate()
+        .checked_mul_uint128(return_amount)?;
+    let return_amount = return_amount.saturating_sub(commission_amount);
+
+    // Check the max spread limit (if it was specified)
+    assert_max_spread(
         belief_price,
         max_spread,
+        offer_asset.amount,
+        return_amount,
+        spread_amount + commission_amount,
     )?;
 
     let receiver = to.unwrap_or_else(|| sender.clone());
-    messages.push(return_asset.into_msg(&receiver)?);
 
-    if let Some(msg) = protocol_fee_msg {
-        messages.push(msg);
+    messages.push(
+        AssetValidated {
+            info: ask_pool.info.clone(),
+            amount: return_amount,
+        }
+        .into_msg(&receiver)?,
+    );
+
+    // Compute the protocol fee
+    let mut protocol_fee_amount = Uint128::zero();
+    // FIXME: Uncomment when factory is ready
+    // if let Some(fee_address) = factory_config.fee_address {
+    //     if let Some(f) = calculate_protocol_fee(
+    //         &ask_pool.info,
+    //         commission_amount,
+    //         config.pair_info.fee_config.protocol_fee_rate(),
+    //     ) {
+    //         protocol_fee_amount = f.amount;
+    //         messages.push(f.into_msg(fee_address)?);
+    //     }
+    // }
+
+    // calculate pools with deposited / withdrawn balances
+    let new_pools = pools
+        .iter()
+        .cloned()
+        .map(|mut pool| -> StdResult<DecimalAsset> {
+            if pool.info.equal(&offer_asset.info) {
+                // add offer amount to pool (it was already subtracted right at the beginning)
+                pool.amount = pool.amount.checked_add(Decimal256::with_precision(
+                    offer_asset.amount,
+                    offer_precision,
+                )?)?;
+            } else if pool.info.equal(&ask_pool.info) {
+                // subtract fee and return amount from ask pool
+                let ask_precision = get_precision(deps.storage, &ask_pool.info)?;
+                pool.amount = pool.amount.checked_sub(Decimal256::with_precision(
+                    return_amount + protocol_fee_amount,
+                    ask_precision,
+                )?)?;
+            }
+            Ok(pool)
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+    let new_price = calc_new_price_a_per_b(deps.as_ref(), &env, &config, &new_pools)?;
+    dex::oracle::store_oracle_price(deps.storage, &env, new_price)?;
+
+    if accumulate_prices(deps.as_ref(), &env, &mut config, &pools)? || save_config {
+        CONFIG.save(deps.storage, &config)?;
     }
 
     Ok(Response::new()
@@ -747,9 +832,9 @@ pub fn swap(
             attr("sender", sender),
             attr("receiver", receiver),
             attr("offer_asset", offer_asset.info.to_string()),
-            attr("ask_asset", ask_info.to_string()),
+            attr("ask_asset", ask_pool.info.to_string()),
             attr("offer_amount", offer_asset.amount),
-            attr("return_amount", return_asset.amount),
+            attr("return_amount", return_amount),
             attr("spread_amount", spread_amount),
             attr("commission_amount", commission_amount),
             attr("protocol_fee_amount", protocol_fee_amount),
@@ -760,114 +845,6 @@ fn check_if_frozen(deps: &DepsMut<CoreumQueries>) -> Result<(), ContractError> {
     let is_frozen: bool = FROZEN.load(deps.storage)?;
     ensure!(!is_frozen, ContractError::ContractFrozen {});
     Ok(())
-}
-
-/// Helper method that executes a swap of one asset for another without needing to receive or send out the coins.
-/// Instead it returns the amount of the ask asset, as well as the protocol fee.
-/// This method is useful for swapping in the middle of another message, where the coins are already in the contract.
-///
-/// Important: When providing the pool balances for this method, make sure that those do *not* include the offer asset.
-#[allow(clippy::too_many_arguments)]
-fn do_swap(
-    deps: DepsMut<CoreumQueries>,
-    env: &Env,
-    config: &mut Config,
-    // factory_config: &FactoryConfig,
-    pools: &[AssetValidated],
-    offer_asset: &AssetValidated,
-    belief_price: Option<Decimal>,
-    max_spread: Option<Decimal>,
-) -> Result<SwapResult, ContractError> {
-    if env.block.time.seconds() < config.trading_starts {
-        return Err(ContractError::TradingNotStarted {});
-    }
-
-    let offer_pool: AssetValidated;
-    let ask_pool: AssetValidated;
-
-    if offer_asset.info.equal(&pools[0].info) {
-        offer_pool = pools[0].clone();
-        ask_pool = pools[1].clone();
-    } else if offer_asset.info.equal(&pools[1].info) {
-        offer_pool = pools[1].clone();
-        ask_pool = pools[0].clone();
-    } else {
-        return Err(ContractError::AssetMismatch {});
-    }
-
-    let offer_amount = offer_asset.amount;
-
-    let (return_amount, spread_amount, commission_amount) = compute_swap(
-        offer_pool.amount,
-        ask_pool.amount,
-        offer_amount,
-        config.pool_info.fee_config.total_fee_rate(),
-    )?;
-
-    // Check the max spread limit (if it was specified)
-    assert_max_spread(
-        belief_price,
-        max_spread,
-        offer_amount,
-        return_amount + commission_amount,
-        spread_amount,
-    )?;
-
-    // Compute the tax for the receiving asset (if it is a native one)
-    let return_asset = AssetValidated {
-        info: ask_pool.info.clone(),
-        amount: return_amount,
-    };
-
-    // Compute the protocol fee
-    let fee_msg = None;
-    let protocol_fee_amount = Uint128::zero();
-    // if let Some(ref fee_address) = factory_config.fee_address {
-    //     if let Some(f) = calculate_protocol_fee(
-    //         &ask_pool.info,
-    //         commission_amount,
-    //         config.pool_info.fee_config.protocol_fee_rate(),
-    //     ) {
-    //         protocol_fee_amount = f.amount;
-    //         fee_msg = Some(f.into_msg(fee_address)?);
-    //     }
-    // }
-
-    // Calculate new pool amounts
-    let (new_pool0, new_pool1) = if pools[0].info.equal(&ask_pool.info) {
-        // subtract fee and return amount from ask pool
-        // add offer amount to offer pool
-        (
-            pools[0].amount - protocol_fee_amount - return_amount,
-            pools[1].amount + offer_amount,
-        )
-    } else {
-        // same as above, but with inverted indices
-        (
-            pools[0].amount + offer_amount,
-            pools[1].amount - protocol_fee_amount - return_amount,
-        )
-    };
-    dex::oracle::store_oracle_price(deps.storage, env, Decimal::from_ratio(new_pool0, new_pool1))?;
-
-    // Accumulate prices for the assets in the pool
-    if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
-        accumulate_prices(env, config, pools[0].amount, pools[1].amount)?
-    {
-        config.price0_cumulative_last = price0_cumulative_new;
-        config.price1_cumulative_last = price1_cumulative_new;
-        config.block_time_last = block_time;
-        CONFIG.save(deps.storage, config)?;
-    }
-
-    Ok(SwapResult {
-        return_asset,
-        ask_info: ask_pool.info,
-        spread_amount,
-        commission_amount,
-        protocol_fee_amount,
-        protocol_fee_msg: fee_msg,
-    })
 }
 
 /// Calculates the amount of fees the protocol gets according to specified pool parameters.
@@ -925,23 +902,29 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
         QueryMsg::Share { amount } => to_binary(&query_share(deps, amount)?),
         QueryMsg::Simulation {
             offer_asset,
+            ask_asset_info,
             referral,
             referral_commission,
             ..
         } => to_binary(&query_simulation(
             deps,
+            env,
             offer_asset,
+            ask_asset_info,
             referral,
             referral_commission,
         )?),
         QueryMsg::ReverseSimulation {
+            offer_asset_info,
             ask_asset,
             referral,
             referral_commission,
             ..
         } => to_binary(&query_reverse_simulation(
             deps,
+            env,
             ask_asset,
+            offer_asset_info,
             referral,
             referral_commission,
         )?),
@@ -1077,37 +1060,80 @@ pub fn query_simulation(
 /// assets to receive from the swap.
 pub fn query_reverse_simulation(
     deps: Deps<CoreumQueries>,
+    env: Env,
     ask_asset: Asset,
+    offer_asset_info: Option<AssetInfo>,
     _referral: bool,
     _referral_commission: Option<Decimal>,
 ) -> StdResult<ReverseSimulationResponse> {
     let ask_asset = ask_asset.validate(deps.api)?;
-    let config = CONFIG.load(deps.storage)?;
+    let offer_asset_info = offer_asset_info.map(|a| a.validate(deps.api)).transpose()?;
 
+    let mut config = CONFIG.load(deps.storage)?;
     let pools = config
         .pool_info
-        .query_pools(&deps.querier, &config.pool_info.contract_addr)?;
+        .query_pools_decimal(&deps.querier, &config.pool_info.contract_addr)?;
+    let (offer_pool, ask_pool) =
+        select_pools(offer_asset_info.as_ref(), Some(&ask_asset.info), &pools)
+            .map_err(|err| StdError::generic_err(format!("{err}")))?;
 
-    let offer_pool: AssetValidated;
-    let ask_pool: AssetValidated;
-    if ask_asset.info.equal(&pools[0].info) {
-        ask_pool = pools[0].clone();
-        offer_pool = pools[1].clone();
-    } else if ask_asset.info.equal(&pools[1].info) {
-        ask_pool = pools[1].clone();
-        offer_pool = pools[0].clone();
-    } else {
-        return Err(StdError::generic_err(
-            "Given ask asset doesn't belong to pools",
-        ));
+    let offer_precision = get_precision(deps.storage, &offer_pool.info)?;
+    let ask_precision = get_precision(deps.storage, &ask_asset.info)?;
+
+    // Check the swap parameters are valid
+    if check_swap_parameters(
+        pools
+            .iter()
+            .map(|pool| {
+                pool.amount
+                    .to_uint128_with_precision(get_precision(deps.storage, &pool.info)?)
+            })
+            .collect::<StdResult<Vec<Uint128>>>()?,
+        ask_asset.amount,
+    )
+    .is_err()
+    {
+        return Ok(ReverseSimulationResponse {
+            offer_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            referral_amount: Uint128::zero(),
+        });
     }
 
-    let (offer_amount, spread_amount, commission_amount) = compute_offer_amount(
-        offer_pool.amount,
-        ask_pool.amount,
-        ask_asset.amount,
-        config.pool_info.fee_config.total_fee_rate(),
+    // Get fee info from factory
+    // FIXME: Uncomment when factory is available
+    // let fee_info = query_fee_info(
+    //     &deps.querier,
+    //     &config.factory_addr,
+    //     config.pair_info.pair_type.clone(),
+    // )?;
+    // let before_commission = (Decimal256::one()
+    //     - Decimal256::new(fee_info.total_fee_rate.atomics().into()))
+    // .inv()
+    let before_commission = (Decimal256::one()
+        - Decimal256::percent(3))
+    .inv()
+    .unwrap_or_else(Decimal256::one)
+    .checked_mul(Decimal256::with_precision(ask_asset.amount, ask_precision)?)?;
+
+    update_target_rate(deps.querier, &mut config, &env)?;
+    let new_offer_pool_amount = calc_y(
+        &ask_pool,
+        &offer_pool.info,
+        ask_pool.amount - before_commission,
+        &pools,
+        compute_current_amp(&config, &env)?,
+        config.greatest_precision,
+        &config,
     )?;
+
+    let offer_amount = new_offer_pool_amount.checked_sub(
+        offer_pool
+            .amount
+            .to_uint128_with_precision(config.greatest_precision)?,
+    )?;
+    let offer_amount = adjust_precision(offer_amount, config.greatest_precision, offer_precision)?;
 
     // `offer_pool.info` is already validated
     let offer_asset = AssetValidated {
@@ -1124,8 +1150,13 @@ pub fn query_reverse_simulation(
 
     Ok(ReverseSimulationResponse {
         offer_amount: offer_asset.amount,
-        spread_amount,
-        commission_amount,
+        spread_amount: offer_amount
+            .saturating_sub(before_commission.to_uint128_with_precision(offer_precision)?),
+        // FIXME: When factory is available
+        // commission_amount: fee_info
+        //     .total_fee_rate
+        commission_amount: Decimal::percent(3)
+            .checked_mul_uint128(before_commission.to_uint128_with_precision(ask_precision)?)?,
         referral_amount: Uint128::zero(),
     })
 }
