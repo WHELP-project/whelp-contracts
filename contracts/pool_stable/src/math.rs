@@ -98,10 +98,6 @@ pub(crate) fn calc_y(
         })
         .collect_vec();
 
-    if config.is_lsd(&from_asset.info) {
-        new_amount *= Decimal256::from(config.target_rate());
-    }
-
     let n_coins = Uint64::from(pools.len() as u8);
     let ann = Uint256::from(amp.checked_mul(n_coins)?.u64() / AMP_PRECISION);
     let mut sum = Decimal256::zero();
@@ -149,11 +145,7 @@ pub(crate) fn calc_y(
 
 /// Applies the target rate to the amount if the asset is the LSD token.
 pub(crate) fn apply_rate(asset: &AssetInfoValidated, amount: Uint128, config: &Config) -> Uint128 {
-    if config.is_lsd(asset) {
-        amount * config.target_rate()
-    } else {
-        amount
-    }
+    amount
 }
 
 /// Applies the target rate to the amount if the asset is the LSD token.
@@ -162,21 +154,11 @@ pub(crate) fn apply_rate_decimal(
     amount: Decimal256,
     config: &Config,
 ) -> Decimal256 {
-    if config.is_lsd(asset) {
-        amount * Decimal256::from(config.target_rate())
-    } else {
-        amount
-    }
+    amount
 }
 
 fn inverse_rate(to: &AssetInfoValidated, y: Uint128, config: &Config) -> Uint128 {
-    if config.is_lsd(to) {
-        // y / target_rate
-        let t = config.target_rate();
-        y.multiply_ratio(t.denominator(), t.numerator())
-    } else {
-        y
-    }
+    y
 }
 
 #[cfg(test)]

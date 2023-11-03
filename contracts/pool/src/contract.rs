@@ -210,7 +210,7 @@ pub fn execute(
             FROZEN.save(deps.storage, &frozen)?;
             Ok(Response::new())
         }
-        ExecuteMsg::WithdrawLiquidity {} => withdraw_liquidity(deps, env, info),
+        ExecuteMsg::WithdrawLiquidity { .. } => withdraw_liquidity(deps, env, info),
         _ => Err(ContractError::NonSupported {}),
     }
 }

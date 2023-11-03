@@ -177,7 +177,7 @@ pub enum ExecuteMsg {
         receiver: Option<String>,
     },
     /// Withdraw liquidity from the pool
-    WithdrawLiquidity {},
+    WithdrawLiquidity {  assets: Vec<Asset> },
     /// Swap performs a swap in the pool
     Swap {
         offer_asset: Asset,
