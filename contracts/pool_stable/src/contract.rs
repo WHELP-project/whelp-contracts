@@ -8,7 +8,7 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply,
+    CosmosMsg, Decimal, Decimal256, Deps, Fraction, DepsMut, Env, MessageInfo, QuerierWrapper, Reply,
     StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 
@@ -30,7 +30,6 @@ use dex::{
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
         StablePoolUpdateParams, DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE,
-        TWAP_PRECISION,
     },
     DecimalCheckedOps
 };
@@ -916,13 +915,16 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
             referral_commission,
         )?),
         QueryMsg::ReverseSimulation {
+            offer_asset_info,
             ask_asset,
             referral,
             referral_commission,
             ..
         } => to_binary(&query_reverse_simulation(
             deps,
+            env,
             ask_asset,
+            offer_asset_info,
             referral,
             referral_commission,
         )?),
@@ -1058,37 +1060,80 @@ pub fn query_simulation(
 /// assets to receive from the swap.
 pub fn query_reverse_simulation(
     deps: Deps<CoreumQueries>,
+    env: Env,
     ask_asset: Asset,
+    offer_asset_info: Option<AssetInfo>,
     _referral: bool,
     _referral_commission: Option<Decimal>,
 ) -> StdResult<ReverseSimulationResponse> {
     let ask_asset = ask_asset.validate(deps.api)?;
-    let config = CONFIG.load(deps.storage)?;
+    let offer_asset_info = offer_asset_info.map(|a| a.validate(deps.api)).transpose()?;
 
+    let mut config = CONFIG.load(deps.storage)?;
     let pools = config
         .pool_info
-        .query_pools(&deps.querier, &config.pool_info.contract_addr)?;
+        .query_pools_decimal(&deps.querier, &config.pool_info.contract_addr)?;
+    let (offer_pool, ask_pool) =
+        select_pools(offer_asset_info.as_ref(), Some(&ask_asset.info), &pools)
+            .map_err(|err| StdError::generic_err(format!("{err}")))?;
 
-    let offer_pool: AssetValidated;
-    let ask_pool: AssetValidated;
-    if ask_asset.info.equal(&pools[0].info) {
-        ask_pool = pools[0].clone();
-        offer_pool = pools[1].clone();
-    } else if ask_asset.info.equal(&pools[1].info) {
-        ask_pool = pools[1].clone();
-        offer_pool = pools[0].clone();
-    } else {
-        return Err(StdError::generic_err(
-            "Given ask asset doesn't belong to pools",
-        ));
+    let offer_precision = get_precision(deps.storage, &offer_pool.info)?;
+    let ask_precision = get_precision(deps.storage, &ask_asset.info)?;
+
+    // Check the swap parameters are valid
+    if check_swap_parameters(
+        pools
+            .iter()
+            .map(|pool| {
+                pool.amount
+                    .to_uint128_with_precision(get_precision(deps.storage, &pool.info)?)
+            })
+            .collect::<StdResult<Vec<Uint128>>>()?,
+        ask_asset.amount,
+    )
+    .is_err()
+    {
+        return Ok(ReverseSimulationResponse {
+            offer_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            referral_amount: Uint128::zero(),
+        });
     }
 
-    let (offer_amount, spread_amount, commission_amount) = compute_offer_amount(
-        offer_pool.amount,
-        ask_pool.amount,
-        ask_asset.amount,
-        config.pool_info.fee_config.total_fee_rate(),
+    // Get fee info from factory
+    // FIXME: Uncomment when factory is available
+    // let fee_info = query_fee_info(
+    //     &deps.querier,
+    //     &config.factory_addr,
+    //     config.pair_info.pair_type.clone(),
+    // )?;
+    // let before_commission = (Decimal256::one()
+    //     - Decimal256::new(fee_info.total_fee_rate.atomics().into()))
+    // .inv()
+    let before_commission = (Decimal256::one()
+        - Decimal256::percent(3))
+    .inv()
+    .unwrap_or_else(Decimal256::one)
+    .checked_mul(Decimal256::with_precision(ask_asset.amount, ask_precision)?)?;
+
+    update_target_rate(deps.querier, &mut config, &env)?;
+    let new_offer_pool_amount = calc_y(
+        &ask_pool,
+        &offer_pool.info,
+        ask_pool.amount - before_commission,
+        &pools,
+        compute_current_amp(&config, &env)?,
+        config.greatest_precision,
+        &config,
     )?;
+
+    let offer_amount = new_offer_pool_amount.checked_sub(
+        offer_pool
+            .amount
+            .to_uint128_with_precision(config.greatest_precision)?,
+    )?;
+    let offer_amount = adjust_precision(offer_amount, config.greatest_precision, offer_precision)?;
 
     // `offer_pool.info` is already validated
     let offer_asset = AssetValidated {
@@ -1105,8 +1150,13 @@ pub fn query_reverse_simulation(
 
     Ok(ReverseSimulationResponse {
         offer_amount: offer_asset.amount,
-        spread_amount,
-        commission_amount,
+        spread_amount: offer_amount
+            .saturating_sub(before_commission.to_uint128_with_precision(offer_precision)?),
+        // FIXME: When factory is available
+        // commission_amount: fee_info
+        //     .total_fee_rate
+        commission_amount: Decimal::percent(3)
+            .checked_mul_uint128(before_commission.to_uint128_with_precision(ask_precision)?)?,
         referral_amount: Uint128::zero(),
     })
 }
