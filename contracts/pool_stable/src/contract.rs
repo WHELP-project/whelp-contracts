@@ -329,147 +329,136 @@ pub fn provide_liquidity(
     slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut assets = check_assets(deps.api, &assets)?;
     check_if_frozen(&deps)?;
+    let assets = check_assets(deps.api, &assets)?;
+    let mut config = CONFIG.load(deps.storage)?;
 
-    if assets.len() > 2 {
+    if assets.len() > config.pair_info.asset_infos.len() {
         return Err(ContractError::TooManyAssets {
-            max: 2,
+            max: config.pair_info.asset_infos.len(),
             provided: assets.len(),
         });
     }
 
-    if assets.is_empty() || !assets.iter().any(|a| !a.amount.is_zero()) {
+    let save_config = update_target_rate(deps.querier, &mut config, &env)?;
+
+    let pools: HashMap<_, _> = config
+        .pair_info
+        .query_pools(&deps.querier, &env.contract.address)?
+        .into_iter()
+        .map(|pool| (pool.info, pool.amount))
+        .collect();
+
+    let mut non_zero_flag = false;
+
+    let mut assets_collection = assets
+        .clone()
+        .into_iter()
+        .map(|asset| {
+            asset.assert_sent_native_token_balance(&info)?;
+
+            // Check that at least one asset is non-zero
+            if !asset.amount.is_zero() {
+                non_zero_flag = true;
+            }
+
+            // Get appropriate pool
+            let pool = pools
+                .get(&asset.info)
+                .copied()
+                .ok_or_else(|| ContractError::InvalidAsset(asset.info.to_string()))?;
+
+            Ok((asset, pool))
+        })
+        .collect::<Result<Vec<_>, ContractError>>()?;
+
+    // If some assets are omitted then add them explicitly with 0 deposit
+    pools.iter().for_each(|(pool_info, pool_amount)| {
+        if !assets.iter().any(|asset| asset.info.eq(pool_info)) {
+            assets_collection.push((
+                AssetValidated {
+                    amount: Uint128::zero(),
+                    info: pool_info.clone(),
+                },
+                *pool_amount,
+            ));
+        }
+    });
+
+    if !non_zero_flag {
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let mut config = CONFIG.load(deps.storage)?;
-    let mut pools = config
-        .pool_info
-        .query_pools(&deps.querier, &env.contract.address)?;
-
-    // maps an index in `assets` to the index of the same asset in `pools`
-    let mut pool_indices = assets
-        .iter()
-        .map(|a| {
-            pools
-                .iter()
-                .enumerate()
-                .find(|(_, pool)| pool.info.equal(&a.info))
-                .map(|(i, _)| i)
-                .ok_or_else(|| ContractError::InvalidAsset(a.info.to_string()))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
-
-    for (i, asset) in assets.iter().enumerate() {
-        // take asset / make sure it actually got sent
-        asset.receive(&env, &info, &mut messages)?;
-        // If the asset is native token, the pool balance is already increased
-        // To calculate the total amount of deposits properly, we should subtract the user deposit from the pool
-        if asset.info.is_native_token() {
-            let pool = &mut pools[pool_indices[i]].amount;
-            *pool = pool.checked_sub(asset.amount)?;
-        }
-    }
-
-    if assets.len() == 1 {
-        let offer_asset = assets.pop().unwrap();
-        if pool_indices[0] == 0 {
-            pool_indices.push(1);
-        } else {
-            pool_indices.push(0);
-        }
-        // We cannot swap with an empty pool.
-        if pools[pool_indices[1]].amount.is_zero() {
+    let mut messages = vec![];
+    for (deposit, pool) in assets_collection.iter_mut() {
+        // We cannot put a zero amount into an empty pool.
+        if deposit.amount.is_zero() && pool.is_zero() {
             return Err(ContractError::InvalidProvideLPsWithSingleToken {});
         }
 
-        // use half for swapping
-        let input_asset = AssetValidated {
-            info: offer_asset.info.clone(),
-            amount: offer_asset.amount / Uint128::from(2u128),
-        };
-
-        // Get config from the factory
-        // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
-        // swap half of the asset for the other first
-        let SwapResult {
-            return_asset,
-            protocol_fee_msg,
-            protocol_fee_amount,
-            ..
-        } = do_swap(
-            deps.branch(),
-            &env,
-            &mut config,
-            // &factory_config,
-            &pools,
-            &input_asset,
-            None,
-            None,
-        )?;
-
-        // pay swap fee
-        if let Some(msg) = protocol_fee_msg {
-            messages.push(msg);
-            // remove from pool, protocol fee is denominated in returned asset, so index 1
-            pools[pool_indices[1]].amount -= protocol_fee_amount;
+        // Transfer only non-zero amount
+        if !deposit.amount.is_zero() {
+            // If the pool is a token contract, then we need to execute a TransferFrom msg to receive funds
+            if let AssetInfoValidated::Token(contract_addr) = &deposit.info {
+                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: contract_addr.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                        owner: info.sender.to_string(),
+                        recipient: env.contract.address.to_string(),
+                        amount: deposit.amount,
+                    })?,
+                    funds: vec![],
+                }))
+            } else {
+                // If the asset is a native token, the pool balance already increased
+                // To calculate the pool balance properly, we should subtract the user deposit from the recorded pool token amount
+                *pool = pool.checked_sub(deposit.amount)?;
+            }
         }
-
-        // swap input should now be considered part of the pool (since we swapped it for the other asset),
-        // but return_asset should not (since it is considered the lp's deposit from now on)
-        pools[pool_indices[0]].amount += input_asset.amount;
-        pools[pool_indices[1]].amount -= return_asset.amount;
-
-        // now pretend the other half and the returned assets were sent
-        let remaining_half = AssetValidated {
-            info: input_asset.info,
-            amount: offer_asset.amount - input_asset.amount,
-        };
-        assets = vec![remaining_half, return_asset];
     }
 
-    let deposits = [
-        assets
-            .iter()
-            .find(|a| a.info.equal(&pools[0].info))
-            .expect("Wrong asset info is given"),
-        assets
-            .iter()
-            .find(|a| a.info.equal(&pools[1].info))
-            .expect("Wrong asset info is given"),
-    ];
+    let assets_collection = assets_collection
+        .iter()
+        .cloned()
+        .map(|(asset, pool)| {
+            let coin_precision = get_precision(deps.storage, &asset.info)?;
+            Ok((
+                asset.to_decimal_asset(coin_precision)?,
+                Decimal256::with_precision(pool, coin_precision)?,
+            ))
+        })
+        .collect::<StdResult<Vec<(DecimalAsset, Decimal256)>>>()?;
 
-    if deposits[0].amount.is_zero() || deposits[1].amount.is_zero() {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
+    let n_coins = config.pair_info.asset_infos.len() as u8;
 
-    // FIXME: For some reason this query doesn't work; use a local storage workaround
-    // let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
-    let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
+    let amp = compute_current_amp(&config, &env)?;
+
+    // Initial invariant (D)
+    let old_balances = assets_collection
+        .iter()
+        .map(|(_, pool)| *pool)
+        .collect_vec();
+    let init_d = compute_d(amp, &old_balances, config.greatest_precision)?;
+
+    // Invariant (D) after deposit added
+    let mut new_balances: Vec<_> = assets_collection
+        .iter()
+        .map(|(deposit, pool)| Ok(pool + deposit.amount))
+        .collect::<StdResult<Vec<_>>>()?;
+    let deposit_d = compute_d(amp, &new_balances, config.greatest_precision)?;
+
+    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
     let share = if total_share.is_zero() {
-        // Initial share = collateral amount
-        let share: Uint128 = deposits[0]
-            .amount
-            .full_mul(deposits[1].amount)
-            .isqrt()
-            .try_into()?;
-        let share = share
+        let share = deposit_d
+            .to_uint128_with_precision(config.greatest_precision)?
             .checked_sub(MINIMUM_LIQUIDITY_AMOUNT)
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
-        messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
-            coin: coin(
-                MINIMUM_LIQUIDITY_AMOUNT.u128(),
-                &config.pool_info.liquidity_token,
-            ),
-        })));
-        LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
-            amount += MINIMUM_LIQUIDITY_AMOUNT;
-            Ok(amount)
-        })?;
+        messages.extend(mint_token_message(
+            &config.pair_info.liquidity_token,
+            &env.contract.address,
+            MINIMUM_LIQUIDITY_AMOUNT,
+        )?);
 
         // share cannot become zero after minimum liquidity subtraction
         if share.is_zero() {
@@ -478,60 +467,80 @@ pub fn provide_liquidity(
 
         share
     } else {
-        // Assert slippage tolerance
-        assert_slippage_tolerance(slippage_tolerance, &deposits.map(|a| a.amount), &pools)?;
+        // Get fee info from the factory
+        let fee_info = query_fee_info(
+            &deps.querier,
+            &config.factory_addr,
+            config.pair_info.pair_type.clone(),
+        )?;
 
-        // min(1, 2)
-        // 1. sqrt(deposit_0 * exchange_rate_0_to_1 * deposit_0) * (total_share / sqrt(pool_0 * pool_0))
-        // == deposit_0 * total_share / pool_0
-        // 2. sqrt(deposit_1 * exchange_rate_1_to_0 * deposit_1) * (total_share / sqrt(pool_1 * pool_1))
-        // == deposit_1 * total_share / pool_1
-        std::cmp::min(
-            deposits[0]
-                .amount
-                .multiply_ratio(total_share, pools[0].amount),
-            deposits[1]
-                .amount
-                .multiply_ratio(total_share, pools[1].amount),
-        )
+        // total_fee_rate * N_COINS / (4 * (N_COINS - 1))
+        let fee = fee_info
+            .total_fee_rate
+            .checked_mul(Decimal::from_ratio(n_coins, 4 * (n_coins - 1)))?;
+
+        let fee = Decimal256::new(fee.atomics().into());
+
+        for i in 0..n_coins as usize {
+            let ideal_balance = deposit_d.checked_multiply_ratio(old_balances[i], init_d)?;
+            let difference = if ideal_balance > new_balances[i] {
+                ideal_balance - new_balances[i]
+            } else {
+                new_balances[i] - ideal_balance
+            };
+            // Fee will be charged only during imbalanced provide i.e. if invariant D was changed
+            new_balances[i] -= fee.checked_mul(difference)?;
+        }
+
+        let after_fee_d = compute_d(amp, &new_balances, config.greatest_precision)?;
+
+        let share = Decimal256::with_precision(total_share, config.greatest_precision)?
+            .checked_multiply_ratio(after_fee_d.saturating_sub(init_d), init_d)?
+            .to_uint128_with_precision(config.greatest_precision)?;
+
+        if share.is_zero() {
+            return Err(ContractError::LiquidityAmountTooSmall {});
+        }
+
+        share
     };
 
-    // Mint LP tokens for the sender or for the receiver (if set)
+    // Mint LP token for the caller (or for the receiver if it was set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
-    messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
-        coin: coin(share.u128(), &config.pool_info.liquidity_token),
-    })));
-    messages.push(CosmosMsg::Bank(BankMsg::Send {
-        to_address: receiver.to_string(),
-        amount: vec![Coin {
-            denom: config.pool_info.liquidity_token.clone(),
-            amount: share,
-        }],
-    }));
-    LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
-        amount += share;
-        Ok(amount)
-    })?;
+    messages.extend(mint_token_message(
+        &config.pair_info.liquidity_token,
+        &receiver,
+        share,
+    )?);
 
-    // Calculate new pool amounts
-    let new_pool0 = pools[0].amount + deposits[0].amount;
-    let new_pool1 = pools[1].amount + deposits[1].amount;
+    // using assets_collection, since the deposit amount is already subtracted there
+    let old_pools = assets_collection
+        .iter()
+        .map(|(a, p)| DecimalAsset {
+            info: a.info.clone(),
+            amount: *p,
+        })
+        .collect::<Vec<_>>();
 
-    let price = Decimal::from_ratio(new_pool0, new_pool1);
+    // calculate pools with deposited balances
+    let new_pools = assets_collection
+        .into_iter()
+        .map(|(mut asset, pool)| {
+            // add deposit amount back to pool amount, so we can calculate the new price
+            asset.amount += pool;
+            asset
+        })
+        .collect::<Vec<_>>();
+    let new_price = calc_new_price_a_per_b(deps.as_ref(), &env, &config, &new_pools)?;
+
     if total_share.is_zero() {
         // initialize oracle storage
-        dex::oracle::initialize_oracle(deps.storage, &env, price)?;
+        dex::oracle::initialize_oracle(deps.storage, &env, new_price)?;
     } else {
-        dex::oracle::store_oracle_price(deps.storage, &env, price)?;
+        dex::oracle::store_oracle_price(deps.storage, &env, new_price)?;
     }
 
-    // Accumulate prices for the assets in the pool
-    if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
-        accumulate_prices(&env, &config, pools[0].amount, pools[1].amount)?
-    {
-        config.price0_cumulative_last = price0_cumulative_new;
-        config.price1_cumulative_last = price1_cumulative_new;
-        config.block_time_last = block_time;
+    if accumulate_prices(deps.as_ref(), &env, &mut config, &old_pools)? || save_config {
         CONFIG.save(deps.storage, &config)?;
     }
 
@@ -539,7 +548,7 @@ pub fn provide_liquidity(
         attr("action", "provide_liquidity"),
         attr("sender", info.sender),
         attr("receiver", receiver),
-        attr("assets", format!("{}, {}", assets[0], assets[1])),
+        attr("assets", assets.iter().join(", ")),
         attr("share", share),
     ]))
 }
