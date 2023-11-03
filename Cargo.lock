@@ -441,6 +441,7 @@ dependencies = [
  "cw20",
  "cw20-base",
  "dex",
+ "itertools",
  "proptest",
 ]
 

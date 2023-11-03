@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::vec;
 
@@ -7,17 +8,18 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, Reply, StdError,
-    StdResult, Uint128, Uint256,
+    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, QuerierWrapper, Reply,
+    StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 
 use cw2::set_contract_version;
-use cw20::Cw20ReceiveMsg;
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use itertools::Itertools;
 
 use dex::{
     asset::{
-        addr_opt_validate, check_swap_parameters, format_lp_token_name, Asset, AssetInfoValidated,
-        AssetValidated, MINIMUM_LIQUIDITY_AMOUNT,
+        addr_opt_validate, check_swap_parameters, format_lp_token_name, Asset, AssetInfo,
+        AssetInfoValidated, AssetValidated, Decimal256Ext, DecimalAsset, MINIMUM_LIQUIDITY_AMOUNT,
     },
     decimal2decimal256,
     factory::PoolType,
@@ -26,12 +28,22 @@ use dex::{
         assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
         get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
-        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
+        StablePoolUpdateParams, DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE,
+        TWAP_PRECISION,
     },
 };
 
-use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
+use crate::{
+    math::{calc_y, compute_d, AMP_PRECISION, MAX_AMP, MAX_AMP_CHANGE, MIN_AMP_CHANGING_TIME},
+    state::{
+        get_precision, store_precisions, Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT,
+    },
+    utils::{
+        accumulate_prices, adjust_precision, calc_new_price_a_per_b, calc_spot_price,
+        compute_current_amp, compute_swap, find_spot_price, select_pools, SwapResult,
+    },
+};
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -63,27 +75,6 @@ pub fn instantiate(
 
     let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
-    let config = Config {
-        pool_info: PairInfo {
-            contract_addr: env.contract.address.clone(),
-            liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
-            staking_addr: Addr::unchecked(""),
-            asset_infos,
-            pool_type: PoolType::Stable {},
-            fee_config: msg.fee_config,
-        },
-        // factory_addr,
-        block_time_last: 0,
-        price0_cumulative_last: Uint128::zero(),
-        price1_cumulative_last: Uint128::zero(),
-        trading_starts: msg.trading_starts,
-    };
-
-    CONFIG.save(deps.storage, &config)?;
-    FROZEN.save(deps.storage, &false)?;
-    LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
-    save_tmp_staking_config(deps.storage, &msg.staking_config)?;
-
     if msg.init_params.is_none() {
         return Err(ContractError::InitParamsNotFound {});
     }
@@ -106,6 +97,32 @@ pub fn instantiate(
             }
         }
     }
+
+    let config = Config {
+        owner: addr_opt_validate(deps.api, &params.owner)?,
+        pool_info: PairInfo {
+            contract_addr: env.contract.address.clone(),
+            liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
+            staking_addr: Addr::unchecked(""),
+            asset_infos,
+            pool_type: PoolType::Stable {},
+            fee_config: msg.fee_config,
+        },
+        // factory_addr,
+        block_time_last: 0,
+        init_amp: params.amp * AMP_PRECISION,
+        init_amp_time: env.block.time.seconds(),
+        next_amp: params.amp * AMP_PRECISION,
+        next_amp_time: env.block.time.seconds(),
+        greatest_precision,
+        cumulative_prices,
+        trading_starts: msg.trading_starts,
+    };
+
+    CONFIG.save(deps.storage, &config)?;
+    FROZEN.save(deps.storage, &false)?;
+    LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
+    save_tmp_staking_config(deps.storage, &msg.staking_config)?;
 
     Ok(
         Response::new().add_submessage(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
@@ -233,7 +250,7 @@ pub fn execute(
             FROZEN.save(deps.storage, &frozen)?;
             Ok(Response::new())
         }
-        ExecuteMsg::WithdrawLiquidity {} => withdraw_liquidity(deps, env, info),
+        ExecuteMsg::WithdrawLiquidity { assets } => withdraw_liquidity(deps, env, info, assets),
         _ => Err(ContractError::NonSupported {}),
     }
 }
@@ -325,134 +342,130 @@ pub fn provide_liquidity(
     slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
-    let mut assets = check_assets(deps.api, &assets)?;
     check_if_frozen(&deps)?;
+    let assets = check_assets(deps.api, &assets)?;
+    let mut config = CONFIG.load(deps.storage)?;
 
-    if assets.len() > 2 {
+    if assets.len() > config.pool_info.asset_infos.len() {
         return Err(ContractError::TooManyAssets {
-            max: 2,
+            max: config.pool_info.asset_infos.len(),
             provided: assets.len(),
         });
     }
 
-    if assets.is_empty() || !assets.iter().any(|a| !a.amount.is_zero()) {
+    let save_config = update_target_rate(deps.querier, &mut config, &env)?;
+
+    let pools: HashMap<_, _> = config
+        .pool_info
+        .query_pools(&deps.querier, &env.contract.address)?
+        .into_iter()
+        .map(|pool| (pool.info, pool.amount))
+        .collect();
+
+    let mut non_zero_flag = false;
+
+    let mut assets_collection = assets
+        .clone()
+        .into_iter()
+        .map(|asset| {
+            asset.assert_sent_native_token_balance(&info)?;
+
+            // Check that at least one asset is non-zero
+            if !asset.amount.is_zero() {
+                non_zero_flag = true;
+            }
+
+            // Get appropriate pool
+            let pool = pools
+                .get(&asset.info)
+                .copied()
+                .ok_or_else(|| ContractError::InvalidAsset(asset.info.to_string()))?;
+
+            Ok((asset, pool))
+        })
+        .collect::<Result<Vec<_>, ContractError>>()?;
+
+    // If some assets are omitted then add them explicitly with 0 deposit
+    pools.iter().for_each(|(pool_info, pool_amount)| {
+        if !assets.iter().any(|asset| asset.info.eq(pool_info)) {
+            assets_collection.push((
+                AssetValidated {
+                    amount: Uint128::zero(),
+                    info: pool_info.clone(),
+                },
+                *pool_amount,
+            ));
+        }
+    });
+
+    if !non_zero_flag {
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let mut config = CONFIG.load(deps.storage)?;
-    let mut pools = config
-        .pool_info
-        .query_pools(&deps.querier, &env.contract.address)?;
-
-    // maps an index in `assets` to the index of the same asset in `pools`
-    let mut pool_indices = assets
-        .iter()
-        .map(|a| {
-            pools
-                .iter()
-                .enumerate()
-                .find(|(_, pool)| pool.info.equal(&a.info))
-                .map(|(i, _)| i)
-                .ok_or_else(|| ContractError::InvalidAsset(a.info.to_string()))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
-
-    for (i, asset) in assets.iter().enumerate() {
-        // take asset / make sure it actually got sent
-        asset.receive(&env, &info, &mut messages)?;
-        // If the asset is native token, the pool balance is already increased
-        // To calculate the total amount of deposits properly, we should subtract the user deposit from the pool
-        if asset.info.is_native_token() {
-            let pool = &mut pools[pool_indices[i]].amount;
-            *pool = pool.checked_sub(asset.amount)?;
-        }
-    }
-
-    if assets.len() == 1 {
-        let offer_asset = assets.pop().unwrap();
-        if pool_indices[0] == 0 {
-            pool_indices.push(1);
-        } else {
-            pool_indices.push(0);
-        }
-        // We cannot swap with an empty pool.
-        if pools[pool_indices[1]].amount.is_zero() {
+    let mut messages = vec![];
+    for (deposit, pool) in assets_collection.iter_mut() {
+        // We cannot put a zero amount into an empty pool.
+        if deposit.amount.is_zero() && pool.is_zero() {
             return Err(ContractError::InvalidProvideLPsWithSingleToken {});
         }
 
-        // use half for swapping
-        let input_asset = AssetValidated {
-            info: offer_asset.info.clone(),
-            amount: offer_asset.amount / Uint128::from(2u128),
-        };
-
-        // Get config from the factory
-        // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
-        // swap half of the asset for the other first
-        let SwapResult {
-            return_asset,
-            protocol_fee_msg,
-            protocol_fee_amount,
-            ..
-        } = do_swap(
-            deps.branch(),
-            &env,
-            &mut config,
-            // &factory_config,
-            &pools,
-            &input_asset,
-            None,
-            None,
-        )?;
-
-        // pay swap fee
-        if let Some(msg) = protocol_fee_msg {
-            messages.push(msg);
-            // remove from pool, protocol fee is denominated in returned asset, so index 1
-            pools[pool_indices[1]].amount -= protocol_fee_amount;
+        // Transfer only non-zero amount
+        if !deposit.amount.is_zero() {
+            // If the pool is a token contract, then we need to execute a TransferFrom msg to receive funds
+            if let AssetInfoValidated::Cw20Token(contract_addr) = &deposit.info {
+                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: contract_addr.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                        owner: info.sender.to_string(),
+                        recipient: env.contract.address.to_string(),
+                        amount: deposit.amount,
+                    })?,
+                    funds: vec![],
+                }))
+            } else {
+                // If the asset is a native token, the pool balance already increased
+                // To calculate the pool balance properly, we should subtract the user deposit from the recorded pool token amount
+                *pool = pool.checked_sub(deposit.amount)?;
+            }
         }
-
-        // swap input should now be considered part of the pool (since we swapped it for the other asset),
-        // but return_asset should not (since it is considered the lp's deposit from now on)
-        pools[pool_indices[0]].amount += input_asset.amount;
-        pools[pool_indices[1]].amount -= return_asset.amount;
-
-        // now pretend the other half and the returned assets were sent
-        let remaining_half = AssetValidated {
-            info: input_asset.info,
-            amount: offer_asset.amount - input_asset.amount,
-        };
-        assets = vec![remaining_half, return_asset];
     }
 
-    let deposits = [
-        assets
-            .iter()
-            .find(|a| a.info.equal(&pools[0].info))
-            .expect("Wrong asset info is given"),
-        assets
-            .iter()
-            .find(|a| a.info.equal(&pools[1].info))
-            .expect("Wrong asset info is given"),
-    ];
+    let assets_collection = assets_collection
+        .iter()
+        .cloned()
+        .map(|(asset, pool)| {
+            let coin_precision = get_precision(deps.storage, &asset.info)?;
+            Ok((
+                asset.to_decimal_asset(coin_precision)?,
+                Decimal256::with_precision(pool, coin_precision)?,
+            ))
+        })
+        .collect::<StdResult<Vec<(DecimalAsset, Decimal256)>>>()?;
 
-    if deposits[0].amount.is_zero() || deposits[1].amount.is_zero() {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
+    let n_coins = config.pool_info.asset_infos.len() as u8;
+
+    let amp = compute_current_amp(&config, &env)?;
+
+    // Initial invariant (D)
+    let old_balances = assets_collection
+        .iter()
+        .map(|(_, pool)| *pool)
+        .collect_vec();
+    let init_d = compute_d(amp, &old_balances, config.greatest_precision)?;
+
+    // Invariant (D) after deposit added
+    let mut new_balances: Vec<_> = assets_collection
+        .iter()
+        .map(|(deposit, pool)| Ok(pool + deposit.amount))
+        .collect::<StdResult<Vec<_>>>()?;
+    let deposit_d = compute_d(amp, &new_balances, config.greatest_precision)?;
 
     // FIXME: For some reason this query doesn't work; use a local storage workaround
     // let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
     let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
     let share = if total_share.is_zero() {
-        // Initial share = collateral amount
-        let share: Uint128 = deposits[0]
-            .amount
-            .full_mul(deposits[1].amount)
-            .isqrt()
-            .try_into()?;
-        let share = share
+        let share = deposit_d
+            .to_uint128_with_precision(config.greatest_precision)?
             .checked_sub(MINIMUM_LIQUIDITY_AMOUNT)
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
@@ -474,25 +487,47 @@ pub fn provide_liquidity(
 
         share
     } else {
-        // Assert slippage tolerance
-        assert_slippage_tolerance(slippage_tolerance, &deposits.map(|a| a.amount), &pools)?;
+        // Get fee info from the factory
+        // let fee_info = query_fee_info(
+        //     &deps.querier,
+        //     &config.factory_addr,
+        //     config.pair_info.pair_type.clone(),
+        // )?;
 
-        // min(1, 2)
-        // 1. sqrt(deposit_0 * exchange_rate_0_to_1 * deposit_0) * (total_share / sqrt(pool_0 * pool_0))
-        // == deposit_0 * total_share / pool_0
-        // 2. sqrt(deposit_1 * exchange_rate_1_to_0 * deposit_1) * (total_share / sqrt(pool_1 * pool_1))
-        // == deposit_1 * total_share / pool_1
-        std::cmp::min(
-            deposits[0]
-                .amount
-                .multiply_ratio(total_share, pools[0].amount),
-            deposits[1]
-                .amount
-                .multiply_ratio(total_share, pools[1].amount),
-        )
+        // FIXME: Bring this back when factory is ready
+        // total_fee_rate * N_COINS / (4 * (N_COINS - 1))
+        let fee = /*fee_info
+            .total_fee_rate*/
+            Decimal::percent(3)
+            .checked_mul(Decimal::from_ratio(n_coins, 4 * (n_coins - 1)))?;
+
+        let fee = Decimal256::new(fee.atomics().into());
+
+        for i in 0..n_coins as usize {
+            let ideal_balance = deposit_d.checked_multiply_ratio(old_balances[i], init_d)?;
+            let difference = if ideal_balance > new_balances[i] {
+                ideal_balance - new_balances[i]
+            } else {
+                new_balances[i] - ideal_balance
+            };
+            // Fee will be charged only during imbalanced provide i.e. if invariant D was changed
+            new_balances[i] -= fee.checked_mul(difference)?;
+        }
+
+        let after_fee_d = compute_d(amp, &new_balances, config.greatest_precision)?;
+
+        let share = Decimal256::with_precision(total_share, config.greatest_precision)?
+            .checked_multiply_ratio(after_fee_d.saturating_sub(init_d), init_d)?
+            .to_uint128_with_precision(config.greatest_precision)?;
+
+        if share.is_zero() {
+            return Err(ContractError::LiquidityAmountTooSmall {});
+        }
+
+        share
     };
 
-    // Mint LP tokens for the sender or for the receiver (if set)
+    // Mint LP token for the caller (or for the receiver if it was set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
     messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
         coin: coin(share.u128(), &config.pool_info.liquidity_token),
@@ -509,25 +544,34 @@ pub fn provide_liquidity(
         Ok(amount)
     })?;
 
-    // Calculate new pool amounts
-    let new_pool0 = pools[0].amount + deposits[0].amount;
-    let new_pool1 = pools[1].amount + deposits[1].amount;
+    // using assets_collection, since the deposit amount is already subtracted there
+    let old_pools = assets_collection
+        .iter()
+        .map(|(a, p)| DecimalAsset {
+            info: a.info.clone(),
+            amount: *p,
+        })
+        .collect::<Vec<_>>();
 
-    let price = Decimal::from_ratio(new_pool0, new_pool1);
+    // calculate pools with deposited balances
+    let new_pools = assets_collection
+        .into_iter()
+        .map(|(mut asset, pool)| {
+            // add deposit amount back to pool amount, so we can calculate the new price
+            asset.amount += pool;
+            asset
+        })
+        .collect::<Vec<_>>();
+    let new_price = calc_new_price_a_per_b(deps.as_ref(), &env, &config, &new_pools)?;
+
     if total_share.is_zero() {
         // initialize oracle storage
-        dex::oracle::initialize_oracle(deps.storage, &env, price)?;
+        dex::oracle::initialize_oracle(deps.storage, &env, new_price)?;
     } else {
-        dex::oracle::store_oracle_price(deps.storage, &env, price)?;
+        dex::oracle::store_oracle_price(deps.storage, &env, new_price)?;
     }
 
-    // Accumulate prices for the assets in the pool
-    if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
-        accumulate_prices(&env, &config, pools[0].amount, pools[1].amount)?
-    {
-        config.price0_cumulative_last = price0_cumulative_new;
-        config.price1_cumulative_last = price1_cumulative_new;
-        config.block_time_last = block_time;
+    if accumulate_prices(deps.as_ref(), &env, &mut config, &old_pools)? || save_config {
         CONFIG.save(deps.storage, &config)?;
     }
 
@@ -535,7 +579,7 @@ pub fn provide_liquidity(
         attr("action", "provide_liquidity"),
         attr("sender", info.sender),
         attr("receiver", receiver),
-        attr("assets", format!("{}, {}", assets[0], assets[1])),
+        attr("assets", assets.iter().join(", ")),
         attr("share", share),
     ]))
 }
@@ -548,7 +592,9 @@ pub fn withdraw_liquidity(
     deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
+    assets: Vec<Asset>,
 ) -> Result<Response, ContractError> {
+    let assets = check_assets(deps.api, &assets)?;
     let mut config = CONFIG.load(deps.storage).unwrap();
 
     if info.funds[0].denom.clone() != config.pool_info.liquidity_token.clone() {
@@ -558,29 +604,28 @@ pub fn withdraw_liquidity(
     let sender = info.sender.clone();
     let amount = info.funds[0].amount;
 
+    let burn_amount;
+    let refund_assets;
+    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
+
     let (pools, total_share) = pool_info(deps.as_ref(), &config)?;
-    let refund_assets = get_share_in_assets(&pools, amount, total_share);
-
-    // Calculate new pool amounts
-    let mut new_pools = pools
-        .iter()
-        .zip(refund_assets.iter())
-        .map(|(p, r)| p.amount - r.amount);
-    let (new_pool0, new_pool1) = (new_pools.next().unwrap(), new_pools.next().unwrap());
-    dex::oracle::store_oracle_price(
-        deps.storage,
-        &env,
-        Decimal::from_ratio(new_pool0, new_pool1),
-    )?;
-
-    // Accumulate prices for the pool assets
-    if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
-        accumulate_prices(&env, &config, pools[0].amount, pools[1].amount)?
-    {
-        config.price0_cumulative_last = price0_cumulative_new;
-        config.price1_cumulative_last = price1_cumulative_new;
-        config.block_time_last = block_time;
-        CONFIG.save(deps.storage, &config)?;
+    if assets.is_empty() {
+        burn_amount = amount;
+        refund_assets = get_share_in_assets(&pools, amount, total_share);
+    } else {
+        // Imbalanced withdraw
+        burn_amount = imbalanced_withdraw(deps.as_ref(), &env, &config, amount, &assets)?;
+        if burn_amount < amount {
+            // Returning unused LP tokens back to the user
+            messages.push(CosmosMsg::Bank(BankMsg::Send {
+                to_address: sender.to_string(),
+                amount: vec![Coin {
+                    denom: config.pool_info.liquidity_token.clone(),
+                    amount: amount - burn_amount,
+                }],
+            }))
+        }
+        refund_assets = assets;
     }
 
     // Update the pool info
@@ -717,14 +762,6 @@ fn check_if_frozen(deps: &DepsMut<CoreumQueries>) -> Result<(), ContractError> {
     Ok(())
 }
 
-struct SwapResult {
-    return_asset: AssetValidated,
-    ask_info: AssetInfoValidated,
-    spread_amount: Uint128,
-    commission_amount: Uint128,
-    protocol_fee_amount: Uint128,
-    protocol_fee_msg: Option<CosmosMsg<CoreumMsg>>,
-}
 /// Helper method that executes a swap of one asset for another without needing to receive or send out the coins.
 /// Instead it returns the amount of the ask asset, as well as the protocol fee.
 /// This method is useful for swapping in the middle of another message, where the coins are already in the contract.
@@ -831,47 +868,6 @@ fn do_swap(
         protocol_fee_amount,
         protocol_fee_msg: fee_msg,
     })
-}
-
-/// Accumulate token prices for the assets in the pool.
-/// Note that this function shifts **block_time** when any of the token prices is zero in order to not
-/// fill an accumulator with a null price for that period.
-///
-/// * **x** is the balance of asset\[\0] in the pool.
-///
-/// * **y** is the balance of asset\[\1] in the pool.
-pub fn accumulate_prices(
-    env: &Env,
-    config: &Config,
-    x: Uint128,
-    y: Uint128,
-) -> StdResult<Option<(Uint128, Uint128, u64)>> {
-    let block_time = env.block.time.seconds();
-    if block_time <= config.block_time_last {
-        return Ok(None);
-    }
-
-    // We have to shift block_time when any price is zero in order to not fill an accumulator with a null price for that period
-    let time_elapsed = Uint128::from(block_time - config.block_time_last);
-
-    let mut pcl0 = config.price0_cumulative_last;
-    let mut pcl1 = config.price1_cumulative_last;
-
-    if !x.is_zero() && !y.is_zero() {
-        let price_precision = Uint128::from(10u128.pow(TWAP_PRECISION.into()));
-        pcl0 = config.price0_cumulative_last.wrapping_add(
-            time_elapsed
-                .checked_mul(price_precision)?
-                .multiply_ratio(y, x),
-        );
-        pcl1 = config.price1_cumulative_last.wrapping_add(
-            time_elapsed
-                .checked_mul(price_precision)?
-                .multiply_ratio(x, y),
-        );
-    };
-
-    Ok(Some((pcl0, pcl1, block_time)))
 }
 
 /// Calculates the amount of fees the protocol gets according to specified pool parameters.
@@ -998,44 +994,74 @@ pub fn query_share(deps: Deps<CoreumQueries>, amount: Uint128) -> StdResult<Vec<
 /// * **offer_asset** is the asset to swap as well as an amount of the said asset.
 pub fn query_simulation(
     deps: Deps<CoreumQueries>,
+    env: Env,
     offer_asset: Asset,
-    _referral: bool,
-    _referral_commission: Option<Decimal>,
+    ask_asset_info: Option<AssetInfo>,
+    referral: bool,
+    referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let offer_asset = offer_asset.validate(deps.api)?;
-    let config = CONFIG.load(deps.storage)?;
-
-    let referral_amount = Uint128::zero() /*if referral {
-        let factory_config = query_factory_config(&deps.querier, config.factory_addr)?;
-        take_referral(&factory_config, referral_commission, &mut offer_asset)?
-    } else {
-        Uint128::zero()
-    }*/;
-
+    let mut offer_asset = offer_asset.validate(deps.api)?;
+    let ask_asset_info = ask_asset_info.map(|a| a.validate(deps.api)).transpose()?;
+    let mut config = CONFIG.load(deps.storage)?;
     let pools = config
         .pool_info
-        .query_pools(&deps.querier, &config.pool_info.contract_addr)?;
+        .query_pools_decimal(&deps.querier, &config.pool_info.contract_addr)?;
 
-    let offer_pool: AssetValidated;
-    let ask_pool: AssetValidated;
-    if offer_asset.info.equal(&pools[0].info) {
-        offer_pool = pools[0].clone();
-        ask_pool = pools[1].clone();
-    } else if offer_asset.info.equal(&pools[1].info) {
-        offer_pool = pools[1].clone();
-        ask_pool = pools[0].clone();
-    } else {
-        return Err(StdError::generic_err(
-            "Given offer asset does not belong in the pool",
-        ));
+    // FIXME: When factory is added
+    let referral_amount = /*if referral {
+        let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+        take_referral(&factory_config, referral_commission, &mut offer_asset)?
+    } else */{
+        Uint128::zero()
+    };
+
+    let (offer_pool, ask_pool) =
+        select_pools(Some(&offer_asset.info), ask_asset_info.as_ref(), &pools)
+            .map_err(|err| StdError::generic_err(format!("{err}")))?;
+
+    let offer_precision = get_precision(deps.storage, &offer_pool.info)?;
+
+    if check_swap_parameters(
+        pools
+            .iter()
+            .map(|pool| {
+                pool.amount
+                    .to_uint128_with_precision(get_precision(deps.storage, &pool.info)?)
+            })
+            .collect::<StdResult<Vec<Uint128>>>()?,
+        offer_asset.amount,
+    )
+    .is_err()
+    {
+        return Ok(SimulationResponse {
+            return_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            referral_amount: Uint128::zero(),
+        });
     }
 
-    let (return_amount, spread_amount, commission_amount) = compute_swap(
-        offer_pool.amount,
-        ask_pool.amount,
-        offer_asset.amount,
-        config.pool_info.fee_config.total_fee_rate(),
-    )?;
+    update_target_rate(deps.querier, &mut config, &env)?;
+    let SwapResult {
+        return_amount,
+        spread_amount,
+    } = compute_swap(
+        deps.storage,
+        &env,
+        &config,
+        &offer_asset.to_decimal_asset(offer_precision)?,
+        &offer_pool,
+        &ask_pool,
+        &pools,
+    )
+    .map_err(|err| StdError::generic_err(format!("{err}")))?;
+
+    let commission_amount = config
+        .pool_info
+        .fee_config
+        .total_fee_rate()
+        .checked_mul_uint128(return_amount)?;
+    let return_amount = return_amount.saturating_sub(commission_amount);
 
     Ok(SimulationResponse {
         return_amount,
@@ -1109,39 +1135,25 @@ pub fn query_cumulative_prices(
     deps: Deps<CoreumQueries>,
     env: Env,
 ) -> StdResult<CumulativePricesResponse> {
-    let config = CONFIG.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
     let (assets, total_share) = pool_info(deps, &config)?;
+    let decimal_assets = assets
+        .iter()
+        .cloned()
+        .map(|asset| {
+            let precision = get_precision(deps.storage, &asset.info)?;
+            asset.to_decimal_asset(precision)
+        })
+        .collect::<StdResult<Vec<DecimalAsset>>>()?;
 
-    let mut price0_cumulative_last = config.price0_cumulative_last;
-    let mut price1_cumulative_last = config.price1_cumulative_last;
+    accumulate_prices(deps, &env, &mut config, &decimal_assets)
+        .map_err(|err| StdError::generic_err(format!("{err}")))?;
 
-    if let Some((price0_cumulative_new, price1_cumulative_new, _)) =
-        accumulate_prices(&env, &config, assets[0].amount, assets[1].amount)?
-    {
-        price0_cumulative_last = price0_cumulative_new;
-        price1_cumulative_last = price1_cumulative_new;
-    }
-
-    let cumulative_prices = vec![
-        (
-            assets[0].info.clone(),
-            assets[1].info.clone(),
-            price0_cumulative_last,
-        ),
-        (
-            assets[1].info.clone(),
-            assets[0].info.clone(),
-            price1_cumulative_last,
-        ),
-    ];
-
-    let resp = CumulativePricesResponse {
+    Ok(CumulativePricesResponse {
         assets,
         total_share,
-        cumulative_prices,
-    };
-
-    Ok(resp)
+        cumulative_prices: config.cumulative_prices,
+    })
 }
 
 /// Returns the pool contract configuration in a [`ConfigResponse`] object.
@@ -1154,47 +1166,142 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<ConfigResponse> {
     })
 }
 
-/// Returns the result of a swap.
+/// Imbalanced withdraw liquidity from the pool. Returns a [`ContractError`] on failure,
+/// otherwise returns the number of LP tokens to burn.
 ///
-/// * **offer_pool** total amount of offer assets in the pool.
+/// * **provided_amount** amount of provided LP tokens to withdraw liquidity with.
 ///
-/// * **ask_pool** total amount of ask assets in the pool.
-///
-/// * **offer_amount** amount of offer assets to swap.
-///
-/// * **commission_rate** total amount of fees charged for the swap.
-pub fn compute_swap(
-    offer_pool: Uint128,
-    ask_pool: Uint128,
-    offer_amount: Uint128,
-    commission_rate: Decimal,
-) -> StdResult<(Uint128, Uint128, Uint128)> {
-    // offer => ask
-    check_swap_parameters(vec![offer_pool, ask_pool], offer_amount)?;
+/// * **assets** specifies the assets amount to withdraw.
+fn imbalanced_withdraw(
+    deps: Deps<CoreumQueries>,
+    env: &Env,
+    config: &Config,
+    provided_amount: Uint128,
+    assets: &[AssetValidated],
+) -> Result<Uint128, ContractError> {
+    if assets.len() > config.pool_info.asset_infos.len() {
+        return Err(ContractError::TooManyAssets {
+            max: config.pool_info.asset_infos.len(),
+            provided: assets.len(),
+        });
+    }
 
-    let offer_pool: Uint256 = offer_pool.into();
-    let ask_pool: Uint256 = ask_pool.into();
-    let offer_amount: Uint256 = offer_amount.into();
-    let commission_rate = decimal2decimal256(commission_rate)?;
+    let pools: HashMap<_, _> = config
+        .pool_info
+        .query_pools(&deps.querier, &env.contract.address)?
+        .into_iter()
+        .map(|pool| (pool.info, pool.amount))
+        .collect();
 
-    // ask_amount = (ask_pool - cp / (offer_pool + offer_amount))
-    let cp: Uint256 = offer_pool * ask_pool;
-    let return_amount: Uint256 = (Decimal256::from_ratio(ask_pool, 1u8)
-        - Decimal256::from_ratio(cp, offer_pool + offer_amount))
-        * Uint256::from(1u8);
+    let mut assets_collection = assets
+        .iter()
+        .cloned()
+        .map(|asset| {
+            let precision = get_precision(deps.storage, &asset.info)?;
+            // Get appropriate pool
+            let pool = pools
+                .get(&asset.info)
+                .copied()
+                .ok_or_else(|| ContractError::InvalidAsset(asset.info.to_string()))?;
 
-    // Calculate spread & commission
-    let spread_amount: Uint256 =
-        (offer_amount * Decimal256::from_ratio(ask_pool, offer_pool)) - return_amount;
-    let commission_amount: Uint256 = return_amount * commission_rate;
+            Ok((
+                asset.to_decimal_asset(precision)?,
+                Decimal256::with_precision(pool, precision)?,
+            ))
+        })
+        .collect::<Result<Vec<_>, ContractError>>()?;
 
-    // The commision (minus the part that goes to the protocol) will be absorbed by the pool
-    let return_amount: Uint256 = return_amount - commission_amount;
-    Ok((
-        return_amount.try_into()?,
-        spread_amount.try_into()?,
-        commission_amount.try_into()?,
-    ))
+    // If some assets are omitted then add them explicitly with 0 withdraw amount
+    pools
+        .into_iter()
+        .try_for_each(|(pool_info, pool_amount)| -> StdResult<()> {
+            if !assets.iter().any(|asset| asset.info == pool_info) {
+                let precision = get_precision(deps.storage, &pool_info)?;
+
+                assets_collection.push((
+                    DecimalAsset {
+                        amount: Decimal256::zero(),
+                        info: pool_info,
+                    },
+                    Decimal256::with_precision(pool_amount, precision)?,
+                ));
+            }
+            Ok(())
+        })?;
+
+    let n_coins = config.pool_info.asset_infos.len() as u8;
+
+    let amp = compute_current_amp(config, env)?;
+
+    // Initial invariant (D)
+    let old_balances = assets_collection
+        .iter()
+        .map(|(_, pool)| *pool)
+        .collect_vec();
+    let init_d = compute_d(amp, &old_balances, config.greatest_precision)?;
+
+    // Invariant (D) after assets withdrawn
+    let mut new_balances = assets_collection
+        .iter()
+        .cloned()
+        .map(|(withdraw, pool)| Ok(pool - withdraw.amount))
+        .collect::<StdResult<Vec<Decimal256>>>()?;
+    let withdraw_d = compute_d(amp, &new_balances, config.greatest_precision)?;
+
+    // Get fee info from the factory
+    // Get fee info from the factory
+    // let fee_info = query_fee_info(
+    //     &deps.querier,
+    //     &config.factory_addr,
+    //     config.pair_info.pair_type.clone(),
+    // )?;
+
+    // FIXME: Bring this back when factory is ready
+    // total_fee_rate * N_COINS / (4 * (N_COINS - 1))
+    let fee = /*fee_info
+            .total_fee_rate*/
+            Decimal::percent(3)
+            .checked_mul(Decimal::from_ratio(n_coins, 4 * (n_coins - 1)))?;
+
+    let fee = Decimal256::new(fee.atomics().into());
+
+    for i in 0..n_coins as usize {
+        let ideal_balance = withdraw_d.checked_multiply_ratio(old_balances[i], init_d)?;
+        let difference = if ideal_balance > new_balances[i] {
+            ideal_balance - new_balances[i]
+        } else {
+            new_balances[i] - ideal_balance
+        };
+        new_balances[i] -= fee.checked_mul(difference)?;
+    }
+
+    let after_fee_d = compute_d(amp, &new_balances, config.greatest_precision)?;
+
+    // FIXME: For some reason this query doesn't work; use a local storage workaround
+    // let total_share = Uint256::from(query_supply(
+    //     &deps.querier,
+    //     &config.pair_info.liquidity_token,
+    // )?);
+    let total_share = Uint256::from(LP_SHARE_AMOUNT.load(deps.storage)?);
+    // How many tokens do we need to burn to withdraw asked assets?
+    let burn_amount = total_share
+        .checked_multiply_ratio(
+            init_d.atomics().checked_sub(after_fee_d.atomics())?,
+            init_d.atomics(),
+        )?
+        .checked_add(Uint256::from(1u8))?; // In case of rounding errors - make it unfavorable for the "attacker"
+
+    let burn_amount = burn_amount.try_into()?;
+
+    if burn_amount > provided_amount {
+        return Err(StdError::generic_err(format!(
+            "Not enough LP tokens. You need {} LP tokens.",
+            burn_amount
+        ))
+        .into());
+    }
+
+    Ok(burn_amount)
 }
 
 /// Returns an amount of offer assets for a specified amount of ask assets.
@@ -1289,4 +1396,130 @@ pub fn pool_info(
     let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
 
     Ok((pools, total_share))
+}
+
+/// Updates the pool configuration with the specified parameters in the `params` variable.
+///
+/// * **params** new parameter values.
+pub fn update_config(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    params: Binary,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    // TODO: Add factory
+    // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+
+    if info.sender
+        != if let Some(ref owner) = config.owner {
+            owner.to_owned()
+        } else {
+            // factory_config.owner
+            return Err(ContractError::Unauthorized {});
+        }
+    {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    match from_binary::<StablePoolUpdateParams>(&params)? {
+        StablePoolUpdateParams::StartChangingAmp {
+            next_amp,
+            next_amp_time,
+        } => start_changing_amp(config, deps, env, next_amp, next_amp_time)?,
+        StablePoolUpdateParams::StopChangingAmp {} => stop_changing_amp(config, deps, env)?,
+    }
+
+    Ok(Response::default())
+}
+
+/// Start changing the AMP value.
+///
+/// * **next_amp** new value for AMP.
+///
+/// * **next_amp_time** end time when the pool amplification will be equal to `next_amp`.
+fn start_changing_amp(
+    mut config: Config,
+    deps: DepsMut,
+    env: Env,
+    next_amp: u64,
+    next_amp_time: u64,
+) -> Result<(), ContractError> {
+    if next_amp == 0 || next_amp > MAX_AMP {
+        return Err(ContractError::IncorrectAmp { max_amp: MAX_AMP });
+    }
+
+    let current_amp = compute_current_amp(&config, &env)?.u64();
+
+    let next_amp_with_precision = next_amp * AMP_PRECISION;
+
+    if next_amp_with_precision * MAX_AMP_CHANGE < current_amp
+        || next_amp_with_precision > current_amp * MAX_AMP_CHANGE
+    {
+        return Err(ContractError::MaxAmpChangeAssertion {
+            max_amp_change: MAX_AMP_CHANGE,
+        });
+    }
+
+    let block_time = env.block.time.seconds();
+
+    if block_time < config.init_amp_time + MIN_AMP_CHANGING_TIME
+        || next_amp_time < block_time + MIN_AMP_CHANGING_TIME
+    {
+        return Err(ContractError::MinAmpChangingTimeAssertion {
+            min_amp_changing_time: MIN_AMP_CHANGING_TIME,
+        });
+    }
+
+    config.init_amp = current_amp;
+    config.next_amp = next_amp_with_precision;
+    config.init_amp_time = block_time;
+    config.next_amp_time = next_amp_time;
+
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(())
+}
+
+/// Stop changing the AMP value.
+fn stop_changing_amp(mut config: Config, deps: DepsMut, env: Env) -> StdResult<()> {
+    let current_amp = compute_current_amp(&config, &env)?;
+    let block_time = env.block.time.seconds();
+
+    config.init_amp = current_amp.u64();
+    config.next_amp = current_amp.u64();
+    config.init_amp_time = block_time;
+    config.next_amp_time = block_time;
+
+    // now (block_time < next_amp_time) is always False, so we return the saved AMP
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(())
+}
+
+/// Compute the current pool D value.
+fn query_compute_d(deps: Deps<CoreumQueries>, env: Env) -> StdResult<Uint128> {
+    let config = CONFIG.load(deps.storage)?;
+
+    let amp = compute_current_amp(&config, &env)?;
+    let pools = config
+        .pool_info
+        .query_pools_decimal(&deps.querier, env.contract.address)?
+        .into_iter()
+        .map(|pool| pool.amount)
+        .collect::<Vec<_>>();
+
+    compute_d(amp, &pools, config.greatest_precision)
+        .map_err(|_| StdError::generic_err("Failed to calculate the D"))?
+        .to_uint128_with_precision(config.greatest_precision)
+}
+
+/// Updates the config's target rate from the configured lsd hub contract if it is outdated.
+/// Returns `true` if the target rate was updated, `false` otherwise.
+fn update_target_rate(
+    querier: QuerierWrapper<CoreumQueries>,
+    config: &mut Config,
+    env: &Env,
+) -> StdResult<bool> {
+    Ok(false)
 }
