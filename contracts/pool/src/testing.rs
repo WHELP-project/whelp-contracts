@@ -306,7 +306,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
     // But we can withdraw liquidity
 
     // Withdraw liquidity
-    let msg = ExecuteMsg::WithdrawLiquidity {};
+    let msg = ExecuteMsg::WithdrawLiquidity { assets: vec![] };
 
     let info = mock_info("addr0000", &[coin(100, "uuusdmapplp-cosmos2contract")]);
     // We just want to ensure it doesn't fail with a ContractFrozen error
@@ -930,7 +930,7 @@ fn withdraw_liquidity() {
     execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     // Withdraw liquidity
-    let msg = ExecuteMsg::WithdrawLiquidity {};
+    let msg = ExecuteMsg::WithdrawLiquidity { assets: vec![] };
     let env = mock_env();
     let info = mock_info("addr0000", &[coin(100, "uuusdmapplp-cosmos2contract")]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();

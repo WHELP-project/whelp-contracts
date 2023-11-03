@@ -8,8 +8,8 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
-    CosmosMsg, Decimal, Decimal256, Deps, Fraction, DepsMut, Env, MessageInfo, QuerierWrapper, Reply,
-    StdError, StdResult, Uint128, Uint256, WasmMsg,
+    CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, QuerierWrapper,
+    Reply, StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -31,7 +31,7 @@ use dex::{
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
         StablePoolUpdateParams, DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE,
     },
-    DecimalCheckedOps
+    DecimalCheckedOps,
 };
 
 use crate::{
@@ -1111,11 +1111,10 @@ pub fn query_reverse_simulation(
     // let before_commission = (Decimal256::one()
     //     - Decimal256::new(fee_info.total_fee_rate.atomics().into()))
     // .inv()
-    let before_commission = (Decimal256::one()
-        - Decimal256::percent(3))
-    .inv()
-    .unwrap_or_else(Decimal256::one)
-    .checked_mul(Decimal256::with_precision(ask_asset.amount, ask_precision)?)?;
+    let before_commission = (Decimal256::one() - Decimal256::percent(3))
+        .inv()
+        .unwrap_or_else(Decimal256::one)
+        .checked_mul(Decimal256::with_precision(ask_asset.amount, ask_precision)?)?;
 
     update_target_rate(deps.querier, &mut config, &env)?;
     let new_offer_pool_amount = calc_y(
