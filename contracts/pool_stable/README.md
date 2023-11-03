@@ -1,4 +1,4 @@
-# Dex Base Stableswap Pair
+# Dex Base Stableswap Pool
 
 The stableswap pool uses the 4A(Rx+Ry) + D formula, resulting in a constant price ∆x / ∆y = 1. More details around how the pool functions can be found [here](https://docs.astroport.fi/astroport/astroport/astro-pools/stableswap-invariant-pools).
 

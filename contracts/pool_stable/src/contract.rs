@@ -63,27 +63,6 @@ pub fn instantiate(
 
     let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
-    let config = Config {
-        pool_info: PairInfo {
-            contract_addr: env.contract.address.clone(),
-            liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
-            staking_addr: Addr::unchecked(""),
-            asset_infos,
-            pool_type: PoolType::Stable {},
-            fee_config: msg.fee_config,
-        },
-        // factory_addr,
-        block_time_last: 0,
-        price0_cumulative_last: Uint128::zero(),
-        price1_cumulative_last: Uint128::zero(),
-        trading_starts: msg.trading_starts,
-    };
-
-    CONFIG.save(deps.storage, &config)?;
-    FROZEN.save(deps.storage, &false)?;
-    LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
-    save_tmp_staking_config(deps.storage, &msg.staking_config)?;
-
     if msg.init_params.is_none() {
         return Err(ContractError::InitParamsNotFound {});
     }
@@ -106,6 +85,31 @@ pub fn instantiate(
             }
         }
     }
+
+    let config = Config {
+        pool_info: PairInfo {
+            contract_addr: env.contract.address.clone(),
+            liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
+            staking_addr: Addr::unchecked(""),
+            asset_infos,
+            pool_type: PoolType::Stable {},
+            fee_config: msg.fee_config,
+        },
+        // factory_addr,
+        block_time_last: 0,
+        init_amp: params.amp * AMP_PRECISION,
+        init_amp_time: env.block.time.seconds(),
+        next_amp: params.amp * AMP_PRECISION,
+        next_amp_time: env.block.time.seconds(),
+        greatest_precision,
+        cumulative_prices,
+        trading_starts: msg.trading_starts,
+    };
+
+    CONFIG.save(deps.storage, &config)?;
+    FROZEN.save(deps.storage, &false)?;
+    LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
+    save_tmp_staking_config(deps.storage, &msg.staking_config)?;
 
     Ok(
         Response::new().add_submessage(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
