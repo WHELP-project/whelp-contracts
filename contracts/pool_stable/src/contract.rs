@@ -8,7 +8,7 @@ use coreum_wasm_sdk::{
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, Reply, StdError,
-    StdResult, Uint128, Uint256,
+    StdResult, Uint128, Uint256, QuerierWrapper
 };
 
 use cw2::set_contract_version;
@@ -17,7 +17,7 @@ use cw20::Cw20ReceiveMsg;
 use dex::{
     asset::{
         addr_opt_validate, check_swap_parameters, format_lp_token_name, Asset, AssetInfoValidated,
-        AssetValidated, MINIMUM_LIQUIDITY_AMOUNT,
+        AssetValidated, MINIMUM_LIQUIDITY_AMOUNT, Decimal256Ext, DecimalAsset
     },
     decimal2decimal256,
     factory::PoolType,
@@ -27,7 +27,7 @@ use dex::{
         get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
-        DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION, StablePoolUpdateParams,
     },
 };
 
@@ -36,6 +36,10 @@ use crate::{
     state::{
         get_precision, store_precisions, Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT,
     },
+    utils::{
+    accumulate_prices, adjust_precision, calc_new_price_a_per_b, calc_spot_price,
+    compute_current_amp, compute_swap, find_spot_price, select_pools, SwapResult,
+}
 };
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
@@ -1173,49 +1177,6 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<ConfigResponse> {
     })
 }
 
-/// Returns the result of a swap.
-///
-/// * **offer_pool** total amount of offer assets in the pool.
-///
-/// * **ask_pool** total amount of ask assets in the pool.
-///
-/// * **offer_amount** amount of offer assets to swap.
-///
-/// * **commission_rate** total amount of fees charged for the swap.
-pub fn compute_swap(
-    offer_pool: Uint128,
-    ask_pool: Uint128,
-    offer_amount: Uint128,
-    commission_rate: Decimal,
-) -> StdResult<(Uint128, Uint128, Uint128)> {
-    // offer => ask
-    check_swap_parameters(vec![offer_pool, ask_pool], offer_amount)?;
-
-    let offer_pool: Uint256 = offer_pool.into();
-    let ask_pool: Uint256 = ask_pool.into();
-    let offer_amount: Uint256 = offer_amount.into();
-    let commission_rate = decimal2decimal256(commission_rate)?;
-
-    // ask_amount = (ask_pool - cp / (offer_pool + offer_amount))
-    let cp: Uint256 = offer_pool * ask_pool;
-    let return_amount: Uint256 = (Decimal256::from_ratio(ask_pool, 1u8)
-        - Decimal256::from_ratio(cp, offer_pool + offer_amount))
-        * Uint256::from(1u8);
-
-    // Calculate spread & commission
-    let spread_amount: Uint256 =
-        (offer_amount * Decimal256::from_ratio(ask_pool, offer_pool)) - return_amount;
-    let commission_amount: Uint256 = return_amount * commission_rate;
-
-    // The commision (minus the part that goes to the protocol) will be absorbed by the pool
-    let return_amount: Uint256 = return_amount - commission_amount;
-    Ok((
-        return_amount.try_into()?,
-        spread_amount.try_into()?,
-        commission_amount.try_into()?,
-    ))
-}
-
 /// Returns an amount of offer assets for a specified amount of ask assets.
 ///
 /// * **offer_pool** total amount of offer assets in the pool.
@@ -1320,13 +1281,15 @@ pub fn update_config(
     params: Binary,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+    // TODO: Add factory
+    // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
 
     if info.sender
         != if let Some(ref owner) = config.owner {
             owner.to_owned()
         } else {
-            factory_config.owner
+            // factory_config.owner
+            return Err(ContractError::Unauthorized {});
         }
     {
         return Err(ContractError::Unauthorized {});
@@ -1408,12 +1371,12 @@ fn stop_changing_amp(mut config: Config, deps: DepsMut, env: Env) -> StdResult<(
 }
 
 /// Compute the current pool D value.
-fn query_compute_d(deps: Deps, env: Env) -> StdResult<Uint128> {
+fn query_compute_d(deps: Deps<CoreumQueries>, env: Env) -> StdResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
 
     let amp = compute_current_amp(&config, &env)?;
     let pools = config
-        .pair_info
+        .pool_info
         .query_pools_decimal(&deps.querier, env.contract.address)?
         .into_iter()
         .map(|pool| pool.amount)
@@ -1427,25 +1390,9 @@ fn query_compute_d(deps: Deps, env: Env) -> StdResult<Uint128> {
 /// Updates the config's target rate from the configured lsd hub contract if it is outdated.
 /// Returns `true` if the target rate was updated, `false` otherwise.
 fn update_target_rate(
-    querier: QuerierWrapper<Empty>,
+    querier: QuerierWrapper<CoreumQueries>,
     config: &mut Config,
     env: &Env,
 ) -> StdResult<bool> {
-    if let Some(lsd) = &mut config.lsd {
-        let now = env.block.time.seconds();
-        if now < lsd.last_target_query + lsd.target_rate_epoch {
-            // target rate is up to date
-            return Ok(false);
-        }
-
-        let response: TargetValueResponse =
-            querier.query_wasm_smart(&lsd.lsd_hub, &TargetQuery::TargetValue {})?;
-
-        lsd.target_rate = response.target_value;
-        lsd.last_target_query = now;
-
-        Ok(true)
-    } else {
         Ok(false)
-    }
 }
