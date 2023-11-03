@@ -26,12 +26,17 @@ use dex::{
         assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
         get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
-        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
+        DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
 };
 
-use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
+use crate::{
+    math::{calc_y, compute_d, AMP_PRECISION, MAX_AMP, MAX_AMP_CHANGE, MIN_AMP_CHANGING_TIME},
+    state::{
+        get_precision, store_precisions, Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT,
+    },
+};
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -87,6 +92,7 @@ pub fn instantiate(
     }
 
     let config = Config {
+        owner: addr_opt_validate(deps.api, &params.owner)?,
         pool_info: PairInfo {
             contract_addr: env.contract.address.clone(),
             liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
@@ -333,9 +339,9 @@ pub fn provide_liquidity(
     let assets = check_assets(deps.api, &assets)?;
     let mut config = CONFIG.load(deps.storage)?;
 
-    if assets.len() > config.pair_info.asset_infos.len() {
+    if assets.len() > config.pool_info.asset_infos.len() {
         return Err(ContractError::TooManyAssets {
-            max: config.pair_info.asset_infos.len(),
+            max: config.pool_info.asset_infos.len(),
             provided: assets.len(),
         });
     }
@@ -1302,4 +1308,144 @@ pub fn pool_info(
     let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
 
     Ok((pools, total_share))
+}
+
+/// Updates the pool configuration with the specified parameters in the `params` variable.
+///
+/// * **params** new parameter values.
+pub fn update_config(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    params: Binary,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+
+    if info.sender
+        != if let Some(ref owner) = config.owner {
+            owner.to_owned()
+        } else {
+            factory_config.owner
+        }
+    {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    match from_binary::<StablePoolUpdateParams>(&params)? {
+        StablePoolUpdateParams::StartChangingAmp {
+            next_amp,
+            next_amp_time,
+        } => start_changing_amp(config, deps, env, next_amp, next_amp_time)?,
+        StablePoolUpdateParams::StopChangingAmp {} => stop_changing_amp(config, deps, env)?,
+    }
+
+    Ok(Response::default())
+}
+
+/// Start changing the AMP value.
+///
+/// * **next_amp** new value for AMP.
+///
+/// * **next_amp_time** end time when the pool amplification will be equal to `next_amp`.
+fn start_changing_amp(
+    mut config: Config,
+    deps: DepsMut,
+    env: Env,
+    next_amp: u64,
+    next_amp_time: u64,
+) -> Result<(), ContractError> {
+    if next_amp == 0 || next_amp > MAX_AMP {
+        return Err(ContractError::IncorrectAmp { max_amp: MAX_AMP });
+    }
+
+    let current_amp = compute_current_amp(&config, &env)?.u64();
+
+    let next_amp_with_precision = next_amp * AMP_PRECISION;
+
+    if next_amp_with_precision * MAX_AMP_CHANGE < current_amp
+        || next_amp_with_precision > current_amp * MAX_AMP_CHANGE
+    {
+        return Err(ContractError::MaxAmpChangeAssertion {
+            max_amp_change: MAX_AMP_CHANGE,
+        });
+    }
+
+    let block_time = env.block.time.seconds();
+
+    if block_time < config.init_amp_time + MIN_AMP_CHANGING_TIME
+        || next_amp_time < block_time + MIN_AMP_CHANGING_TIME
+    {
+        return Err(ContractError::MinAmpChangingTimeAssertion {
+            min_amp_changing_time: MIN_AMP_CHANGING_TIME,
+        });
+    }
+
+    config.init_amp = current_amp;
+    config.next_amp = next_amp_with_precision;
+    config.init_amp_time = block_time;
+    config.next_amp_time = next_amp_time;
+
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(())
+}
+
+/// Stop changing the AMP value.
+fn stop_changing_amp(mut config: Config, deps: DepsMut, env: Env) -> StdResult<()> {
+    let current_amp = compute_current_amp(&config, &env)?;
+    let block_time = env.block.time.seconds();
+
+    config.init_amp = current_amp.u64();
+    config.next_amp = current_amp.u64();
+    config.init_amp_time = block_time;
+    config.next_amp_time = block_time;
+
+    // now (block_time < next_amp_time) is always False, so we return the saved AMP
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(())
+}
+
+/// Compute the current pool D value.
+fn query_compute_d(deps: Deps, env: Env) -> StdResult<Uint128> {
+    let config = CONFIG.load(deps.storage)?;
+
+    let amp = compute_current_amp(&config, &env)?;
+    let pools = config
+        .pair_info
+        .query_pools_decimal(&deps.querier, env.contract.address)?
+        .into_iter()
+        .map(|pool| pool.amount)
+        .collect::<Vec<_>>();
+
+    compute_d(amp, &pools, config.greatest_precision)
+        .map_err(|_| StdError::generic_err("Failed to calculate the D"))?
+        .to_uint128_with_precision(config.greatest_precision)
+}
+
+/// Updates the config's target rate from the configured lsd hub contract if it is outdated.
+/// Returns `true` if the target rate was updated, `false` otherwise.
+fn update_target_rate(
+    querier: QuerierWrapper<Empty>,
+    config: &mut Config,
+    env: &Env,
+) -> StdResult<bool> {
+    if let Some(lsd) = &mut config.lsd {
+        let now = env.block.time.seconds();
+        if now < lsd.last_target_query + lsd.target_rate_epoch {
+            // target rate is up to date
+            return Ok(false);
+        }
+
+        let response: TargetValueResponse =
+            querier.query_wasm_smart(&lsd.lsd_hub, &TargetQuery::TargetValue {})?;
+
+        lsd.target_rate = response.target_value;
+        lsd.last_target_query = now;
+
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
