@@ -473,9 +473,10 @@ pub fn provide_liquidity(
             .checked_sub(MINIMUM_LIQUIDITY_AMOUNT)
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
+    dbg!("mint");
         messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
             coin: coin(
-                MINIMUM_LIQUIDITY_AMOUNT.u128(),
+                dbg!(MINIMUM_LIQUIDITY_AMOUNT).u128(),
                 &config.pool_info.liquidity_token,
             ),
         })));
@@ -491,6 +492,8 @@ pub fn provide_liquidity(
 
         share
     } else {
+        dbg!("second provide");
+        dbg!(total_share);
         // Get fee info from the factory
         // let fee_info = query_fee_info(
         //     &deps.querier,
@@ -533,8 +536,9 @@ pub fn provide_liquidity(
 
     // Mint LP token for the caller (or for the receiver if it was set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
+    dbg!("mint");
     messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
-        coin: coin(share.u128(), &config.pool_info.liquidity_token),
+        coin: coin(dbg!(share).u128(), &config.pool_info.liquidity_token),
     })));
     messages.push(CosmosMsg::Bank(BankMsg::Send {
         to_address: receiver.to_string(),
