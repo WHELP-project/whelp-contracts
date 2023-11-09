@@ -190,7 +190,6 @@ impl SuiteBuilder {
                     admin: self.admin,
                     unbonder: self.unbonder,
                     max_distributions: 6,
-                    converter: None,
                 },
                 &[],
                 "stake",

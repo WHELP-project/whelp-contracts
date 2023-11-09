@@ -29,6 +29,7 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 thiserror = "1"
 test-case = "2.2.1"
 uint = "0.9"
+wynd-curve-utils = { git = "https://github.com/wynddao/wynddao.git", tag = "v1.6.0", package = "wynd-utils" }
 
 [profile.release]
 rpath = false

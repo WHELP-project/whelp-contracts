@@ -40,7 +40,3 @@ cosmwasm-schema = { workspace = true }
 # standard libs
 anyhow = { workspace = true }
 test-case = { workspace = true }
-lp-converter = { workspace = true, features = ["library"] }
-# migration test
-dex-stake-2_0_0 = { package = "dex-stake", git = "https://github.com/wynddao/wynddex", tag = "v2.0.2" }
-dex-2_0_0 = { package = "dex", git = "https://github.com/wynddao/wynddex", tag = "v2.0.2" }

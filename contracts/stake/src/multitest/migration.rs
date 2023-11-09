@@ -129,7 +129,6 @@ fn stake_old_migrate_with_unbond_all_and_unbond() {
         stake_old_contract.clone(),
         &MigrateMsg {
             unbonder: Some(UNBONDER.to_owned()),
-            converter: None,
             unbond_all: true,
         },
         stake_new_id,

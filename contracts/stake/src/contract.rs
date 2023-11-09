@@ -11,7 +11,6 @@ use cw_controllers::Claim;
 use cw_storage_plus::Map;
 use dex::asset::{addr_opt_validate, AssetInfo, AssetInfoValidated};
 use dex::common::validate_addresses;
-use dex::lp_converter::ExecuteMsg as ConverterExecuteMsg;
 use dex::stake::{FundingInfo, InstantiateMsg, ReceiveMsg, UnbondingPeriod};
 
 use crate::distribution::{
@@ -30,7 +29,7 @@ use crate::msg::{
     TotalStakedResponse, TotalUnbondingResponse, UnbondAllResponse,
 };
 use crate::state::{
-    Config, ConverterConfig, Distribution, TokenInfo, TotalStake, ADMIN, CLAIMS, CONFIG,
+    Config, Distribution, TokenInfo, TotalStake, ADMIN, CLAIMS, CONFIG,
     DISTRIBUTION, REWARD_CURVE, STAKE, TOTAL_PER_PERIOD, TOTAL_STAKED, UNBOND_ALL,
 };
 use wynd_curve_utils::Curve;
@@ -84,15 +83,6 @@ pub fn instantiate(
         unbonding_periods: msg.unbonding_periods,
         max_distributions: msg.max_distributions,
         unbonder: addr_opt_validate(deps.api, &msg.unbonder)?,
-        converter: msg
-            .converter
-            .map(|conv| -> StdResult<ConverterConfig> {
-                Ok(ConverterConfig {
-                    contract: deps.api.addr_validate(&conv.contract)?,
-                    pair_to: deps.api.addr_validate(&conv.pair_to)?,
-                })
-            })
-            .transpose()?,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -177,65 +167,6 @@ pub fn execute_fund_distribution(
         update_reward_config(storage, validated_asset, fund.amount, funding_info.clone())?;
     }
     Ok(Response::default())
-}
-
-/// Triggers moving the stake from this staking contract to another staking contract
-pub fn execute_migrate_stake(
-    mut deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    amount: Uint128,
-    unbonding_period: u64,
-) -> Result<Response, ContractError> {
-    let cfg = CONFIG.load(deps.storage)?;
-    let converter = cfg
-        .converter
-        .as_ref()
-        .ok_or(ContractError::NoConverter {})?;
-
-    remove_stake_without_total(
-        deps.branch(),
-        &env,
-        &cfg,
-        &info.sender,
-        unbonding_period,
-        amount,
-    )?;
-
-    // update total
-    TOTAL_STAKED.update::<_, StdError>(deps.storage, |token_info| {
-        Ok(TokenInfo {
-            staked: token_info.staked.saturating_sub(amount),
-            unbonding: token_info.unbonding,
-        })
-    })?;
-
-    // directly send the tokens to the converter instead of providing claim
-    Ok(Response::new()
-        // send the tokens to the converter
-        .add_message(WasmMsg::Execute {
-            contract_addr: cfg.cw20_contract.into_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: converter.contract.to_string(),
-                amount,
-            })?,
-            funds: vec![],
-        })
-        // once the tokens are transfered to the converter, we convert them
-        .add_message(WasmMsg::Execute {
-            contract_addr: converter.contract.to_string(),
-            msg: to_binary(&ConverterExecuteMsg::Convert {
-                sender: info.sender.to_string(),
-                amount,
-                unbonding_period,
-                pair_contract_from: cfg.instantiator.into_string(),
-                pair_contract_to: converter.pair_to.to_string(),
-            })?,
-            funds: vec![],
-        })
-        .add_attribute("action", "unbond")
-        .add_attribute("amount", amount)
-        .add_attribute("sender", info.sender))
 }
 
 /// Update reward config for the given asset with an additional amount of funding
@@ -1311,15 +1242,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
     // add unbonder to config
     let mut config = CONFIG.load(deps.storage)?;
     config.unbonder = addr_opt_validate(deps.api, &msg.unbonder)?;
-    config.converter = msg
-        .converter
-        .map(|c| {
-            StdResult::Ok(ConverterConfig {
-                contract: deps.api.addr_validate(&c.contract)?,
-                pair_to: deps.api.addr_validate(&c.pair_to)?,
-            })
-        })
-        .transpose()?;
     CONFIG.save(deps.storage, &config)?;
 
     // set unbond all flag
@@ -1384,7 +1306,6 @@ mod tests {
             admin: Some(INIT_ADMIN.into()),
             max_distributions: 6,
             unbonder: None,
-            converter: None,
         };
         let info = mock_info("creator", &[]);
         instantiate(deps, env, info, msg).unwrap();

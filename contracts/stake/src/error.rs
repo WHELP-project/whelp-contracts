@@ -75,9 +75,6 @@ pub enum ContractError {
     #[error("No reward duration provided for rewards distribution")]
     ZeroRewardDuration {},
 
-    #[error("Cannot migrate stake without a converter contract")]
-    NoConverter {},
-
     #[error("Fund distribution cannot start in the past.")]
     PastStartingTime {},
 

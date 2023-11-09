@@ -4,7 +4,7 @@ use cw20::Cw20ReceiveMsg;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use dex::asset::{AssetInfo, AssetInfoValidated, AssetValidated};
 
-use dex::stake::{ConverterConfig, FundingInfo, UnbondingPeriod};
+use dex::stake::{FundingInfo, UnbondingPeriod};
 
 #[cw_serde]
 pub enum ExecuteMsg {
@@ -163,8 +163,6 @@ pub struct MigrateMsg {
     /// Address of the account that can call [`ExecuteMsg::QuickUnbond`], [`ExecuteMsg::UnbondAll`]
     /// and [`ExecuteMsg::StopUnbondAll`]
     pub unbonder: Option<String>,
-    /// Allows adding a converter to the staking contract after instantiation.
-    pub converter: Option<ConverterConfig>,
     /// Allows to directly set unbond all flag during migrations.
     pub unbond_all: bool,
 }
