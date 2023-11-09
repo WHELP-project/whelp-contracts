@@ -1,7 +1,7 @@
 [package]
 name = "dex-stake"
 version = { workspace = true }
-authors = ["Cosmorama <cosmorama@proton.me>"]
+authors = ["Jakub <jakub@moonbite.space>"]
 edition = { workspace = true }
 description = "Multi-timeframe staking contract with support for multiple external rewards for multiple tokens"
 license = { workspace = true }

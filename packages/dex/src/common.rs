@@ -128,4 +128,3 @@ pub fn claim_ownership(
 pub fn validate_addresses(api: &dyn Api, admins: &[String]) -> StdResult<Vec<Addr>> {
     admins.iter().map(|addr| api.addr_validate(addr)).collect()
 }
-

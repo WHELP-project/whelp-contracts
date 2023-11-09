@@ -29,8 +29,8 @@ use crate::msg::{
     TotalStakedResponse, TotalUnbondingResponse, UnbondAllResponse,
 };
 use crate::state::{
-    Config, Distribution, TokenInfo, TotalStake, ADMIN, CLAIMS, CONFIG,
-    DISTRIBUTION, REWARD_CURVE, STAKE, TOTAL_PER_PERIOD, TOTAL_STAKED, UNBOND_ALL,
+    Config, Distribution, TokenInfo, TotalStake, ADMIN, CLAIMS, CONFIG, DISTRIBUTION, REWARD_CURVE,
+    STAKE, TOTAL_PER_PERIOD, TOTAL_STAKED, UNBOND_ALL,
 };
 use wynd_curve_utils::Curve;
 
