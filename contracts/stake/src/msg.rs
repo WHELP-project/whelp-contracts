@@ -2,9 +2,9 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cw20::Cw20ReceiveMsg;
 
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use wyndex::asset::{AssetInfo, AssetInfoValidated, AssetValidated};
+use dex::asset::{AssetInfo, AssetInfoValidated, AssetValidated};
 
-use wyndex::stake::{ConverterConfig, FundingInfo, UnbondingPeriod};
+use dex::stake::{ConverterConfig, FundingInfo, UnbondingPeriod};
 
 #[cw_serde]
 pub enum ExecuteMsg {

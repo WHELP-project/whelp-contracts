@@ -1,5 +1,5 @@
 [package]
-name = "wyndex-stake"
+name = "dex-stake"
 version = { workspace = true }
 authors = ["Cosmorama <cosmorama@proton.me>"]
 edition = { workspace = true }
@@ -16,7 +16,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-wyndex = { workspace = true }
+dex = { workspace = true }
 # cw-plus
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
@@ -42,5 +42,5 @@ anyhow = { workspace = true }
 test-case = { workspace = true }
 lp-converter = { workspace = true, features = ["library"] }
 # migration test
-wyndex-stake-2_0_0 = { package = "wyndex-stake", git = "https://github.com/wynddao/wynddex", tag = "v2.0.2" }
-wyndex-2_0_0 = { package = "wyndex", git = "https://github.com/wynddao/wynddex", tag = "v2.0.2" }
+dex-stake-2_0_0 = { package = "dex-stake", git = "https://github.com/wynddao/wynddex", tag = "v2.0.2" }
+dex-2_0_0 = { package = "dex", git = "https://github.com/wynddao/wynddex", tag = "v2.0.2" }

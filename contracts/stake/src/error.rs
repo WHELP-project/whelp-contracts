@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use cw_controllers::{AdminError, HookError};
 use wynd_curve_utils::CurveError;
-use wyndex::asset::AssetInfoValidated;
+use dex::asset::AssetInfoValidated;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {

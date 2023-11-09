@@ -2,8 +2,8 @@ use cosmwasm_std::{assert_approx_eq, Addr, Decimal, Uint128};
 use cw20::{Cw20Coin, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use cw_multi_test::Executor;
-use wyndex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
-use wyndex::stake::FundingInfo;
+use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
+use dex::stake::FundingInfo;
 
 use super::suite::{contract_token, SuiteBuilder};
 use crate::{

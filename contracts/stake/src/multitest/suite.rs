@@ -7,7 +7,7 @@ use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterRespon
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use cw_controllers::{Claim, ClaimsResponse};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
-use wyndex::{
+use dex::{
     asset::{AssetInfo, AssetInfoExt, AssetInfoValidated, AssetValidated},
     stake::{InstantiateMsg, UnbondingPeriod},
 };
@@ -18,7 +18,7 @@ use crate::msg::{
     RewardsPowerResponse, StakedResponse, TotalStakedResponse, UnbondAllResponse,
     UndistributedRewardsResponse, WithdrawableRewardsResponse,
 };
-use wyndex::stake::{FundingInfo, ReceiveMsg};
+use dex::stake::{FundingInfo, ReceiveMsg};
 
 pub const SEVEN_DAYS: u64 = 604800;
 

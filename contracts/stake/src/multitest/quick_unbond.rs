@@ -1,5 +1,5 @@
 use cosmwasm_std::{assert_approx_eq, Decimal};
-use wyndex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
+use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
 
 use crate::{multitest::suite::SuiteBuilder, ContractError};
 

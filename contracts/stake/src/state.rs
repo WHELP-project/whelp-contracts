@@ -6,8 +6,8 @@ use crate::{utils::calc_power, ContractError};
 use cosmwasm_std::{Addr, Decimal, Env, OverflowError, StdResult, Storage, Timestamp, Uint128};
 use cw_controllers::{Admin, Claims};
 use cw_storage_plus::{Item, Map};
-use wyndex::asset::AssetInfoValidated;
-use wyndex::stake::UnbondingPeriod;
+use dex::asset::AssetInfoValidated;
+use dex::stake::UnbondingPeriod;
 
 pub const CLAIMS: Claims = Claims::new("claims");
 

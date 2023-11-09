@@ -1,6 +1,6 @@
 use cosmwasm_std::{Decimal, OverflowError, OverflowOperation, StdError, Uint128};
-use wyndex::asset::{AssetInfo, AssetInfoValidated};
-use wyndex::stake::UnbondingPeriod;
+use dex::asset::{AssetInfo, AssetInfoValidated};
+use dex::stake::UnbondingPeriod;
 
 use crate::error::ContractError;
 use crate::msg::{AllStakedResponse, StakedResponse};

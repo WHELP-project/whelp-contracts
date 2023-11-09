@@ -9,10 +9,10 @@ use cosmwasm_std::{
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_controllers::Claim;
 use cw_storage_plus::Map;
-use wyndex::asset::{addr_opt_validate, AssetInfo, AssetInfoValidated};
-use wyndex::common::validate_addresses;
-use wyndex::lp_converter::ExecuteMsg as ConverterExecuteMsg;
-use wyndex::stake::{FundingInfo, InstantiateMsg, ReceiveMsg, UnbondingPeriod};
+use dex::asset::{addr_opt_validate, AssetInfo, AssetInfoValidated};
+use dex::common::validate_addresses;
+use dex::lp_converter::ExecuteMsg as ConverterExecuteMsg;
+use dex::stake::{FundingInfo, InstantiateMsg, ReceiveMsg, UnbondingPeriod};
 
 use crate::distribution::{
     apply_points_correction, execute_delegate_withdrawal, execute_distribute_rewards,
@@ -1334,7 +1334,7 @@ mod tests {
     use cosmwasm_std::{from_slice, Coin, CosmosMsg, Decimal, WasmMsg};
     use cw_controllers::Claim;
     use cw_utils::Duration;
-    use wyndex::asset::{native_asset_info, token_asset_info};
+    use dex::asset::{native_asset_info, token_asset_info};
 
     use crate::error::ContractError;
     use crate::msg::{DistributionDataResponse, WithdrawAdjustmentDataResponse};
@@ -1356,7 +1356,7 @@ mod tests {
 
     #[test]
     fn check_crate_name() {
-        assert_eq!(CONTRACT_NAME, "crates.io:wyndex_stake");
+        assert_eq!(CONTRACT_NAME, "crates.io:dex_stake");
     }
 
     fn default_instantiate(deps: DepsMut, env: Env) {

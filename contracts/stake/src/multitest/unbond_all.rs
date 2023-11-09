@@ -3,7 +3,7 @@ use cw20::{Cw20Coin, MinterResponse};
 use cw_multi_test::Executor;
 
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
-use wyndex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
+use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
 
 use crate::{multitest::suite::SuiteBuilder, ContractError};
 

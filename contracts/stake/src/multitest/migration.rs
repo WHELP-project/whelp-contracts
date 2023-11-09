@@ -3,8 +3,8 @@ use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
-use wyndex::stake::ReceiveMsg;
-use wyndex_stake_2_0_0::msg::TotalStakedResponse;
+use dex::stake::ReceiveMsg;
+use dex_stake_2_0_0::msg::TotalStakedResponse;
 
 use crate::msg::{ExecuteMsg, MigrateMsg, QueryMsg, UnbondAllResponse};
 
@@ -56,16 +56,16 @@ fn stake_old_migrate_with_unbond_all_and_unbond() {
 
     // Upload old stake contract and create instance
     let old_contract: Box<dyn Contract<Empty>> = Box::new(ContractWrapper::new_with_empty(
-        wyndex_stake_2_0_0::contract::execute,
-        wyndex_stake_2_0_0::contract::instantiate,
-        wyndex_stake_2_0_0::contract::query,
+        dex_stake_2_0_0::contract::execute,
+        dex_stake_2_0_0::contract::instantiate,
+        dex_stake_2_0_0::contract::query,
     ));
     let stake_old_id = app.store_code(old_contract);
     let stake_old_contract = app
         .instantiate_contract(
             stake_old_id,
             admin.clone(),
-            &wyndex_2_0_0::stake::InstantiateMsg {
+            &dex_2_0_0::stake::InstantiateMsg {
                 cw20_contract: token_contract.to_string(),
                 tokens_per_power: Uint128::new(1000),
                 min_bond: Uint128::new(5000),
