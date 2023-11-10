@@ -77,7 +77,7 @@ pub fn instantiate(
 
     let config = Config {
         instantiator: info.sender,
-        cw20_contract: deps.api.addr_validate(&msg.cw20_contract)?,
+        lp_share_denom: msg.lp_share_denom,
         tokens_per_power: msg.tokens_per_power,
         min_bond,
         unbonding_periods: msg.unbonding_periods,
@@ -214,8 +214,8 @@ pub fn execute_create_distribution_flow(
     // make sure the asset is not the staked token, since we distribute this contract's balance
     // and we definitely do not want to distribute the staked tokens.
     let config = CONFIG.load(deps.storage)?;
-    if let AssetInfoValidated::Cw20Token(addr) = &asset {
-        if addr == config.cw20_contract {
+    if let AssetInfoValidated::SmartToken(denom) = &asset {
+        if denom == config.lp_share_denom {
             return Err(ContractError::InvalidAsset {});
         }
     }
@@ -380,7 +380,7 @@ pub fn execute_rebond(
 pub fn execute_bond(
     deps: DepsMut,
     env: Env,
-    sender_cw20_contract: Addr,
+    sender_lp_share_denom: Addr,
     amount: Uint128,
     unbonding_period: u64,
     sender: Addr,
@@ -389,7 +389,7 @@ pub fn execute_bond(
     let res = execute_mass_bond(
         deps,
         env,
-        sender_cw20_contract,
+        sender_lp_share_denom,
         amount,
         unbonding_period,
         delegations,
@@ -400,7 +400,7 @@ pub fn execute_bond(
 pub fn execute_mass_bond(
     deps: DepsMut,
     _env: Env,
-    sender_cw20_contract: Addr,
+    sender_lp_share_denom: Addr,
     amount_sent: Uint128,
     unbonding_period: u64,
     delegate_to: Vec<(String, Uint128)>,
@@ -408,10 +408,10 @@ pub fn execute_mass_bond(
     let cfg = CONFIG.load(deps.storage)?;
 
     // ensure that cw20 token contract's addresses matches
-    if cfg.cw20_contract != sender_cw20_contract {
+    if cfg.lp_share_denom != sender_lp_share_denom {
         return Err(ContractError::Cw20AddressesNotMatch {
-            got: sender_cw20_contract.into(),
-            expected: cfg.cw20_contract.into(),
+            got: sender_lp_share_denom.into(),
+            expected: cfg.lp_share_denom.into(),
         });
     }
 
@@ -605,7 +605,8 @@ pub fn execute_receive(
             if funding_info.start_time < env.block.time.seconds() {
                 return Err(ContractError::PastStartingTime {});
             }
-            let validated_asset = AssetInfo::Token(info.sender.to_string()).validate(deps.api)?;
+            let validated_asset =
+                AssetInfo::Cw20Token(info.sender.to_string()).validate(deps.api)?;
             update_reward_config(deps.storage, validated_asset, wrapper.amount, funding_info)?;
             Ok(Response::default())
         }
@@ -649,7 +650,7 @@ pub fn execute_unbond(
     // If unbond all flag set to true we don't need to create a claim and send directly. Sending
     // directly instead of send a Claim submessage resolves in 2 messages instead of 3.
     if unbond_all {
-        let msg = create_undelegate_msg(info.sender, amount, cfg.cw20_contract)?;
+        let msg = create_undelegate_msg(info.sender, amount, cfg.lp_share_denom)?;
         Ok(resp.add_submessage(msg))
     } else {
         // provide them a claim
@@ -752,7 +753,7 @@ pub fn execute_quick_unbond(
         let amount = staker_unbonds + open_claims;
         if !amount.is_zero() {
             let undelegate_msg = WasmMsg::Execute {
-                contract_addr: cfg.cw20_contract.to_string(),
+                contract_addr: cfg.lp_share_denom.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: staker.to_string(),
                     amount,
@@ -941,8 +942,9 @@ pub fn execute_claim(
     }
 
     let config = CONFIG.load(deps.storage)?;
-    let amount_str = coin_to_string(release, config.cw20_contract.as_str());
-    let undelegate_msg = create_undelegate_msg(info.sender.clone(), release, config.cw20_contract)?;
+    let amount_str = coin_to_string(release, config.lp_share_denom.as_str());
+    let undelegate_msg =
+        create_undelegate_msg(info.sender.clone(), release, config.lp_share_denom)?;
 
     TOTAL_STAKED.update::<_, StdError>(deps.storage, |token_info| {
         Ok(TokenInfo {
@@ -1177,19 +1179,19 @@ pub fn query_staked(
     let stake = STAKE
         .may_load(deps.storage, (&addr, unbonding_period))?
         .unwrap_or_default();
-    let cw20_contract = CONFIG.load(deps.storage)?.cw20_contract.to_string();
+    let lp_share_denom = CONFIG.load(deps.storage)?.lp_share_denom.to_string();
     Ok(StakedResponse {
         stake: stake.total_stake(),
         total_locked: stake.total_locked(env),
         unbonding_period,
-        cw20_contract,
+        lp_share_denom,
     })
 }
 
 pub fn query_all_staked(deps: Deps, env: Env, addr: String) -> StdResult<AllStakedResponse> {
     let addr = deps.api.addr_validate(&addr)?;
     let config = CONFIG.load(deps.storage)?;
-    let cw20_contract = config.cw20_contract.to_string();
+    let lp_share_denom = config.lp_share_denom.to_string();
 
     let stakes = config
         .unbonding_periods
@@ -1199,7 +1201,7 @@ pub fn query_all_staked(deps: Deps, env: Env, addr: String) -> StdResult<AllStak
                 stake: stake.total_stake(),
                 total_locked: stake.total_locked(&env),
                 unbonding_period: up,
-                cw20_contract: cw20_contract.clone(),
+                lp_share_denom: lp_share_denom.clone(),
             })),
             Ok(None) => None,
             Err(e) => Some(Err(e)),
@@ -1269,7 +1271,7 @@ mod tests {
     const UNBONDING_BLOCKS: u64 = 100;
     const UNBONDING_PERIOD: u64 = UNBONDING_BLOCKS / 5;
     const UNBONDING_PERIOD_2: u64 = 2 * UNBONDING_PERIOD;
-    const CW20_ADDRESS: &str = "wasm1234567890";
+    const SMART_TOKEN_DENOM: &str = "wasm1234567890";
     const DENOM: &str = "juno";
 
     #[test]
@@ -1295,7 +1297,7 @@ mod tests {
         stake_config: Vec<UnbondingPeriod>,
     ) {
         let msg = InstantiateMsg {
-            cw20_contract: CW20_ADDRESS.to_owned(),
+            lp_share_denom: SMART_TOKEN_DENOM.to_owned(),
             tokens_per_power,
             min_bond,
             unbonding_periods: stake_config,
@@ -1329,7 +1331,7 @@ mod tests {
                     })
                     .unwrap(),
                 });
-                let info = mock_info(CW20_ADDRESS, &[]);
+                let info = mock_info(SMART_TOKEN_DENOM, &[]);
                 execute(deps.branch(), env.clone(), info, msg).unwrap();
             }
         }
@@ -1495,7 +1497,7 @@ mod tests {
                 msg,
                 funds,
             }) => {
-                assert_eq!(contract_addr.as_str(), CW20_ADDRESS);
+                assert_eq!(contract_addr.as_str(), SMART_TOKEN_DENOM);
                 assert_eq!(funds.len(), 0);
                 let parsed: Cw20ExecuteMsg = from_slice(msg).unwrap();
                 assert_eq!(
@@ -2039,7 +2041,7 @@ mod tests {
             deps.as_mut(),
             mock_info(INIT_ADMIN, &[]),
             INIT_ADMIN.to_string(),
-            token_asset_info(CW20_ADDRESS),
+            token_asset_info(SMART_TOKEN_DENOM),
             vec![(UNBONDING_PERIOD, Decimal::one())],
         )
         .unwrap_err();
@@ -2107,7 +2109,7 @@ mod tests {
         execute_receive(
             deps.as_mut(),
             mock_env(),
-            mock_info(CW20_ADDRESS, &[]),
+            mock_info(SMART_TOKEN_DENOM, &[]),
             Cw20ReceiveMsg {
                 sender: "delegator".to_string(),
                 amount: 100u128.into(),

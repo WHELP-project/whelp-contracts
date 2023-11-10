@@ -32,8 +32,8 @@ To create it, you must pass in a list of members, as well as an optional
 
 ```rust
 pub struct InstantiateMsg {
-    /// cw20 token contract address of the token to stake
-    pub cw20_contract: String,
+    /// Denom of the smart token to stake
+    pub lp_share_denom: String,
     pub tokens_per_power: u64,
     pub min_bond: Uint128,
     pub unbonding_period: Duration,

@@ -8,7 +8,7 @@ use crate::state::Config;
 pub fn create_undelegate_msg(
     recipient: Addr,
     amount: Uint128,
-    contract: Addr,
+    lp_share_denom: String,
 ) -> StdResult<SubMsg> {
     let undelegate = Cw20ExecuteMsg::Transfer {
         recipient: recipient.to_string(),

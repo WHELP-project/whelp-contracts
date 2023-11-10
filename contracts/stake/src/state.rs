@@ -13,8 +13,8 @@ pub const CLAIMS: Claims = Claims::new("claims");
 
 #[cw_serde]
 pub struct Config {
-    /// address of cw20 contract token to stake
-    pub cw20_contract: Addr,
+    /// denom of smart token contract token to stake
+    pub lp_share_denom: String,
     /// address that instantiated the contract
     pub instantiator: Addr,
     pub tokens_per_power: Uint128,
