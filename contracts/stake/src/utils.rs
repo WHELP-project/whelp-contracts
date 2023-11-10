@@ -1,5 +1,4 @@
-use cosmwasm_std::{to_binary, Addr, Decimal, StdResult, SubMsg, Uint128, WasmMsg};
-use cw20::Cw20ExecuteMsg;
+use cosmwasm_std::{coin, to_binary, Addr, BankMsg, Decimal, StdResult, SubMsg, Uint128, WasmMsg};
 
 use wynd_curve_utils::{Curve, PiecewiseLinear, SaturatingLinear};
 
@@ -10,14 +9,9 @@ pub fn create_undelegate_msg(
     amount: Uint128,
     lp_share_denom: String,
 ) -> StdResult<SubMsg> {
-    let undelegate = Cw20ExecuteMsg::Transfer {
-        recipient: recipient.to_string(),
-        amount,
-    };
-    Ok(SubMsg::new(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
-        msg: to_binary(&undelegate)?,
-        funds: vec![],
+    Ok(SubMsg::new(BankMsg::Send {
+        to_address: recipient.to_string(),
+        amount: coin(amount.u128(), lp_share_denom),
     }))
 }
 
