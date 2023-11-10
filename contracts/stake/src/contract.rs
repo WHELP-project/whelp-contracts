@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure_eq, from_slice, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Response, StdError, StdResult, Storage, Uint128, WasmMsg,
+    ensure_eq, from_slice, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Order, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_controllers::Claim;
@@ -34,6 +35,9 @@ use crate::state::{
 };
 use wynd_curve_utils::Curve;
 
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
+
 const SECONDS_PER_YEAR: u64 = 365 * 24 * 60 * 60;
 
 // version info for migration info
@@ -44,7 +48,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 // make use of the custom errors
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    mut deps: DepsMut,
+    mut deps: DepsMut<CoreumQueries>,
     _env: Env,
     info: MessageInfo,
     mut msg: InstantiateMsg,
@@ -92,7 +96,7 @@ pub fn instantiate(
 // And declare a custom Error variant for the ones where you will want to make use of it
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -140,7 +144,7 @@ pub fn execute(
 /// Allows for providing multiple native tokens at once to update multiple distribution flows with the same optionally provided Curve.
 pub fn execute_fund_distribution(
     env: Env,
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     funding_info: FundingInfo,
 ) -> Result<Response, ContractError> {
@@ -198,7 +202,7 @@ fn update_reward_config(
 
 /// Create a new rewards distribution flow for the given asset as a reward
 pub fn execute_create_distribution_flow(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     manager: String,
     asset: AssetInfo,
@@ -215,7 +219,7 @@ pub fn execute_create_distribution_flow(
     // and we definitely do not want to distribute the staked tokens.
     let config = CONFIG.load(deps.storage)?;
     if let AssetInfoValidated::SmartToken(denom) = &asset {
-        if denom == config.lp_share_denom {
+        if denom == &config.lp_share_denom {
             return Err(ContractError::InvalidAsset {});
         }
     }
@@ -268,7 +272,7 @@ pub fn execute_create_distribution_flow(
 }
 
 pub fn execute_rebond(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     amount: Uint128,
@@ -378,7 +382,7 @@ pub fn execute_rebond(
 }
 
 pub fn execute_bond(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     sender_lp_share_denom: Addr,
     amount: Uint128,
@@ -398,7 +402,7 @@ pub fn execute_bond(
 }
 
 pub fn execute_mass_bond(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     _env: Env,
     sender_lp_share_denom: Addr,
     amount_sent: Uint128,
@@ -411,7 +415,7 @@ pub fn execute_mass_bond(
     if cfg.lp_share_denom != sender_lp_share_denom {
         return Err(ContractError::Cw20AddressesNotMatch {
             got: sender_lp_share_denom.into(),
-            expected: cfg.lp_share_denom.into(),
+            expected: cfg.lp_share_denom,
         });
     }
 
@@ -551,7 +555,7 @@ fn update_total_stake(
 }
 
 pub fn execute_receive(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     wrapper: Cw20ReceiveMsg,
@@ -614,7 +618,7 @@ pub fn execute_receive(
 }
 
 pub fn execute_unbond(
-    mut deps: DepsMut,
+    mut deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     amount: Uint128,
@@ -666,7 +670,7 @@ pub fn execute_unbond(
 }
 
 pub fn execute_quick_unbond(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     stakers: Vec<String>,
@@ -680,7 +684,7 @@ pub fn execute_quick_unbond(
 
     let staker_addresses = validate_addresses(deps.api, &stakers)?;
 
-    let mut response = Response::<Empty>::new()
+    let mut response = Response::new()
         .add_attribute("action", "quick_unbond")
         .add_attribute("stakers", stakers.join(","));
 
@@ -788,7 +792,10 @@ pub fn execute_quick_unbond(
     Ok(response)
 }
 
-pub fn execute_unbond_all(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+pub fn execute_unbond_all(
+    deps: DepsMut<CoreumQueries>,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
 
     // Only unbonder can execute unbond all and set state variable to true.
@@ -810,7 +817,7 @@ pub fn execute_unbond_all(deps: DepsMut, info: MessageInfo) -> Result<Response, 
 }
 
 pub fn execute_stop_unbond_all(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
@@ -873,7 +880,7 @@ fn update_rewards(
 /// Removes the stake from the given unbonding period and staker,
 /// updating `DISTRIBUTION`, `TOTAL_PER_PERIOD` and `STAKE`, but *not* `TOTAL_STAKED`.
 fn remove_stake_without_total(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: &Env,
     cfg: &Config,
     staker: &Addr,
@@ -932,7 +939,7 @@ fn remove_stake_without_total(
 }
 
 pub fn execute_claim(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
@@ -966,7 +973,7 @@ fn coin_to_string(amount: Uint128, address: &str) -> String {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Claims { address } => {
             to_binary(&CLAIMS.query_claims(deps, &deps.api.addr_validate(&address)?)?)
@@ -1007,7 +1014,10 @@ struct DistStats {
     annualized_payout: Decimal,
 }
 
-fn query_annualized_rewards(deps: Deps, env: Env) -> StdResult<AnnualizedRewardsResponse> {
+fn query_annualized_rewards(
+    deps: Deps<CoreumQueries>,
+    env: Env,
+) -> StdResult<AnnualizedRewardsResponse> {
     let config = CONFIG.load(deps.storage)?;
     let now = env.block.time.seconds();
 
@@ -1111,7 +1121,7 @@ fn calculate_annualized_payout(reward_curve: Option<Curve>, now: u64) -> Decimal
     }
 }
 
-fn query_rewards(deps: Deps, addr: String) -> StdResult<RewardsPowerResponse> {
+fn query_rewards(deps: Deps<CoreumQueries>, addr: String) -> StdResult<RewardsPowerResponse> {
     let addr = deps.api.addr_validate(&addr)?;
     let rewards = DISTRIBUTION
         .range(deps.storage, None, None, Order::Ascending)
@@ -1129,7 +1139,7 @@ fn query_rewards(deps: Deps, addr: String) -> StdResult<RewardsPowerResponse> {
     Ok(RewardsPowerResponse { rewards })
 }
 
-fn query_total_rewards(deps: Deps) -> StdResult<RewardsPowerResponse> {
+fn query_total_rewards(deps: Deps<CoreumQueries>) -> StdResult<RewardsPowerResponse> {
     Ok(RewardsPowerResponse {
         rewards: DISTRIBUTION
             .range(deps.storage, None, None, Order::Ascending)
@@ -1146,7 +1156,7 @@ fn query_total_rewards(deps: Deps) -> StdResult<RewardsPowerResponse> {
     })
 }
 
-fn query_bonding_info(deps: Deps) -> StdResult<BondingInfoResponse> {
+fn query_bonding_info(deps: Deps<CoreumQueries>) -> StdResult<BondingInfoResponse> {
     let total_stakes = TOTAL_PER_PERIOD.load(deps.storage)?;
 
     let bonding = total_stakes
@@ -1162,7 +1172,7 @@ fn query_bonding_info(deps: Deps) -> StdResult<BondingInfoResponse> {
 }
 
 pub fn query_staked(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     env: &Env,
     addr: String,
     unbonding_period: u64,
@@ -1188,7 +1198,11 @@ pub fn query_staked(
     })
 }
 
-pub fn query_all_staked(deps: Deps, env: Env, addr: String) -> StdResult<AllStakedResponse> {
+pub fn query_all_staked(
+    deps: Deps<CoreumQueries>,
+    env: Env,
+    addr: String,
+) -> StdResult<AllStakedResponse> {
     let addr = deps.api.addr_validate(&addr)?;
     let config = CONFIG.load(deps.storage)?;
     let lp_share_denom = config.lp_share_denom.to_string();
@@ -1211,13 +1225,13 @@ pub fn query_all_staked(deps: Deps, env: Env, addr: String) -> StdResult<AllStak
     Ok(AllStakedResponse { stakes })
 }
 
-pub fn query_total_staked(deps: Deps) -> StdResult<TotalStakedResponse> {
+pub fn query_total_staked(deps: Deps<CoreumQueries>) -> StdResult<TotalStakedResponse> {
     Ok(TotalStakedResponse {
         total_staked: TOTAL_STAKED.load(deps.storage).unwrap_or_default().staked,
     })
 }
 
-pub fn query_total_unbonding(deps: Deps) -> StdResult<TotalUnbondingResponse> {
+pub fn query_total_unbonding(deps: Deps<CoreumQueries>) -> StdResult<TotalUnbondingResponse> {
     Ok(TotalUnbondingResponse {
         total_unbonding: TOTAL_STAKED
             .load(deps.storage)
@@ -1226,7 +1240,7 @@ pub fn query_total_unbonding(deps: Deps) -> StdResult<TotalUnbondingResponse> {
     })
 }
 
-pub fn query_unbond_all(deps: Deps) -> StdResult<UnbondAllResponse> {
+pub fn query_unbond_all(deps: Deps<CoreumQueries>) -> StdResult<UnbondAllResponse> {
     Ok(UnbondAllResponse {
         unbond_all: UNBOND_ALL.load(deps.storage)?,
     })
@@ -1234,7 +1248,11 @@ pub fn query_unbond_all(deps: Deps) -> StdResult<UnbondAllResponse> {
 
 /// Manages the contract migration.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut<CoreumQueries>,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response, ContractError> {
     ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // add unbonder to config
@@ -1279,7 +1297,7 @@ mod tests {
         assert_eq!(CONTRACT_NAME, "crates.io:dex_stake");
     }
 
-    fn default_instantiate(deps: DepsMut, env: Env) {
+    fn default_instantiate(deps: DepsMut<CoreumQueries>, env: Env) {
         cw20_instantiate(
             deps,
             env,
@@ -1290,7 +1308,7 @@ mod tests {
     }
 
     fn cw20_instantiate(
-        deps: DepsMut,
+        deps: DepsMut<CoreumQueries>,
         env: Env,
         tokens_per_power: Uint128,
         min_bond: Uint128,
@@ -1310,7 +1328,7 @@ mod tests {
     }
 
     fn bond_cw20_with_period(
-        mut deps: DepsMut,
+        mut deps: DepsMut<CoreumQueries>,
         user1: u128,
         user2: u128,
         user3: u128,
@@ -1337,12 +1355,18 @@ mod tests {
         }
     }
 
-    fn bond_cw20(deps: DepsMut, user1: u128, user2: u128, user3: u128, time_delta: u64) {
+    fn bond_cw20(
+        deps: DepsMut<CoreumQueries>,
+        user1: u128,
+        user2: u128,
+        user3: u128,
+        time_delta: u64,
+    ) {
         bond_cw20_with_period(deps, user1, user2, user3, UNBONDING_PERIOD, time_delta);
     }
 
     fn rebond_with_period(
-        mut deps: DepsMut,
+        mut deps: DepsMut<CoreumQueries>,
         user1: u128,
         user2: u128,
         user3: u128,
@@ -1367,7 +1391,7 @@ mod tests {
     }
 
     fn unbond_with_period(
-        mut deps: DepsMut,
+        mut deps: DepsMut<CoreumQueries>,
         user1: u128,
         user2: u128,
         user3: u128,
@@ -1389,7 +1413,13 @@ mod tests {
         }
     }
 
-    fn unbond(deps: DepsMut, user1: u128, user2: u128, user3: u128, time_delta: u64) {
+    fn unbond(
+        deps: DepsMut<CoreumQueries>,
+        user1: u128,
+        user2: u128,
+        user3: u128,
+        time_delta: u64,
+    ) {
         unbond_with_period(deps, user1, user2, user3, time_delta, UNBONDING_PERIOD);
     }
 
@@ -1455,7 +1485,7 @@ mod tests {
     }
 
     fn assert_stake_in_period(
-        deps: Deps,
+        deps: Deps<CoreumQueries>,
         env: &Env,
         user1_stake: u128,
         user2_stake: u128,
@@ -1474,7 +1504,7 @@ mod tests {
 
     // this tests the member queries
     fn assert_stake(
-        deps: Deps,
+        deps: Deps<CoreumQueries>,
         env: &Env,
         user1_stake: u128,
         user2_stake: u128,
@@ -1594,7 +1624,7 @@ mod tests {
         assert_cw20_undelegate(res, USER1, 7_900)
     }
 
-    fn get_claims(deps: Deps, addr: &Addr) -> Vec<Claim> {
+    fn get_claims(deps: Deps<CoreumQueries>, addr: &Addr) -> Vec<Claim> {
         CLAIMS.query_claims(deps, addr).unwrap().claims
     }
 
@@ -1713,7 +1743,7 @@ mod tests {
         assert_eq!(get_claims(deps.as_ref(), &Addr::unchecked(USER2)), vec![]);
     }
 
-    fn rewards(deps: Deps, user: &str) -> Vec<(AssetInfoValidated, Uint128)> {
+    fn rewards(deps: Deps<CoreumQueries>, user: &str) -> Vec<(AssetInfoValidated, Uint128)> {
         query_rewards(deps, user.to_string()).unwrap().rewards
     }
 

@@ -465,6 +465,7 @@ name = "dex-stake"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "coreum-wasm-sdk",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",

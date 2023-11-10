@@ -1,4 +1,5 @@
-use cosmwasm_std::{coin, to_binary, Addr, BankMsg, Decimal, StdResult, SubMsg, Uint128, WasmMsg};
+use coreum_wasm_sdk::core::CoreumMsg;
+use cosmwasm_std::{coin, Addr, BankMsg, Decimal, StdResult, SubMsg, Uint128};
 
 use wynd_curve_utils::{Curve, PiecewiseLinear, SaturatingLinear};
 
@@ -8,10 +9,10 @@ pub fn create_undelegate_msg(
     recipient: Addr,
     amount: Uint128,
     lp_share_denom: String,
-) -> StdResult<SubMsg> {
+) -> StdResult<SubMsg<CoreumMsg>> {
     Ok(SubMsg::new(BankMsg::Send {
         to_address: recipient.to_string(),
-        amount: coin(amount.u128(), lp_share_denom),
+        amount: vec![coin(amount.u128(), lp_share_denom)],
     }))
 }
 

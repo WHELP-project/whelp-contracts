@@ -1,20 +1,24 @@
 use std::collections::HashSet;
 
-use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128};
+use coreum_wasm_sdk::core::CoreumQueries;
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, StdResult, Storage, Uint128};
 use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
 
-use crate::error::ContractError;
-use crate::msg::{
-    DelegatedResponse, DistributedRewardsResponse, DistributionDataResponse,
-    UndistributedRewardsResponse, WithdrawAdjustmentDataResponse, WithdrawableRewardsResponse,
-};
-use crate::state::{
-    Config, Distribution, WithdrawAdjustment, CONFIG, DELEGATED, DISTRIBUTION, REWARD_CURVE,
-    SHARES_SHIFT, UNBOND_ALL, WITHDRAW_ADJUSTMENT,
+use crate::{
+    contract::Response,
+    error::ContractError,
+    msg::{
+        DelegatedResponse, DistributedRewardsResponse, DistributionDataResponse,
+        UndistributedRewardsResponse, WithdrawAdjustmentDataResponse, WithdrawableRewardsResponse,
+    },
+    state::{
+        Config, Distribution, WithdrawAdjustment, CONFIG, DELEGATED, DISTRIBUTION, REWARD_CURVE,
+        SHARES_SHIFT, UNBOND_ALL, WITHDRAW_ADJUSTMENT,
+    },
 };
 
 pub fn execute_distribute_rewards(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     sender: Option<String>,
@@ -101,7 +105,7 @@ pub fn execute_distribute_rewards(
 /// Query current reward balance of the given asset.
 /// Make sure not to call this for the staking token
 fn undistributed_rewards(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     asset_info: &AssetInfoValidated,
     contract_address: impl Into<String>,
 ) -> StdResult<Uint128> {
@@ -109,7 +113,7 @@ fn undistributed_rewards(
 }
 
 pub fn execute_withdraw_rewards(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     owner: Option<String>,
     receiver: Option<String>,
@@ -169,7 +173,7 @@ pub fn execute_withdraw_rewards(
 }
 
 pub fn execute_delegate_withdrawal(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     delegated: String,
 ) -> Result<Response, ContractError> {
@@ -185,7 +189,7 @@ pub fn execute_delegate_withdrawal(
 }
 
 pub fn query_withdrawable_rewards(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     owner: String,
 ) -> StdResult<WithdrawableRewardsResponse> {
     // Not checking address, as if it is invalid it is guaranteed not to appear in maps, so
@@ -211,7 +215,7 @@ pub fn query_withdrawable_rewards(
 }
 
 pub fn query_undistributed_rewards(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     env: Env,
 ) -> StdResult<UndistributedRewardsResponse> {
     let distributions =
@@ -229,7 +233,9 @@ pub fn query_undistributed_rewards(
     Ok(UndistributedRewardsResponse { rewards })
 }
 
-pub fn query_distributed_rewards(deps: Deps) -> StdResult<DistributedRewardsResponse> {
+pub fn query_distributed_rewards(
+    deps: Deps<CoreumQueries>,
+) -> StdResult<DistributedRewardsResponse> {
     let distributions = DISTRIBUTION
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
@@ -246,7 +252,7 @@ pub fn query_distributed_rewards(deps: Deps) -> StdResult<DistributedRewardsResp
     })
 }
 
-pub fn query_delegated(deps: Deps, owner: String) -> StdResult<DelegatedResponse> {
+pub fn query_delegated(deps: Deps<CoreumQueries>, owner: String) -> StdResult<DelegatedResponse> {
     let owner = deps.api.addr_validate(&owner)?;
 
     let delegated = DELEGATED.may_load(deps.storage, &owner)?.unwrap_or(owner);
@@ -254,7 +260,7 @@ pub fn query_delegated(deps: Deps, owner: String) -> StdResult<DelegatedResponse
     Ok(DelegatedResponse { delegated })
 }
 
-pub fn query_distribution_data(deps: Deps) -> StdResult<DistributionDataResponse> {
+pub fn query_distribution_data(deps: Deps<CoreumQueries>) -> StdResult<DistributionDataResponse> {
     Ok(DistributionDataResponse {
         distributions: DISTRIBUTION
             .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
@@ -263,7 +269,7 @@ pub fn query_distribution_data(deps: Deps) -> StdResult<DistributionDataResponse
 }
 
 pub fn query_withdraw_adjustment_data(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     owner: String,
     asset: AssetInfo,
 ) -> StdResult<WithdrawAdjustmentDataResponse> {
@@ -301,7 +307,7 @@ pub fn apply_points_correction(
 /// This is customized for the use case of the contract
 /// Since asset is clear from the distribution, we just return the number
 pub fn withdrawable_rewards(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     cfg: &Config,
     owner: &Addr,
     distribution: &Distribution,

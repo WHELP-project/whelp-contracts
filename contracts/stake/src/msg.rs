@@ -86,13 +86,6 @@ pub enum ExecuteMsg {
     /// Fund a distribution flow with 1 or more native tokens, updating each provided native token's reward config appropriately.
     /// Funds to be provided are included in `info.funds`
     FundDistribution { funding_info: FundingInfo },
-
-    /// Moves the given amount of LP tokens staked to the given unbonding period from the sender's
-    /// account to a different pool (by converting one or more of the pool tokens).
-    MigrateStake {
-        amount: Uint128,
-        unbonding_period: u64,
-    },
 }
 
 #[cw_serde]
