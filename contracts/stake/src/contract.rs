@@ -103,6 +103,22 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     let api = deps.api;
     match msg {
+        ExecuteMsg::Delegate {
+            unbonding_period,
+            delegate_as,
+        } => {
+            if UNBOND_ALL.load(deps.storage)? {
+                return Err(ContractError::CannotDelegateIfUnbondAll {});
+            }
+            execute_bond(
+                deps,
+                env,
+                info.sender,
+                wrapper.amount,
+                unbonding_period,
+                api.addr_validate(&delegate_as.unwrap_or(wrapper.sender))?,
+            )
+        }
         ExecuteMsg::UpdateAdmin { admin } => {
             Ok(ADMIN.execute_update_admin(deps, info, maybe_addr(api, admin)?)?)
         }
@@ -568,38 +584,6 @@ pub fn execute_receive(
     let msg: ReceiveMsg = from_slice(&wrapper.msg)?;
     let api = deps.api;
     match msg {
-        ReceiveMsg::Delegate {
-            unbonding_period,
-            delegate_as,
-        } => {
-            if UNBOND_ALL.load(deps.storage)? {
-                return Err(ContractError::CannotDelegateIfUnbondAll {});
-            }
-            execute_bond(
-                deps,
-                env,
-                info.sender,
-                wrapper.amount,
-                unbonding_period,
-                api.addr_validate(&delegate_as.unwrap_or(wrapper.sender))?,
-            )
-        }
-        ReceiveMsg::MassDelegate {
-            unbonding_period,
-            delegate_to,
-        } => {
-            if UNBOND_ALL.load(deps.storage)? {
-                return Err(ContractError::CannotDelegateIfUnbondAll {});
-            }
-            execute_mass_bond(
-                deps,
-                env,
-                info.sender,
-                wrapper.amount,
-                unbonding_period,
-                delegate_to,
-            )
-        }
         ReceiveMsg::Fund { funding_info } => {
             if UNBOND_ALL.load(deps.storage)? {
                 return Err(ContractError::CannotDistributeIfUnbondAll {
