@@ -133,10 +133,6 @@ pub fn execute(
         ExecuteMsg::FundDistribution { funding_info } => {
             execute_fund_distribution(env, deps, info, funding_info)
         }
-        ExecuteMsg::MigrateStake {
-            amount,
-            unbonding_period,
-        } => execute_migrate_stake(deps, env, info, amount, unbonding_period),
     }
 }
 
@@ -162,7 +158,7 @@ pub fn execute_fund_distribution(
     let storage = deps.storage;
 
     for fund in info.funds {
-        let asset = AssetInfo::Native(fund.denom);
+        let asset = AssetInfo::SmartToken(fund.denom);
         let validated_asset = asset.validate(api)?;
         update_reward_config(storage, validated_asset, fund.amount, funding_info.clone())?;
     }
@@ -218,7 +214,7 @@ pub fn execute_create_distribution_flow(
     // make sure the asset is not the staked token, since we distribute this contract's balance
     // and we definitely do not want to distribute the staked tokens.
     let config = CONFIG.load(deps.storage)?;
-    if let AssetInfoValidated::Token(addr) = &asset {
+    if let AssetInfoValidated::Cw20Token(addr) = &asset {
         if addr == config.cw20_contract {
             return Err(ContractError::InvalidAsset {});
         }
