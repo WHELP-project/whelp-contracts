@@ -136,7 +136,7 @@ impl StakeConfig {
     pub fn into_init_msg(
         self,
         querier: &QuerierWrapper<CoreumQueries>,
-        lp_token_address: String,
+        lp_share_denom: String,
         factory_addr: String,
     ) -> StdResult<WasmMsg> {
         // Add factory's owner as owner of staking contract (DAO) to allow migration
@@ -147,7 +147,7 @@ impl StakeConfig {
         Ok(WasmMsg::Instantiate {
             code_id: self.staking_code_id,
             msg: to_binary(&crate::stake::InstantiateMsg {
-                cw20_contract: lp_token_address, // address of LP token
+                lp_share_denom, // denom of LP token
                 tokens_per_power: self.tokens_per_power,
                 min_bond: self.min_bond,
                 unbonding_periods: self.unbonding_periods,
@@ -177,7 +177,7 @@ pub enum ExecuteMsg {
         receiver: Option<String>,
     },
     /// Withdraw liquidity from the pool
-    WithdrawLiquidity {  assets: Vec<Asset> },
+    WithdrawLiquidity { assets: Vec<Asset> },
     /// Swap performs a swap in the pool
     Swap {
         offer_asset: Asset,
