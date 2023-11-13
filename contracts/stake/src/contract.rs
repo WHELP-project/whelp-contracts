@@ -4,7 +4,7 @@ use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure_eq, from_slice, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo,
+    ensure_eq, from_slice, to_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
     Order, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -103,21 +103,11 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     let api = deps.api;
     match msg {
-        ExecuteMsg::Delegate {
-            unbonding_period,
-            delegate_as,
-        } => {
+        ExecuteMsg::Delegate { unbonding_period } => {
             if UNBOND_ALL.load(deps.storage)? {
                 return Err(ContractError::CannotDelegateIfUnbondAll {});
             }
-            execute_bond(
-                deps,
-                env,
-                info.sender,
-                wrapper.amount,
-                unbonding_period,
-                api.addr_validate(&delegate_as.unwrap_or(wrapper.sender))?,
-            )
+            execute_bond(deps, info, unbonding_period)
         }
         ExecuteMsg::UpdateAdmin { admin } => {
             Ok(ADMIN.execute_update_admin(deps, info, maybe_addr(api, admin)?)?)
@@ -399,38 +389,29 @@ pub fn execute_rebond(
 
 pub fn execute_bond(
     deps: DepsMut<CoreumQueries>,
-    env: Env,
-    sender_lp_share_denom: Addr,
-    amount: Uint128,
+    info: MessageInfo,
     unbonding_period: u64,
-    sender: Addr,
 ) -> Result<Response, ContractError> {
-    let delegations = vec![(sender.to_string(), amount)];
-    let res = execute_mass_bond(
-        deps,
-        env,
-        sender_lp_share_denom,
-        amount,
-        unbonding_period,
-        delegations,
-    )?;
-    Ok(res.add_attribute("sender", sender))
+    if info.funds.len() != 1 {
+        return Err(ContractError::NoFunds {});
+    }
+    let coin = info.funds[0].clone();
+    let res = execute_mass_bond(deps, info.sender.clone(), coin, unbonding_period)?;
+    Ok(res.add_attribute("sender", info.sender))
 }
 
 pub fn execute_mass_bond(
     deps: DepsMut<CoreumQueries>,
-    _env: Env,
-    sender_lp_share_denom: Addr,
-    amount_sent: Uint128,
+    sender: Addr,
+    lp_share: Coin,
     unbonding_period: u64,
-    delegate_to: Vec<(String, Uint128)>,
 ) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
 
     // ensure that cw20 token contract's addresses matches
-    if cfg.lp_share_denom != sender_lp_share_denom {
-        return Err(ContractError::Cw20AddressesNotMatch {
-            got: sender_lp_share_denom.into(),
+    if cfg.lp_share_denom != lp_share.denom {
+        return Err(ContractError::DenomNotMatch {
+            got: lp_share.denom.into(),
             expected: cfg.lp_share_denom,
         });
     }
@@ -443,60 +424,48 @@ pub fn execute_mass_bond(
         return Err(ContractError::NoUnbondingPeriodFound(unbonding_period));
     }
 
-    // ensure total is <= amount sent
-    let total = delegate_to.iter().map(|(_, x)| x).sum();
-    if total > amount_sent {
-        return Err(ContractError::MassDelegateTooMuch { total, amount_sent });
-    }
-
     // update this for every user
     let mut distributions: Vec<_> = DISTRIBUTION
         .range(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
 
-    // loop over all delegates, adding to their stake
-    for (sender, amount) in delegate_to {
-        let sender = deps.api.addr_validate(&sender)?;
+    // calculate rewards power before updating the stake
+    let old_rewards = calc_rewards_powers(deps.storage, &cfg, &sender, distributions.iter())?;
 
-        // calculate rewards power before updating the stake
-        let old_rewards = calc_rewards_powers(deps.storage, &cfg, &sender, distributions.iter())?;
+    // add to the sender's stake
+    let mut old_stake = Uint128::zero();
+    let new_stake = STAKE
+        .update(
+            deps.storage,
+            (&sender, unbonding_period),
+            |bonding_info| -> StdResult<_> {
+                let mut bonding_info = bonding_info.unwrap_or_default();
+                old_stake = bonding_info.total_stake();
+                bonding_info.add_unlocked_tokens(lp_share.amount.clone());
+                Ok(bonding_info)
+            },
+        )?
+        .total_stake();
 
-        // add to the sender's stake
-        let mut old_stake = Uint128::zero();
-        let new_stake = STAKE
-            .update(
+    update_total_stake(deps.storage, &cfg, unbonding_period, old_stake, new_stake)?;
+
+    // update the adjustment data for all distributions
+    distributions = distributions
+        .into_iter()
+        .zip(old_rewards.into_iter())
+        .map(|((asset_info, mut distribution), old_reward_power)| {
+            let new_reward_power = distribution.calc_rewards_power(deps.storage, &cfg, &sender)?;
+            update_rewards(
                 deps.storage,
-                (&sender, unbonding_period),
-                |bonding_info| -> StdResult<_> {
-                    let mut bonding_info = bonding_info.unwrap_or_default();
-                    old_stake = bonding_info.total_stake();
-                    bonding_info.add_unlocked_tokens(amount);
-                    Ok(bonding_info)
-                },
-            )?
-            .total_stake();
-
-        update_total_stake(deps.storage, &cfg, unbonding_period, old_stake, new_stake)?;
-
-        // update the adjustment data for all distributions
-        distributions = distributions
-            .into_iter()
-            .zip(old_rewards.into_iter())
-            .map(|((asset_info, mut distribution), old_reward_power)| {
-                let new_reward_power =
-                    distribution.calc_rewards_power(deps.storage, &cfg, &sender)?;
-                update_rewards(
-                    deps.storage,
-                    &asset_info,
-                    &sender,
-                    &mut distribution,
-                    old_reward_power,
-                    new_reward_power,
-                )?;
-                Ok((asset_info, distribution))
-            })
-            .collect::<StdResult<Vec<_>>>()?;
-    }
+                &asset_info,
+                &sender,
+                &mut distribution,
+                old_reward_power,
+                new_reward_power,
+            )?;
+            Ok((asset_info, distribution))
+        })
+        .collect::<StdResult<Vec<_>>>()?;
 
     // save all distributions (now updated)
     for (asset_info, distribution) in distributions {
@@ -506,14 +475,14 @@ pub fn execute_mass_bond(
     // update total after all individuals are handled
     TOTAL_STAKED.update::<_, StdError>(deps.storage, |token_info| {
         Ok(TokenInfo {
-            staked: token_info.staked + amount_sent,
+            staked: token_info.staked + lp_share.amount.clone(),
             unbonding: token_info.unbonding,
         })
     })?;
 
     Ok(Response::new()
         .add_attribute("action", "bond")
-        .add_attribute("amount", amount_sent))
+        .add_attribute("amount", lp_share.amount))
 }
 
 /// Updates the total stake for the given unbonding period

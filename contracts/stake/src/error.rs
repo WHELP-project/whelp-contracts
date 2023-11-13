@@ -31,16 +31,8 @@ pub enum ContractError {
     #[error("No claims that can be released currently")]
     NothingToClaim {},
 
-    #[error(
-        "Sender's CW20 token contract address {got} does not match one from config {expected}"
-    )]
-    Cw20AddressesNotMatch { got: String, expected: String },
-
-    #[error("Trying to mass delegate {total} tokens, but only sent {amount_sent}.")]
-    MassDelegateTooMuch {
-        total: Uint128,
-        amount_sent: Uint128,
-    },
+    #[error("Sender's smart token denom {got} does not match one from config {expected}")]
+    DenomNotMatch { got: String, expected: String },
 
     #[error("No funds sent")]
     NoFunds {},
