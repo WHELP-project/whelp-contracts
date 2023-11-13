@@ -54,16 +54,16 @@ fn multiple_distribution_flows() {
         )
         .unwrap();
 
-    // create wynd token
+    // create dex token
     let token_id = suite.app.store_code(contract_token());
-    let wynd_token = suite
+    let dex_token = suite
         .app
         .instantiate_contract(
             token_id,
             Addr::unchecked("admin"),
             &Cw20InstantiateMsg {
-                name: "wynd-token".to_owned(),
-                symbol: "WYND".to_owned(),
+                name: "dex-token".to_owned(),
+                symbol: "DEX".to_owned(),
                 decimals: 9,
                 initial_balances: vec![Cw20Coin {
                     // member4 gets some to distribute
@@ -140,37 +140,37 @@ fn multiple_distribution_flows() {
         vec![juno(125), native_token("luna".to_string(), 125)]
     );
 
-    // add wynd distribution
+    // add dex distribution
     suite
         .create_distribution_flow(
             "admin",
             &members[0],
-            AssetInfo::Token(wynd_token.to_string()),
+            AssetInfo::Token(dex_token.to_string()),
             vec![(unbonding_period, Decimal::one())],
         )
         .unwrap();
 
-    // Finally, setup the Wynd distribution before advancing time again to collect rewards
+    // Finally, setup the dex distribution before advancing time again to collect rewards
     suite
         .execute_fund_distribution_with_cw20(
             &members[3],
-            AssetInfoValidated::Token(wynd_token.clone()).with_balance(400u128),
+            AssetInfoValidated::Token(dex_token.clone()).with_balance(400u128),
         )
         .unwrap();
 
-    // Advance the final 50% for the first two native tokens and 50% for the Wynd token
+    // Advance the final 50% for the first two native tokens and 50% for the dex token
     suite.update_time(50);
 
     // Distribute the funds
     suite.distribute_funds(&members[3], None, None).unwrap();
 
-    // Assert we have gathered all the rewards from the two native tokens and 50% of the rewards from the Wynd token
+    // Assert we have gathered all the rewards from the two native tokens and 50% of the rewards from the dex token
     assert_eq!(
         suite.withdrawable_rewards(&members[0]).unwrap(),
         vec![
             juno(50),
             native_token("luna".to_string(), 50),
-            AssetInfoValidated::Token(wynd_token.clone()).with_balance(25u128)
+            AssetInfoValidated::Token(dex_token.clone()).with_balance(25u128)
         ]
     );
     assert_eq!(
@@ -178,7 +178,7 @@ fn multiple_distribution_flows() {
         vec![
             juno(100),
             native_token("luna".to_string(), 100),
-            AssetInfoValidated::Token(wynd_token.clone()).with_balance(50u128)
+            AssetInfoValidated::Token(dex_token.clone()).with_balance(50u128)
         ]
     );
     assert_eq!(
@@ -186,7 +186,7 @@ fn multiple_distribution_flows() {
         vec![
             juno(250),
             native_token("luna".to_string(), 250),
-            AssetInfoValidated::Token(wynd_token).with_balance(125u128)
+            AssetInfoValidated::Token(dex_token).with_balance(125u128)
         ]
     );
 }
@@ -237,16 +237,16 @@ fn mass_bond_with_multiple_distribution_flows() {
         )
         .unwrap();
 
-    // create wynd token
+    // create dex token
     let token_id = suite.app.store_code(contract_token());
-    let wynd_token = suite
+    let dex_token = suite
         .app
         .instantiate_contract(
             token_id,
             Addr::unchecked("admin"),
             &Cw20InstantiateMsg {
-                name: "wynd-token".to_owned(),
-                symbol: "WYND".to_owned(),
+                name: "dex-token".to_owned(),
+                symbol: "DEX".to_owned(),
                 decimals: 9,
                 initial_balances: vec![Cw20Coin {
                     // member4 gets some to distribute
@@ -323,37 +323,37 @@ fn mass_bond_with_multiple_distribution_flows() {
         vec![juno(125), native_token("luna".to_string(), 125)]
     );
 
-    // add wynd distribution
+    // add dex distribution
     suite
         .create_distribution_flow(
             "admin",
             &members[0],
-            AssetInfo::Token(wynd_token.to_string()),
+            AssetInfo::Token(dex_token.to_string()),
             vec![(unbonding_period, Decimal::one())],
         )
         .unwrap();
 
-    // Finally, setup the Wynd distribution before advancing time again to collect rewards
+    // Finally, setup the dex distribution before advancing time again to collect rewards
     suite
         .execute_fund_distribution_with_cw20(
             &members[3],
-            AssetInfoValidated::Token(wynd_token.clone()).with_balance(400u128),
+            AssetInfoValidated::Token(dex_token.clone()).with_balance(400u128),
         )
         .unwrap();
 
-    // Advance the final 50% for the first two native tokens and 50% for the Wynd token
+    // Advance the final 50% for the first two native tokens and 50% for the dex token
     suite.update_time(50);
 
     // Distribute the funds
     suite.distribute_funds(&members[3], None, None).unwrap();
 
-    // Assert we have gathered all the rewards from the two native tokens and 50% of the rewards from the Wynd token
+    // Assert we have gathered all the rewards from the two native tokens and 50% of the rewards from the dex token
     assert_eq!(
         suite.withdrawable_rewards(&members[0]).unwrap(),
         vec![
             juno(50),
             native_token("luna".to_string(), 50),
-            AssetInfoValidated::Token(wynd_token.clone()).with_balance(25u128)
+            AssetInfoValidated::Token(dex_token.clone()).with_balance(25u128)
         ]
     );
     assert_eq!(
@@ -361,7 +361,7 @@ fn mass_bond_with_multiple_distribution_flows() {
         vec![
             juno(100),
             native_token("luna".to_string(), 100),
-            AssetInfoValidated::Token(wynd_token.clone()).with_balance(50u128)
+            AssetInfoValidated::Token(dex_token.clone()).with_balance(50u128)
         ]
     );
     assert_eq!(
@@ -369,7 +369,7 @@ fn mass_bond_with_multiple_distribution_flows() {
         vec![
             juno(250),
             native_token("luna".to_string(), 250),
-            AssetInfoValidated::Token(wynd_token).with_balance(125u128)
+            AssetInfoValidated::Token(dex_token).with_balance(125u128)
         ]
     );
 }
@@ -2303,16 +2303,16 @@ fn multiple_rewards() {
         )
         .unwrap();
 
-    // create wynd token
+    // create dex token
     let token_id = suite.app.store_code(contract_token());
-    let wynd_token = suite
+    let dex_token = suite
         .app
         .instantiate_contract(
             token_id,
             Addr::unchecked("admin"),
             &Cw20InstantiateMsg {
-                name: "wynd-token".to_owned(),
-                symbol: "WYND".to_owned(),
+                name: "dex-token".to_owned(),
+                symbol: "DEX".to_owned(),
                 decimals: 9,
                 initial_balances: vec![Cw20Coin {
                     // executor gets some to distribute
@@ -2331,12 +2331,12 @@ fn multiple_rewards() {
         )
         .unwrap();
 
-    // add wynd distribution
+    // add dex distribution
     suite
         .create_distribution_flow(
             "admin",
             executor,
-            AssetInfo::Token(wynd_token.to_string()),
+            AssetInfo::Token(dex_token.to_string()),
             vec![
                 (unbonding_period, Decimal::one()),
                 (unbonding_period2, Decimal::one()),
@@ -2356,12 +2356,12 @@ fn multiple_rewards() {
     suite
         .distribute_funds(executor, executor, Some(juno(1_000)))
         .unwrap();
-    // distribute wynd
+    // distribute dex
     suite
         .distribute_funds(
             executor,
             executor,
-            Some(AssetInfoValidated::Token(wynd_token.clone()).with_balance(500u128)),
+            Some(AssetInfoValidated::Token(dex_token.clone()).with_balance(500u128)),
         )
         .unwrap();
 
@@ -2380,18 +2380,18 @@ fn multiple_rewards() {
     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 200);
     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 800);
 
-    // rewards power for wynd:
+    // rewards power for dex:
     // member0: 1000 * 1 / 1000 = 1
     // member1: 2000 * 1 / 1000 = 2
     // => 500 * 1 / 3 = 166, 500 * 2 / 3 = 333
     assert_eq!(
         suite
-            .query_cw20_balance(&members[0], wynd_token.clone())
+            .query_cw20_balance(&members[0], dex_token.clone())
             .unwrap(),
         166
     );
     assert_eq!(
-        suite.query_cw20_balance(&members[1], wynd_token).unwrap(),
+        suite.query_cw20_balance(&members[1], dex_token).unwrap(),
         333
     );
 }

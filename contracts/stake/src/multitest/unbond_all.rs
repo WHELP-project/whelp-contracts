@@ -294,14 +294,14 @@ fn multiple_distribution_flows() {
 
     // Create CW20 token.
     let token_id = suite.app.store_code(contract_token());
-    let wynd_token = suite
+    let dex_token = suite
         .app
         .instantiate_contract(
             token_id,
             Addr::unchecked("admin"),
             &Cw20InstantiateMsg {
-                name: "wynd-token".to_owned(),
-                symbol: "WYND".to_owned(),
+                name: "dex-token".to_owned(),
+                symbol: "DEX".to_owned(),
                 decimals: 9,
                 initial_balances: vec![Cw20Coin {
                     // member4 gets some to distribute
@@ -334,7 +334,7 @@ fn multiple_distribution_flows() {
         .create_distribution_flow(
             "admin",
             user,
-            AssetInfo::Token(wynd_token.to_string()),
+            AssetInfo::Token(dex_token.to_string()),
             vec![(unbonding_period, Decimal::one())],
         )
         .unwrap();
@@ -348,7 +348,7 @@ fn multiple_distribution_flows() {
     suite
         .execute_fund_distribution_with_cw20(
             user,
-            AssetInfoValidated::Token(wynd_token).with_balance(400u128),
+            AssetInfoValidated::Token(dex_token).with_balance(400u128),
         )
         .unwrap();
 

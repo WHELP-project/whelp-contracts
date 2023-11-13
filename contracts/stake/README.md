@@ -1,6 +1,4 @@
-# WYND Stake
-
-**TODO: Update** This is the original description from cw4-stake for now
+# Dex Stake
 
 This is a second implementation of the [cw4 spec](../../packages/cw4/README.md).
 It fulfills all elements of the spec, including the raw query lookups,

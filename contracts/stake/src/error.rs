@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, OverflowError, StdError, Uint128};
+use cosmwasm_std::{Coin, OverflowError, StdError};
 use thiserror::Error;
 
 use cw_controllers::{AdminError, HookError};
