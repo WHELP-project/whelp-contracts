@@ -8,7 +8,7 @@ use coreum_wasm_sdk::{
 use cosmwasm_std::{
     attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, Reply, StdError,
-    StdResult, Uint128, Uint256,
+    StdResult, Uint128, Uint256, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -27,7 +27,7 @@ use dex::{
         get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        INSTANTIATE_STAKE_REPLY_ID, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
 };
 
@@ -46,7 +46,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     deps: DepsMut<CoreumQueries>,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let asset_infos = check_asset_infos(deps.api, &msg.asset_infos)?;
@@ -63,10 +63,11 @@ pub fn instantiate(
 
     let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
+    let lp_share_denom: String = format!("u{}-{}", lp_token_name.clone(), env.contract.address);
     let config = Config {
         pool_info: PairInfo {
             contract_addr: env.contract.address.clone(),
-            liquidity_token: format!("u{}-{}", lp_token_name.clone(), env.contract.address),
+            liquidity_token: lp_share_denom.clone(),
             staking_addr: Addr::unchecked(""),
             asset_infos,
             pool_type: PoolType::Xyk {},
@@ -84,8 +85,8 @@ pub fn instantiate(
     LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
     save_tmp_staking_config(deps.storage, &msg.staking_config)?;
 
-    Ok(
-        Response::new().add_submessage(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
+    Ok(Response::new()
+        .add_submessage(SubMsg::new(CoreumMsg::AssetFT(assetft::Msg::Issue {
             symbol: lp_token_name.clone(),
             subunit: format!("u{}", lp_token_name),
             precision: LP_TOKEN_PRECISION,
@@ -94,8 +95,25 @@ pub fn instantiate(
             features: Some(vec![0, 1, 2]), // 0 - minting, 1 - burning, 2 - freezing
             burn_rate: Some("0".into()),
             send_commission_rate: Some("0.00000".into()),
-        }))),
-    )
+        })))
+        .add_submessage(SubMsg::reply_on_success(
+            WasmMsg::Instantiate {
+                code_id: msg.staking_config.staking_code_id,
+                msg: to_binary(&dex::stake::InstantiateMsg {
+                    lp_share_denom,
+                    tokens_per_power: msg.staking_config.tokens_per_power,
+                    min_bond: msg.staking_config.min_bond,
+                    unbonding_periods: msg.staking_config.unbonding_periods,
+                    max_distributions: msg.staking_config.max_distributions,
+                    admin: Some(info.sender.to_string()),
+                    unbonder: None, // TODO: allow specifying unbonder
+                })?,
+                funds: vec![],
+                admin: Some(info.sender.to_string()),
+                label: String::from("Dex-Stake"),
+            },
+            INSTANTIATE_STAKE_REPLY_ID,
+        )))
 }
 
 /// Manages the contract migration.
