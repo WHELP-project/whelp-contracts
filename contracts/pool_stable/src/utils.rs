@@ -115,6 +115,7 @@ pub(crate) fn adjust_precision(
 }
 
 /// Structure for internal use which represents swap result.
+#[derive(Debug)]
 pub(crate) struct SwapResult {
     pub return_amount: Uint128,
     pub spread_amount: Uint128,
