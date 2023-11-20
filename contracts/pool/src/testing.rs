@@ -56,7 +56,6 @@ fn proper_initialization() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -74,22 +73,45 @@ fn proper_initialization() {
     let res = instantiate(deps.as_mut(), env, info, msg).unwrap();
     assert_eq!(
         res.messages,
-        vec![SubMsg {
-            msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
-                symbol: "uusdmapplp".to_string(),
-                subunit: "uuusdmapplp".to_string(),
-                precision: LP_TOKEN_PRECISION,
-                initial_amount: Uint128::zero(),
-                description: Some("Dex LP Share token".to_string()),
-                features: Some(vec![0, 1, 2]),
-                burn_rate: Some("0".into()),
-                send_commission_rate: Some("0.00000".into()),
-            })
-            .into(),
-            id: 0,
-            gas_limit: None,
-            reply_on: ReplyOn::Never
-        },]
+        vec![
+            SubMsg {
+                msg: CoreumMsg::AssetFT(assetft::Msg::Issue {
+                    symbol: "uusdmapplp".to_string(),
+                    subunit: "uuusdmapplp".to_string(),
+                    precision: LP_TOKEN_PRECISION,
+                    initial_amount: Uint128::zero(),
+                    description: Some("Dex LP Share token".to_string()),
+                    features: Some(vec![0, 1, 2]),
+                    burn_rate: Some("0".into()),
+                    send_commission_rate: Some("0.00000".into()),
+                })
+                .into(),
+                id: 0,
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
+            SubMsg {
+                msg: CosmosMsg::Wasm(WasmMsg::Instantiate {
+                    admin: Some("addr0000".to_owned()),
+                    code_id: 11,
+                    funds: vec![],
+                    label: "Dex-Stake".to_owned(),
+                    msg: to_binary(&dex::stake::InstantiateMsg {
+                        lp_share_denom: "uuusdmapplp-cosmos2contract".to_owned(),
+                        tokens_per_power: Uint128::new(1000),
+                        min_bond: Uint128::new(1000),
+                        unbonding_periods: vec![60 * 60 * 24 * 7],
+                        max_distributions: 6,
+                        admin: Some("addr0000".to_owned()),
+                        unbonder: None
+                    })
+                    .unwrap()
+                }),
+                id: 2,
+                gas_limit: None,
+                reply_on: ReplyOn::Success
+            }
+        ]
     );
 
     // It worked, let's query the state
@@ -137,7 +159,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
@@ -419,7 +440,6 @@ fn provide_liquidity() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
@@ -869,7 +889,6 @@ fn withdraw_liquidity() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
 
         // factory_addr: String::from("factory"),
         init_params: None,
@@ -1023,7 +1042,6 @@ fn query_twap() {
     // instantiate the contract
     let msg = InstantiateMsg {
         asset_infos: vec![uusd.clone().into(), token.clone().into()],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
@@ -1181,7 +1199,6 @@ fn try_native_to_token() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
@@ -1399,7 +1416,6 @@ fn try_token_to_native() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
@@ -1662,7 +1678,6 @@ fn test_query_pool() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
@@ -1724,7 +1739,6 @@ fn test_query_share() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
