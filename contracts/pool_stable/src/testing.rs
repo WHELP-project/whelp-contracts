@@ -55,7 +55,6 @@ fn proper_initialization() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         init_params: Some(
             to_binary(&StablePoolParams {
                 amp: 100,
@@ -143,7 +142,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        token_code_id: 10u64,
         // factory_addr: String::from("factory"),
         init_params: Some(
             to_binary(&StablePoolParams {
@@ -432,7 +430,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //             AssetInfo::SmartToken("uusd".to_string()),
 //             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
-//         token_code_id: 10u64,
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
 //         staking_config: default_stake_config(),
@@ -882,7 +879,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //             AssetInfo::SmartToken("uusd".to_string()),
 //             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
-//         token_code_id: 10u64,
 //
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
@@ -1036,7 +1032,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //     // instantiate the contract
 //     let msg = InstantiateMsg {
 //         asset_infos: vec![uusd.clone().into(), token.clone().into()],
-//         token_code_id: 10u64,
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
 //         staking_config: default_stake_config(),
@@ -1194,7 +1189,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //             AssetInfo::SmartToken("uusd".to_string()),
 //             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
-//         token_code_id: 10u64,
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
 //         staking_config: default_stake_config(),
@@ -1412,7 +1406,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //             AssetInfo::SmartToken("uusd".to_string()),
 //             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
-//         token_code_id: 10u64,
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
 //         staking_config: default_stake_config(),
@@ -1675,7 +1668,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //             AssetInfo::SmartToken("uusd".to_string()),
 //             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
-//         token_code_id: 10u64,
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
 //         staking_config: default_stake_config(),
@@ -1737,7 +1729,6 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //             AssetInfo::SmartToken("uusd".to_string()),
 //             AssetInfo::Cw20Token("asset0000".to_string()),
 //         ],
-//         token_code_id: 10u64,
 //         // factory_addr: String::from("factory"),
 //         init_params: None,
 //         staking_config: default_stake_config(),
