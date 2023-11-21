@@ -467,7 +467,7 @@ pub fn provide_liquidity(
     // FIXME: For some reason this query doesn't work; use a local storage workaround
     // let total_share = query_supply(&deps.querier, &config.pool_info.liquidity_token)?;
     let total_share = LP_SHARE_AMOUNT.load(deps.storage)?;
-    dbg!(deposit_d);
+    dbg!("3rd step {}", deposit_d);
     let share = if total_share.is_zero() {
         let share = deposit_d
             .to_uint128_with_precision(config.greatest_precision)?
@@ -532,7 +532,7 @@ pub fn provide_liquidity(
         share
     };
 
-    dbg!(share);
+    dbg!("4th step ", share);
     // Mint LP token for the caller (or for the receiver if it was set)
     let receiver = addr_opt_validate(deps.api, &receiver)?.unwrap_or_else(|| info.sender.clone());
     messages.push(CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {

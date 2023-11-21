@@ -436,7 +436,7 @@ fn provide_liquidity() {
         // factory_addr: String::from("factory"),
         init_params: Some(
             to_binary(&StablePoolParams {
-                amp: 1,
+                amp: 100,
                 owner: None,
                 lsd: None,
             })
@@ -523,7 +523,7 @@ fn provide_liquidity() {
             msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
                 coin: Coin {
                     denom: String::from("uuusdmapplp-cosmos2contract"),
-                    amount: Uint128::from(99_999999999999999000u128),
+                    amount: Uint128::from(299_814_698_523_989_456_628u128),
                 },
             })),
             id: 0,
@@ -612,6 +612,9 @@ fn provide_liquidity() {
             msg: CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
                 coin: Coin {
                     denom: String::from("uuusdmapplp-cosmos2contract"),
+                    /// if we change the below value to the one that is expected from the left side
+                    /// we get later to a panic message on 
+                    /// called `Result::unwrap_err()` on an `Ok` value:
                     amount: Uint128::from(50_000_000_000_000_000_000u128),
                 },
             })),

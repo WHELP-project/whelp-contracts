@@ -22,11 +22,12 @@ pub(crate) fn compute_d(
     pools: &[Decimal256],
     greatest_precision: u8,
 ) -> StdResult<Decimal256> {
-    dbg!(amp);
     if pools.iter().any(|pool| pool.is_zero()) {
         return Ok(Decimal256::zero());
     }
+    dbg!("1st step", pools);
     let sum_x = pools.iter().fold(Decimal256::zero(), |acc, x| acc + (*x));
+    /// value sum_x is pool.fold which amounts to 30000000000000
 
     if sum_x.is_zero() {
         Ok(Decimal256::zero())
@@ -49,18 +50,16 @@ pub(crate) fn compute_d(
                 / ((ann - Decimal256::one()) * d + (n_coins + Decimal256::one()) * d_p);
             if d >= d_prev {
                 if d - d_prev <= Decimal256::with_precision(1u8, greatest_precision)? {
-                    dbg!();
                     return Ok(d);
                 }
             } else if d < d_prev
                 && d_prev - d <= Decimal256::with_precision(1u8, greatest_precision)?
             {
-                dbg!(d);
+                dbg!("2nd step ", d);
                 return Ok(d);
             }
         }
 
-        dbg!();
         Ok(d)
     }
 }
