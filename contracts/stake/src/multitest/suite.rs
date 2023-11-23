@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result as AnyResult};
 
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{to_binary, Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
@@ -22,7 +23,7 @@ use dex::stake::{FundingInfo, ReceiveMsg};
 
 pub const SEVEN_DAYS: u64 = 604800;
 
-fn contract_stake() -> Box<dyn Contract<Empty>> {
+fn contract_stake() -> Box<dyn Contract<CoreumMsg>> {
     let contract = ContractWrapper::new_with_empty(
         crate::contract::execute,
         crate::contract::instantiate,
@@ -32,7 +33,7 @@ fn contract_stake() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-pub(super) fn contract_token() -> Box<dyn Contract<Empty>> {
+pub(super) fn contract_token() -> Box<dyn Contract<CoreumMsg>> {
     let contract = ContractWrapper::new_with_empty(
         cw20_base::contract::execute,
         cw20_base::contract::instantiate,
@@ -42,18 +43,18 @@ pub(super) fn contract_token() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-pub const JUNO_DENOM: &str = "juno";
+pub const COREUM_DENOM: &str = "ucore";
 
 pub(super) fn juno_power(amount: u128) -> Vec<(AssetInfoValidated, u128)> {
-    vec![(AssetInfoValidated::Native(JUNO_DENOM.to_string()), amount)]
+    vec![(AssetInfoValidated::SmartToken(COREUM_DENOM.to_string()), amount)]
 }
 
 pub(super) fn juno(amount: u128) -> AssetValidated {
-    AssetInfoValidated::Native(JUNO_DENOM.to_string()).with_balance(amount)
+    AssetInfoValidated::SmartToken(COREUM_DENOM.to_string()).with_balance(amount)
 }
 
 pub(super) fn native_token(denom: String, amount: u128) -> AssetValidated {
-    AssetInfoValidated::Native(denom).with_balance(amount)
+    AssetInfoValidated::SmartToken(denom).with_balance(amount)
 }
 
 #[derive(Debug)]

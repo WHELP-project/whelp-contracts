@@ -446,7 +446,7 @@ pub fn native_asset_info(denom: &str) -> AssetInfo {
 
 /// Returns an [`AssetInfo`] object representing the address of a token contract.
 pub fn token_asset_info(contract_addr: &str) -> AssetInfo {
-    AssetInfo::Cw20Token(contract_addr.to_string())
+    AssetInfo::SmartToken(contract_addr.to_string())
 }
 
 /// Returns [`PoolInfo`] by specified pool address.

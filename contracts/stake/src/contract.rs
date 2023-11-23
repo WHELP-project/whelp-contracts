@@ -1221,8 +1221,10 @@ pub fn migrate(
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{from_slice, Coin, CosmosMsg, Decimal, WasmMsg};
+    use std::marker::PhantomData;
+
+    use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage};
+    use cosmwasm_std::{coin, from_slice, BankMsg, Coin, CosmosMsg, Decimal, OwnedDeps, WasmMsg};
     use cw_controllers::Claim;
     use cw_utils::Duration;
     use dex::asset::{native_asset_info, token_asset_info};
@@ -1250,8 +1252,17 @@ mod tests {
         assert_eq!(CONTRACT_NAME, "crates.io:dex_stake");
     }
 
+    pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, MockQuerier, CoreumQueries> {
+        OwnedDeps {
+            storage: MockStorage::default(),
+            api: MockApi::default(),
+            querier: MockQuerier::default(),
+            custom_query_type: PhantomData,
+        }
+    }
+
     fn default_instantiate(deps: DepsMut<CoreumQueries>, env: Env) {
-        cw20_instantiate(
+        st_instantiate(
             deps,
             env,
             TOKENS_PER_POWER,
@@ -1260,7 +1271,7 @@ mod tests {
         )
     }
 
-    fn cw20_instantiate(
+    fn st_instantiate(
         deps: DepsMut<CoreumQueries>,
         env: Env,
         tokens_per_power: Uint128,
@@ -1280,7 +1291,7 @@ mod tests {
         instantiate(deps, env, info, msg).unwrap();
     }
 
-    fn bond_cw20_with_period(
+    fn bond_with_period(
         mut deps: DepsMut<CoreumQueries>,
         user1: u128,
         user2: u128,
@@ -1293,29 +1304,15 @@ mod tests {
 
         for (addr, stake) in &[(USER1, user1), (USER2, user2), (USER3, user3)] {
             if *stake != 0 {
-                let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-                    sender: addr.to_string(),
-                    amount: Uint128::new(*stake),
-                    msg: to_binary(&ReceiveMsg::Delegate {
-                        unbonding_period,
-                        delegate_as: None,
-                    })
-                    .unwrap(),
-                });
-                let info = mock_info(SMART_TOKEN_DENOM, &[]);
+                let msg = ExecuteMsg::Delegate { unbonding_period };
+                let info = mock_info(addr, &[coin(*stake, SMART_TOKEN_DENOM)]);
                 execute(deps.branch(), env.clone(), info, msg).unwrap();
             }
         }
     }
 
-    fn bond_cw20(
-        deps: DepsMut<CoreumQueries>,
-        user1: u128,
-        user2: u128,
-        user3: u128,
-        time_delta: u64,
-    ) {
-        bond_cw20_with_period(deps, user1, user2, user3, UNBONDING_PERIOD, time_delta);
+    fn bond(deps: DepsMut<CoreumQueries>, user1: u128, user2: u128, user3: u128, time_delta: u64) {
+        bond_with_period(deps, user1, user2, user3, UNBONDING_PERIOD, time_delta);
     }
 
     fn rebond_with_period(
@@ -1377,7 +1374,7 @@ mod tests {
     }
 
     fn native(denom: &str) -> AssetInfoValidated {
-        AssetInfoValidated::Native(denom.to_string())
+        AssetInfoValidated::SmartToken(denom.to_string())
     }
 
     #[test]
@@ -1406,7 +1403,7 @@ mod tests {
         assert_eq!(
             res.distributions,
             vec![(
-                AssetInfoValidated::Native(DENOM.to_string()),
+                AssetInfoValidated::SmartToken(DENOM.to_string()),
                 Distribution {
                     shares_per_point: Uint128::zero(),
                     shares_leftover: 0,
@@ -1473,23 +1470,11 @@ mod tests {
         );
     }
 
-    fn assert_cw20_undelegate(res: cosmwasm_std::Response, recipient: &str, amount: u128) {
-        match &res.messages[0].msg {
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr,
-                msg,
-                funds,
-            }) => {
-                assert_eq!(contract_addr.as_str(), SMART_TOKEN_DENOM);
-                assert_eq!(funds.len(), 0);
-                let parsed: Cw20ExecuteMsg = from_slice(msg).unwrap();
-                assert_eq!(
-                    parsed,
-                    Cw20ExecuteMsg::Transfer {
-                        recipient: recipient.into(),
-                        amount: Uint128::new(amount)
-                    }
-                );
+    fn assert_st_undelegate(res: Response, recipient: &str, amount_st: u128) {
+        match dbg!(&res.messages[0].msg) {
+            CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
+                assert_eq!(to_address, recipient);
+                assert_eq!(amount, &vec![coin(amount_st, SMART_TOKEN_DENOM)]);
             }
             _ => panic!("Must initiate undelegate!"),
         }
@@ -1512,10 +1497,10 @@ mod tests {
     }
 
     #[test]
-    fn cw20_token_bond() {
+    fn token_bond() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        cw20_instantiate(
+        st_instantiate(
             deps.as_mut(),
             env.clone(),
             TOKENS_PER_POWER,
@@ -1524,7 +1509,7 @@ mod tests {
         );
 
         // ensure it rounds down, and respects cut-off
-        bond_cw20(deps.as_mut(), 12_000, 7_500, 4_000, 1);
+        bond(deps.as_mut(), 12_000, 7_500, 4_000, 1);
 
         // Assert updated powers
         assert_stake(deps.as_ref(), &env, 12_000, 7_500, 4_000);
@@ -1537,7 +1522,7 @@ mod tests {
         let mut deps = mock_dependencies();
         let mut env = mock_env();
         let unbonding = Duration::Time(unbonding_period);
-        cw20_instantiate(
+        st_instantiate(
             deps.as_mut(),
             env.clone(),
             TOKENS_PER_POWER,
@@ -1546,7 +1531,7 @@ mod tests {
         );
 
         // bond some tokens
-        bond_cw20(deps.as_mut(), 20_000, 13_500, 500, 5);
+        bond(deps.as_mut(), 20_000, 13_500, 500, 5);
 
         // unbond part
         unbond(deps.as_mut(), 7_900, 4_600, 0, unbonding_period);
@@ -1574,7 +1559,7 @@ mod tests {
         assert_eq!(res.messages.len(), 1);
 
         assert_stake(deps.as_ref(), &env, 12_100, 8_900, 500);
-        assert_cw20_undelegate(res, USER1, 7_900)
+        assert_st_undelegate(res, USER1, 7_900)
     }
 
     fn get_claims(deps: Deps<CoreumQueries>, addr: &Addr) -> Vec<Claim> {
@@ -1588,7 +1573,7 @@ mod tests {
         default_instantiate(deps.as_mut(), env.clone());
 
         // create some data
-        bond_cw20(deps.as_mut(), 12_000, 7_500, 4_000, 5);
+        bond(deps.as_mut(), 12_000, 7_500, 4_000, 5);
         unbond(deps.as_mut(), 4_500, 2_600, 0, 10);
         env.block.time = env.block.time.plus_seconds(10);
 
@@ -1645,7 +1630,7 @@ mod tests {
             ExecuteMsg::Claim {},
         )
         .unwrap();
-        assert_cw20_undelegate(res, USER1, 4_500);
+        assert_st_undelegate(res, USER1, 4_500);
 
         // second releases partially
         let res = execute(
@@ -1655,7 +1640,7 @@ mod tests {
             ExecuteMsg::Claim {},
         )
         .unwrap();
-        assert_cw20_undelegate(res, USER2, 2_600);
+        assert_st_undelegate(res, USER2, 2_600);
 
         // but the third one cannot release
         let err = execute(
@@ -1692,7 +1677,7 @@ mod tests {
             ExecuteMsg::Claim {},
         )
         .unwrap();
-        assert_cw20_undelegate(res, USER2, 2_950); // 1_345 + 600 + 1_005
+        assert_st_undelegate(res, USER2, 2_950); // 1_345 + 600 + 1_005
         assert_eq!(get_claims(deps.as_ref(), &Addr::unchecked(USER2)), vec![]);
     }
 
@@ -1704,7 +1689,7 @@ mod tests {
     fn rewards_saved() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        cw20_instantiate(
+        st_instantiate(
             deps.as_mut(),
             env,
             TOKENS_PER_POWER,
@@ -1728,7 +1713,7 @@ mod tests {
         assert_eq!(rewards(deps.as_ref(), USER3), vec![]);
 
         // ensure it rounds down, and respects cut-off
-        bond_cw20(deps.as_mut(), 1_200_000, 770_000, 4_000_000, 1);
+        bond(deps.as_mut(), 1_200_000, 770_000, 4_000_000, 1);
 
         // assert updated rewards
         assert_native_rewards(
@@ -1772,7 +1757,7 @@ mod tests {
     fn rewards_rebonding() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        cw20_instantiate(
+        st_instantiate(
             deps.as_mut(),
             env.clone(),
             TOKENS_PER_POWER,
@@ -1799,7 +1784,7 @@ mod tests {
         assert_eq!(rewards(deps.as_ref(), USER3), vec![]);
 
         // bond some tokens for first period
-        bond_cw20(deps.as_mut(), 1_000_000, 180_000, 10_000, 1);
+        bond(deps.as_mut(), 1_000_000, 180_000, 10_000, 1);
 
         // assert updated rewards
         assert_native_rewards(
@@ -1819,7 +1804,7 @@ mod tests {
         );
 
         // bond some more tokens for second period
-        bond_cw20_with_period(
+        bond_with_period(
             deps.as_mut(),
             1_000_000,
             100_000,
@@ -1889,7 +1874,7 @@ mod tests {
         // use min_bond 0, tokens_per_power 500
         let mut deps = mock_dependencies();
         let env = mock_env();
-        cw20_instantiate(
+        st_instantiate(
             deps.as_mut(),
             env,
             Uint128::new(100),
@@ -1898,7 +1883,7 @@ mod tests {
         );
 
         // setting 50 tokens, gives us None power
-        bond_cw20(deps.as_mut(), 50, 1, 102, 1);
+        bond(deps.as_mut(), 50, 1, 102, 1);
 
         // reducing to 0 token makes us None even with min_bond 0
         unbond(deps.as_mut(), 49, 1, 102, 2);
@@ -1977,7 +1962,7 @@ mod tests {
 
         assert_eq!(
             err,
-            ContractError::DistributionAlreadyExists(AssetInfoValidated::Native(
+            ContractError::DistributionAlreadyExists(AssetInfoValidated::SmartToken(
                 "juno".to_string()
             ))
         );
@@ -2082,39 +2067,5 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidRewards {});
-    }
-
-    #[test]
-    fn delegate_as_someone_else() {
-        let mut deps = mock_dependencies();
-        default_instantiate(deps.as_mut(), mock_env());
-
-        execute_receive(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(SMART_TOKEN_DENOM, &[]),
-            Cw20ReceiveMsg {
-                sender: "delegator".to_string(),
-                amount: 100u128.into(),
-                msg: to_binary(&ReceiveMsg::Delegate {
-                    unbonding_period: UNBONDING_PERIOD,
-                    delegate_as: Some("owner_of_stake".to_string()),
-                })
-                .unwrap(),
-            },
-        )
-        .unwrap();
-
-        // owner_of_stake should have the stake
-        let stake = query_staked(
-            deps.as_ref(),
-            &mock_env(),
-            "owner_of_stake".to_string(),
-            UNBONDING_PERIOD,
-        )
-        .unwrap()
-        .stake
-        .u128();
-        assert_eq!(stake, 100u128);
     }
 }
