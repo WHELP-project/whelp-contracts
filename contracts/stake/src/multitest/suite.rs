@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result as AnyResult};
 
+use coreum_test_tube::CoreumTestApp;
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
-use cosmwasm_std::{to_binary, Addr, Coin, Decimal, Empty, StdResult, Uint128};
+use cosmwasm_std::{coin, to_binary, Addr, Coin, Decimal, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
-use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use cw_controllers::{Claim, ClaimsResponse};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use dex::{
@@ -23,8 +23,8 @@ use dex::stake::{FundingInfo, ReceiveMsg};
 
 pub const SEVEN_DAYS: u64 = 604800;
 
-fn contract_stake() -> Box<dyn Contract<CoreumMsg>> {
-    let contract = ContractWrapper::new_with_empty(
+fn contract_stake() -> Box<dyn Contract<CoreumMsg, CoreumQueries>> {
+    let contract = ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
@@ -33,20 +33,13 @@ fn contract_stake() -> Box<dyn Contract<CoreumMsg>> {
     Box::new(contract)
 }
 
-pub(super) fn contract_token() -> Box<dyn Contract<CoreumMsg>> {
-    let contract = ContractWrapper::new_with_empty(
-        cw20_base::contract::execute,
-        cw20_base::contract::instantiate,
-        cw20_base::contract::query,
-    );
-
-    Box::new(contract)
-}
-
 pub const COREUM_DENOM: &str = "ucore";
 
 pub(super) fn juno_power(amount: u128) -> Vec<(AssetInfoValidated, u128)> {
-    vec![(AssetInfoValidated::SmartToken(COREUM_DENOM.to_string()), amount)]
+    vec![(
+        AssetInfoValidated::SmartToken(COREUM_DENOM.to_string()),
+        amount,
+    )]
 }
 
 pub(super) fn juno(amount: u128) -> AssetValidated {
@@ -59,28 +52,31 @@ pub(super) fn native_token(denom: String, amount: u128) -> AssetValidated {
 
 #[derive(Debug)]
 pub struct SuiteBuilder {
-    pub cw20_contract: String,
+    pub lp_share_denom: String,
     pub tokens_per_power: Uint128,
     pub min_bond: Uint128,
     pub unbonding_periods: Vec<UnbondingPeriod>,
     pub admin: Option<String>,
     pub unbonder: Option<String>,
-    pub initial_balances: Vec<Cw20Coin>,
     pub native_balances: Vec<(Addr, Coin)>,
 }
 
 impl SuiteBuilder {
     pub fn new() -> Self {
         Self {
-            cw20_contract: "".to_owned(),
+            lp_share_denom: "".to_owned(),
             tokens_per_power: Uint128::new(1000),
             min_bond: Uint128::new(5000),
             unbonding_periods: vec![SEVEN_DAYS],
             admin: None,
             unbonder: None,
-            initial_balances: vec![],
             native_balances: vec![],
         }
+    }
+
+    pub fn with_lp_share_denom(mut self, denom: String) -> Self {
+        self.lp_share_denom = denom;
+        self
     }
 
     pub fn with_native_balances(mut self, denom: &str, balances: Vec<(&str, u128)>) -> Self {
@@ -94,18 +90,6 @@ impl SuiteBuilder {
                     },
                 )
             }));
-        self
-    }
-
-    pub fn with_initial_balances(mut self, balances: Vec<(&str, u128)>) -> Self {
-        let initial_balances = balances
-            .into_iter()
-            .map(|(address, amount)| Cw20Coin {
-                address: address.to_owned(),
-                amount: amount.into(),
-            })
-            .collect::<Vec<Cw20Coin>>();
-        self.initial_balances = initial_balances;
         self
     }
 
@@ -136,7 +120,7 @@ impl SuiteBuilder {
 
     #[track_caller]
     pub fn build(self) -> Suite {
-        let mut app: App = App::default();
+        let mut app: CoreumTestApp = CoreumTestApp::new();
         // provide initial native balances
         app.init_modules(|router, _, storage| {
             // group by address
@@ -156,35 +140,13 @@ impl SuiteBuilder {
 
         let admin = Addr::unchecked("admin");
 
-        let token_id = app.store_code(contract_token());
-        let token_contract = app
-            .instantiate_contract(
-                token_id,
-                admin.clone(),
-                &Cw20InstantiateMsg {
-                    name: "vesting".to_owned(),
-                    symbol: "VEST".to_owned(),
-                    decimals: 9,
-                    initial_balances: self.initial_balances,
-                    mint: Some(MinterResponse {
-                        minter: "minter".to_owned(),
-                        cap: None,
-                    }),
-                    marketing: None,
-                },
-                &[],
-                "vesting",
-                None,
-            )
-            .unwrap();
-
         let stake_id = app.store_code(contract_stake());
         let stake_contract = app
             .instantiate_contract(
                 stake_id,
                 admin,
                 &InstantiateMsg {
-                    cw20_contract: token_contract.to_string(),
+                    lp_share_denom: self.lp_share_denom,
                     tokens_per_power: self.tokens_per_power,
                     min_bond: self.min_bond,
                     unbonding_periods: self.unbonding_periods,
@@ -200,18 +162,16 @@ impl SuiteBuilder {
 
         Suite {
             app,
-            token_id,
             stake_contract,
-            token_contract,
+            lp_share: self.lp_share_denom,
         }
     }
 }
 
 pub struct Suite {
-    pub app: App,
-    token_id: u64,
+    pub app: CoreumTestApp,
     stake_contract: Addr,
-    token_contract: Addr,
+    lp_share: String,
 }
 
 impl Suite {
@@ -219,53 +179,11 @@ impl Suite {
         self.stake_contract.to_string()
     }
 
-    pub fn token_contract(&self) -> String {
-        self.token_contract.to_string()
-    }
-
     // update block's time to simulate passage of time
     pub fn update_time(&mut self, time_update: u64) {
         let mut block = self.app.block_info();
         block.time = block.time.plus_seconds(time_update);
         self.app.set_block(block);
-    }
-
-    /// Create a new token contract and return the address
-    pub fn instantiate_token(
-        &mut self,
-        owner: &Addr,
-        token_name: &str,
-        decimals: Option<u8>,
-        balances: &[(&str, u128)],
-    ) -> Addr {
-        let init_msg = cw20_base::msg::InstantiateMsg {
-            name: token_name.to_string(),
-            symbol: token_name.to_string(),
-            decimals: decimals.unwrap_or(6),
-            initial_balances: balances
-                .iter()
-                .map(|(address, amount)| Cw20Coin {
-                    address: address.to_string(),
-                    amount: Uint128::from(*amount),
-                })
-                .collect(),
-            mint: Some(MinterResponse {
-                minter: owner.to_string(),
-                cap: None,
-            }),
-            marketing: None,
-        };
-
-        self.app
-            .instantiate_contract(
-                self.token_id,
-                owner.clone(),
-                &init_msg,
-                &[],
-                token_name,
-                Some(owner.to_string()),
-            )
-            .unwrap()
     }
 
     fn unbonding_period_or_default(&self, unbonding_period: impl Into<Option<u64>>) -> u64 {
@@ -317,16 +235,11 @@ impl Suite {
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(sender),
-            self.token_contract.clone(),
-            &Cw20ExecuteMsg::Send {
-                contract: self.stake_contract.to_string(),
-                amount: amount.into(),
-                msg: to_binary(&ReceiveMsg::Delegate {
-                    unbonding_period: self.unbonding_period_or_default(unbonding_period),
-                    delegate_as: delegate_as.map(|s| s.to_string()),
-                })?,
+            self.stake_contract.clone(),
+            &ExecuteMsg::Delegate {
+                unbonding_period: self.unbonding_period_or_default(unbonding_period),
             },
-            &[],
+            &[coin(amount, self.lp_share.clone())],
         )
     }
 
