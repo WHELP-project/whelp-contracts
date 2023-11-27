@@ -1,4 +1,5 @@
 use std::{
+    cmp::max,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -11,7 +12,10 @@ use serde::{
     {Deserialize, Serialize},
 };
 
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use coreum_wasm_sdk::{
+    assetft,
+    core::{CoreumMsg, CoreumQueries},
+};
 use cosmwasm_std::{
     testing::{MockApi, MockQuerier, MockStorage},
     Addr, Api, Binary, BlockInfo, Coin, CustomQuery, Empty, Order, OwnedDeps, Querier,
@@ -57,7 +61,14 @@ impl Module for CoreumModule {
         ExecC: Debug + Clone + PartialEq + JsonSchema + DeserializeOwned + 'static,
         QueryC: CustomQuery + DeserializeOwned + 'static,
     {
-        bail!("You have reached the coreum app execute module!")
+        match msg {
+            CoreumMsg::AssetFT(msg) => match msg {
+                // Just return empty response for now, issue does nothing in mock
+                assetft::Msg::Issue { .. } => Ok(AppResponse::default()),
+                _ => bail!("Unsupported assetft message!"),
+            },
+            _ => bail!("You have reached the coreum app execute module!"),
+        }
     }
 
     fn query(
@@ -100,6 +111,12 @@ impl Deref for CoreumApp {
     }
 }
 
+impl DerefMut for CoreumApp {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl CoreumApp {
     pub fn new() -> Self {
         Self(
@@ -107,5 +124,27 @@ impl CoreumApp {
                 .with_custom(CoreumModule {})
                 .build(|_router, _, _storage| ()),
         )
+    }
+
+    pub fn block_info(&self) -> BlockInfo {
+        self.0.block_info()
+    }
+
+    /// This advances BlockInfo by given number of blocks.
+    /// It does not do any callbacks, but keeps the ratio of seconds/blokc
+    pub fn advance_blocks(&mut self, blocks: u64) {
+        self.update_block(|block| {
+            block.time = block.time.plus_seconds(BLOCK_TIME * blocks);
+            block.height += blocks;
+        });
+    }
+
+    /// This advances BlockInfo by given number of seconds.
+    /// It does not do any callbacks, but keeps the ratio of seconds/blokc
+    pub fn advance_seconds(&mut self, seconds: u64) {
+        self.update_block(|block| {
+            block.time = block.time.plus_seconds(seconds);
+            block.height += max(1, seconds / BLOCK_TIME);
+        });
     }
 }
