@@ -26,6 +26,7 @@ derivative = "2.2"
 dex = { path = "./packages/dex", default-features = false }
 itertools = "0.10"
 proptest = "1.0"
+schemars = "0.8"
 serde = { version = "1", default-features = false, features = ["derive"] }
 thiserror = "1"
 test-case = "2.2.1"

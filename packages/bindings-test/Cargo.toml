@@ -12,5 +12,7 @@ anyhow = { workspace = true }
 coreum-wasm-sdk = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-multi-test = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
 
 
