@@ -65,6 +65,15 @@ impl Module for CoreumModule {
             CoreumMsg::AssetFT(msg) => match msg {
                 // Just return empty response for now, issue does nothing in mock
                 assetft::Msg::Issue { .. } => Ok(AppResponse::default()),
+                assetft::Msg::Mint {
+                    coin,
+                } => {
+                    let mint_msg = BankSudo::Mint {
+                        to_address: sender.to_string(),
+                        amount: vec![coin],
+                    };
+                    router.sudo(api, storage, block, mint_msg.into())
+                }
                 _ => bail!("Unsupported assetft message!"),
             },
             _ => bail!("You have reached the coreum app execute module!"),
