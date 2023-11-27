@@ -1027,161 +1027,170 @@ fn withdraw_liquidity() {
         &attr("refund_assets", "33uusd, 33asset0000")
     );
 }
-//
-// #[test]
-// fn query_twap() {
-//     let mut deps = mock_dependencies(&[]);
-//     let mut env = mock_env();
-//
-//     let user = "user";
-//
-//     // setup some cw20 tokens, so the queries don't fail
-//     deps.querier.with_token_balances(&[
-//         (
-//             &"asset0000".into(),
-//             &[(&MOCK_CONTRACT_ADDR.into(), &0u128.into())],
-//         ),
-//         (
-//             &"liquidity0000".into(),
-//             &[(&MOCK_CONTRACT_ADDR.into(), &0u128.into())],
-//         ),
-//     ]);
-//
-//     let uusd = AssetInfoValidated::SmartToken("uusd".to_string());
-//     let token = AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000"));
-//
-//     // instantiate the contract
-//     let msg = InstantiateMsg {
-//         asset_infos: vec![uusd.clone().into(), token.clone().into()],
-//         token_code_id: 10u64,
-//         // factory_addr: String::from("factory"),
-//         init_params: None,
-//         staking_config: default_stake_config(),
-//         trading_starts: 0,
-//         fee_config: FeeConfig {
-//             total_fee_bps: 0,
-//             protocol_fee_bps: 0,
-//         },
-//         circuit_breaker: None,
-//     };
-//     instantiate(deps.as_mut(), env.clone(), mock_info("owner", &[]), msg).unwrap();
-//
-//     // provide liquidity to get a first price
-//     let msg = ExecuteMsg::ProvideLiquidity {
-//         assets: vec![
-//             Asset {
-//                 info: uusd.clone().into(),
-//                 amount: 1_000_000u128.into(),
-//             },
-//             Asset {
-//                 info: token.into(),
-//                 amount: 1_000_000u128.into(),
-//             },
-//         ],
-//         slippage_tolerance: None,
-//         receiver: None,
-//     };
-//     // need to set balance manually to simulate funds being sent
-//     deps.querier
-//         .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_000_000u128, "uusd"))]);
-//     execute(
-//         deps.as_mut(),
-//         env.clone(),
-//         mock_info(user, &coins(1_000_000u128, "uusd")),
-//         msg,
-//     )
-//     .unwrap();
-//
-//     // set cw20 balance manually
-//     deps.querier.with_token_balances(&[
-//         (
-//             &"asset0000".into(),
-//             &[(&MOCK_CONTRACT_ADDR.into(), &1_000_000u128.into())],
-//         ),
-//         (
-//             &"liquidity0000".into(),
-//             &[(&MOCK_CONTRACT_ADDR.into(), &0u128.into())],
-//         ),
-//     ]);
-//
-//     // querying TWAP after first price change should fail, because only one price is recorded
-//     let err = query(
-//         deps.as_ref(),
-//         env.clone(),
-//         QueryMsg::Twap {
-//             duration: SamplePeriod::HalfHour,
-//             start_age: 1,
-//             end_age: Some(0),
-//         },
-//     )
-//     .unwrap_err();
-//
-//     assert_eq!(
-//         StdError::generic_err("start index is earlier than earliest recorded price data"),
-//         err
-//     );
-//
-//     // forward time half an hour
-//     const HALF_HOUR: u64 = 30 * 60;
-//     env.block.time = env.block.time.plus_seconds(HALF_HOUR);
-//
-//     // swap to get a second price
-//     let msg = ExecuteMsg::Swap {
-//         offer_asset: Asset {
-//             info: uusd.into(),
-//             amount: 1_000u128.into(),
-//         },
-//         to: None,
-//         max_spread: None,
-//         belief_price: None,
-//         ask_asset_info: None,
-//         referral_address: None,
-//         referral_commission: None,
-//     };
-//     // need to set balance manually to simulate funds being sent
-//     deps.querier
-//         .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_001_000u128, "uusd"))]);
-//     execute(
-//         deps.as_mut(),
-//         env.clone(),
-//         mock_info(user, &coins(1_000u128, "uusd")),
-//         msg,
-//     )
-//     .unwrap();
-//
-//     // forward time half an hour again for the last change to accumulate
-//     env.block.time = env.block.time.plus_seconds(HALF_HOUR);
-//
-//     // query twap after swap price change
-//     let twap: TwapResponse = from_binary(
-//         &query(
-//             deps.as_ref(),
-//             env,
-//             QueryMsg::Twap {
-//                 duration: SamplePeriod::HalfHour,
-//                 start_age: 1,
-//                 end_age: Some(0),
-//             },
-//         )
-//         .unwrap(),
-//     )
-//     .unwrap();
-//
-//     assert!(twap.a_per_b > Decimal::one());
-//     assert!(twap.b_per_a < Decimal::one());
-//     assert_approx_eq!(
-//         twap.a_per_b.numerator(),
-//         Decimal::from_ratio(1_001_000u128, 999_000u128).numerator(),
-//         "0.000002",
-//         "twap should be slightly below 1"
-//     );
-//     assert_approx_eq!(
-//         twap.b_per_a.numerator(),
-//         Decimal::from_ratio(999_000u128, 1_001_000u128).numerator(),
-//         "0.000002",
-//         "twap should be slightly above 1"
-//     );
-// }
+
+#[test]
+fn query_twap() {
+    let mut deps = mock_dependencies(&[]);
+    let mut env = mock_env();
+
+    let user = "user";
+
+    // setup some cw20 tokens, so the queries don't fail
+    deps.querier.with_token_balances(&[
+        (
+            &"asset0000".into(),
+            &[(&MOCK_CONTRACT_ADDR.into(), &0u128.into())],
+        ),
+        (
+            &"liquidity0000".into(),
+            &[(&MOCK_CONTRACT_ADDR.into(), &0u128.into())],
+        ),
+    ]);
+
+    let uusd = AssetInfoValidated::SmartToken("uusd".to_string());
+    let token = AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000"));
+
+    // instantiate the contract
+    let msg = InstantiateMsg {
+        asset_infos: vec![uusd.clone().into(), token.clone().into()],
+        token_code_id: 10u64,
+        // factory_addr: String::from("factory"),
+        init_params: Some(
+            to_binary(&StablePoolParams {
+                amp: 100,
+                owner: None,
+                lsd: None,
+            })
+            .unwrap(),
+        ),
+        staking_config: default_stake_config(),
+        trading_starts: 0,
+        fee_config: FeeConfig {
+            total_fee_bps: 0,
+            protocol_fee_bps: 0,
+        },
+        circuit_breaker: None,
+    };
+    instantiate(deps.as_mut(), env.clone(), mock_info("owner", &[]), msg).unwrap();
+
+    // provide liquidity to get a first price
+    let msg = ExecuteMsg::ProvideLiquidity {
+        assets: vec![
+            Asset {
+                info: uusd.clone().into(),
+                amount: 1_000_000u128.into(),
+            },
+            Asset {
+                info: token.into(),
+                amount: 1_000_000u128.into(),
+            },
+        ],
+        slippage_tolerance: None,
+        receiver: None,
+    };
+    // need to set balance manually to simulate funds being sent
+    deps.querier
+        .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_000_000u128, "uusd"))]);
+    execute(
+        deps.as_mut(),
+        env.clone(),
+        mock_info(user, &coins(1_000_000u128, "uusd")),
+        msg,
+    )
+    .unwrap();
+
+    // set cw20 balance manually
+    deps.querier.with_token_balances(&[
+        (
+            &"asset0000".into(),
+            &[(&MOCK_CONTRACT_ADDR.into(), &1_000_000u128.into())],
+        ),
+        (
+            &"liquidity0000".into(),
+            &[(&MOCK_CONTRACT_ADDR.into(), &0u128.into())],
+        ),
+    ]);
+
+    // querying TWAP after first price change should fail, because only one price is recorded
+    let err = query(
+        deps.as_ref(),
+        env.clone(),
+        QueryMsg::Twap {
+            duration: SamplePeriod::HalfHour,
+            start_age: 1,
+            end_age: Some(0),
+        },
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        StdError::generic_err("start index is earlier than earliest recorded price data"),
+        err
+    );
+
+    // forward time half an hour
+    const HALF_HOUR: u64 = 30 * 60;
+    env.block.time = env.block.time.plus_seconds(HALF_HOUR);
+
+    // swap to get a second price
+    let msg = ExecuteMsg::Swap {
+        offer_asset: Asset {
+            info: uusd.into(),
+            amount: 1_000u128.into(),
+        },
+        to: None,
+        max_spread: None,
+        belief_price: None,
+        ask_asset_info: None,
+        referral_address: None,
+        referral_commission: None,
+    };
+    // need to set balance manually to simulate funds being sent
+    deps.querier
+        .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_001_000u128, "uusd"))]);
+    execute(
+        deps.as_mut(),
+        env.clone(),
+        mock_info(user, &coins(1_000u128, "uusd")),
+        msg,
+    )
+    .unwrap();
+
+    // forward time half an hour again for the last change to accumulate
+    env.block.time = env.block.time.plus_seconds(HALF_HOUR);
+
+    // query twap after swap price change
+    let twap: TwapResponse = from_binary(
+        &query(
+            deps.as_ref(),
+            env,
+            QueryMsg::Twap {
+                duration: SamplePeriod::HalfHour,
+                start_age: 1,
+                end_age: Some(0),
+            },
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    dbg!(twap.a_per_b);
+    dbg!(Decimal::one());
+    assert!(twap.a_per_b > Decimal::one());
+    assert!(twap.b_per_a < Decimal::one());
+    assert_approx_eq!(
+        twap.a_per_b.numerator(),
+        Decimal::from_ratio(1_001_000u128, 999_000u128).numerator(),
+        "0.000002",
+        "twap should be slightly below 1"
+    );
+    assert_approx_eq!(
+        twap.b_per_a.numerator(),
+        Decimal::from_ratio(999_000u128, 1_001_000u128).numerator(),
+        "0.000002",
+        "twap should be slightly above 1"
+    );
+}
 //
 // #[test]
 // fn try_native_to_token() {
