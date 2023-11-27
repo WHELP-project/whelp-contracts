@@ -18,8 +18,9 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     testing::{MockApi, MockQuerier, MockStorage},
-    Addr, Api, Binary, BlockInfo, Coin, CustomQuery, Empty, Order, OwnedDeps, Querier,
-    QuerierResult, StdError, StdResult, Storage, Timestamp,
+    to_json_binary, Addr, Api, BankMsg, BankQuery, Binary, BlockInfo, Coin, CustomQuery, Empty,
+    Order, OwnedDeps, Querier, QuerierResult, QuerierWrapper, QueryRequest, StdError, StdResult,
+    Storage, Timestamp,
 };
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Executor, Module,
@@ -65,14 +66,17 @@ impl Module for CoreumModule {
             CoreumMsg::AssetFT(msg) => match msg {
                 // Just return empty response for now, issue does nothing in mock
                 assetft::Msg::Issue { .. } => Ok(AppResponse::default()),
-                assetft::Msg::Mint {
-                    coin,
-                } => {
+                assetft::Msg::Mint { coin } => {
                     let mint_msg = BankSudo::Mint {
                         to_address: sender.to_string(),
                         amount: vec![coin],
                     };
                     router.sudo(api, storage, block, mint_msg.into())
+                }
+                // Also do nothing for now
+                assetft::Msg::Burn { coin } => {
+                    let burn_msg = BankMsg::Burn { amount: vec![coin] };
+                    router.execute(api, storage, block, sender, burn_msg.into())
                 }
                 _ => bail!("Unsupported assetft message!"),
             },
@@ -82,13 +86,33 @@ impl Module for CoreumModule {
 
     fn query(
         &self,
-        _api: &dyn Api,
-        _storage: &dyn Storage,
-        _querier: &dyn Querier,
-        _block: &BlockInfo,
-        msg: CoreumQueries,
+        api: &dyn Api,
+        storage: &dyn Storage,
+        querier: &dyn Querier,
+        block: &BlockInfo,
+        request: CoreumQueries,
     ) -> AnyResult<Binary> {
-        bail!("You have reached the coreum app query module!")
+        match request {
+            CoreumQueries::AssetFT(r) => match r {
+                assetft::Query::Balance { account, denom } => {
+                    let bank_query = QueryRequest::Bank(BankQuery::Balance {
+                        address: account,
+                        denom,
+                    });
+                    // TODO!
+                    let res: assetft::BalanceResponse =
+                        querier.raw_query(api, storage, querier, block, bank_query.into());
+                    Ok(to_json_binary(&assetft::BalanceResponse {
+                        balance: res.amount.amount.to_string(),
+                        whitelisted: "".to_owned(),
+                        frozen: "".to_owned(),
+                        locked: "".to_owned(),
+                    })?)
+                }
+                _ => bail!("Unsupported assetft query!"),
+            },
+            _ => bail!("Unsupported CoreumQueries query!"),
+        }
     }
 
     fn sudo<ExecC, QueryC>(
