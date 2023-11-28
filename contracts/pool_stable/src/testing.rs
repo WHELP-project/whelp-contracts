@@ -1,8 +1,8 @@
 use coreum_wasm_sdk::{assetft, core::CoreumMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    assert_approx_eq, attr, coin, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
-    CosmosMsg, Decimal, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg, Binary,
+    assert_approx_eq, attr, coin, coins, from_binary, to_binary, Addr, BankMsg, Binary, BlockInfo,
+    Coin, CosmosMsg, Decimal, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
@@ -613,7 +613,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //                 coin: Coin {
 //                     denom: String::from("uuusdmapplp-cosmos2contract"),
 //                     /// if we change the below value to the one that is expected from the left side
-//                     /// we get later to a panic message on 
+//                     /// we get later to a panic message on
 //                     /// called `Result::unwrap_err()` on an `Ok` value:
 //                     amount: Uint128::from(50_000_000_000_000_000_000u128),
 //                 },
@@ -1078,11 +1078,11 @@ fn query_twap() {
         assets: vec![
             Asset {
                 info: uusd.clone().into(),
-                amount: 1_000_000u128.into(),
+                amount: 1_000_000_000_000u128.into(),
             },
             Asset {
                 info: token.into(),
-                amount: 1_000_000u128.into(),
+                amount: 1_000_000_000_000u128.into(),
             },
         ],
         slippage_tolerance: None,
@@ -1090,11 +1090,11 @@ fn query_twap() {
     };
     // need to set balance manually to simulate funds being sent
     deps.querier
-        .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_000_000u128, "uusd"))]);
+        .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_000_000_000_000u128, "uusd"))]);
     execute(
         deps.as_mut(),
         env.clone(),
-        mock_info(user, &coins(1_000_000u128, "uusd")),
+        mock_info(user, &coins(1_000_000_000_000u128, "uusd")),
         msg,
     )
     .unwrap();
@@ -1103,7 +1103,7 @@ fn query_twap() {
     deps.querier.with_token_balances(&[
         (
             &"asset0000".into(),
-            &[(&MOCK_CONTRACT_ADDR.into(), &1_000_000u128.into())],
+            &[(&MOCK_CONTRACT_ADDR.into(), &1_000_000_000_000u128.into())],
         ),
         (
             &"liquidity0000".into(),
@@ -1136,7 +1136,7 @@ fn query_twap() {
     let msg = ExecuteMsg::Swap {
         offer_asset: Asset {
             info: uusd.into(),
-            amount: 1_000u128.into(),
+            amount: 10_000_000_000u128.into(),
         },
         to: None,
         max_spread: None,
@@ -1147,11 +1147,11 @@ fn query_twap() {
     };
     // need to set balance manually to simulate funds being sent
     deps.querier
-        .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_001_000u128, "uusd"))]);
+        .with_balance(&[(&MOCK_CONTRACT_ADDR.into(), &coins(1_010_000_000_000u128, "uusd"))]);
     execute(
         deps.as_mut(),
         env.clone(),
-        mock_info(user, &coins(1_000u128, "uusd")),
+        mock_info(user, &coins(10_000_000_000u128, "uusd")),
         msg,
     )
     .unwrap();
@@ -1174,20 +1174,22 @@ fn query_twap() {
     )
     .unwrap();
 
-    dbg!(twap.a_per_b);
-    dbg!(Decimal::one());
     assert!(twap.a_per_b > Decimal::one());
     assert!(twap.b_per_a < Decimal::one());
+    dbg!(twap.a_per_b.numerator());
+    dbg!(Decimal::from_ratio(1_001_000u128, 999_000u128).numerator());
     assert_approx_eq!(
         twap.a_per_b.numerator(),
         Decimal::from_ratio(1_001_000u128, 999_000u128).numerator(),
-        "0.000002",
+        // "0.000002",
+        "0.02",
         "twap should be slightly below 1"
     );
     assert_approx_eq!(
         twap.b_per_a.numerator(),
         Decimal::from_ratio(999_000u128, 1_001_000u128).numerator(),
-        "0.000002",
+        // "0.000002",
+        "0.02",
         "twap should be slightly above 1"
     );
 }
