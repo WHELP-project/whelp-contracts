@@ -521,32 +521,30 @@ impl Suite {
         Ok(resp.delegated)
     }
 
-    //     /// returns address' balance of native token
-    //     pub fn query_balance(&self, address: &str, denom: &str) -> StdResult<u128> {
-    //         let resp = self.app.wrap().query_balance(address, denom)?;
-    //         Ok(resp.amount.u128())
-    //     }
-    //
-    //     pub fn query_cw20_balance(&self, address: &str, cw20: impl Into<String>) -> StdResult<u128> {
-    //         let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-    //             cw20,
-    //             &Cw20QueryMsg::Balance {
-    //                 address: address.to_owned(),
-    //             },
-    //         )?;
-    //         Ok(balance.balance.u128())
-    //     }
-    //
-    //     // returns address' balance on vesting contract
-    //     pub fn query_balance_vesting_contract(&self, address: &str) -> StdResult<u128> {
-    //         let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-    //             self.token_contract.clone(),
-    //             &Cw20QueryMsg::Balance {
-    //                 address: address.to_owned(),
-    //             },
-    //         )?;
-    //         Ok(balance.balance.u128())
-    //     }
+    /// returns address' balance of native token
+    pub fn query_balance(&self, address: &str, denom: &str) -> StdResult<u128> {
+        let resp = self.app.wrap().query_balance(address, denom)?;
+        Ok(resp.amount.u128())
+    }
+
+    pub fn query_cw20_balance(&self, address: &str, cw20: impl Into<String>) -> StdResult<u128> {
+        let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
+            cw20,
+            &Cw20QueryMsg::Balance {
+                address: address.to_owned(),
+            },
+        )?;
+        Ok(balance.balance.u128())
+    }
+
+    // returns address' balance on vesting contract
+    pub fn query_balance_vesting_contract(&self, address: &str) -> StdResult<u128> {
+        let balance: Coin = self
+            .app
+            .wrap()
+            .query_balance(address.to_owned(), self.lp_share.clone())?;
+        Ok(balance.amount.u128())
+    }
 
     // returns address' balance on vesting contract
     pub fn query_balance_staking_contract(&self) -> StdResult<u128> {
