@@ -12,8 +12,8 @@ pub mod msg;
 /// state on the blockchain
 pub mod state;
 
-// #[cfg(test)]
-// mod multitest;
+#[cfg(test)]
+mod multitest;
 /// some helper functions
 mod utils;
 pub use crate::error::ContractError;
