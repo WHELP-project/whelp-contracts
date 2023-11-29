@@ -33,6 +33,16 @@ fn contract_stake() -> Box<dyn Contract<CoreumMsg, CoreumQueries>> {
     Box::new(contract)
 }
 
+pub(super) fn contract_token() -> Box<dyn Contract<CoreumMsg, CoreumQueries>> {
+    let contract = ContractWrapper::new_with_empty(
+        cw20_base::contract::execute,
+        cw20_base::contract::instantiate,
+        cw20_base::contract::query,
+    );
+
+    Box::new(contract)
+}
+
 pub const COREUM_DENOM: &str = "ucore";
 
 pub(super) fn juno_power(amount: u128) -> Vec<(AssetInfoValidated, u128)> {

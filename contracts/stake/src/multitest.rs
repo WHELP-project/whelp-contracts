@@ -1,5 +1,5 @@
 mod delegate;
-// mod distribution;
+mod distribution;
 // mod migration;
 // mod quick_unbond;
 // mod staking_rewards;
