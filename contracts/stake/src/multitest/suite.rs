@@ -330,197 +330,197 @@ impl Suite {
         )
     }
 
-    //     pub fn execute_fund_distribution<'s>(
-    //         &mut self,
-    //         executor: &str,
-    //         sender: impl Into<Option<&'s str>>,
-    //         funds: AssetValidated,
-    //     ) -> AnyResult<AppResponse> {
-    //         let _sender = sender.into();
-    //
-    //         let curr_block = self.app.block_info().time;
-    //
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             self.stake_contract.clone(),
-    //             &ExecuteMsg::FundDistribution {
-    //                 funding_info: FundingInfo {
-    //                     start_time: curr_block.seconds(),
-    //                     distribution_duration: 100,
-    //                     amount: funds.amount,
-    //                 },
-    //             },
-    //             &[Coin {
-    //                 denom: funds.info.to_string(),
-    //                 amount: funds.amount,
-    //             }],
-    //         )
-    //     }
-    //
-    //     pub fn execute_fund_distribution_curve(
-    //         &mut self,
-    //         executor: &str,
-    //         denom: impl Into<String>,
-    //         amount: u128,
-    //         distribution_duration: u64,
-    //     ) -> AnyResult<AppResponse> {
-    //         let curr_block = self.app.block_info().time;
-    //
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             self.stake_contract.clone(),
-    //             &ExecuteMsg::FundDistribution {
-    //                 funding_info: FundingInfo {
-    //                     start_time: curr_block.seconds(),
-    //                     distribution_duration,
-    //                     amount: Uint128::from(amount),
-    //                 },
-    //             },
-    //             &[Coin {
-    //                 denom: denom.into(),
-    //                 amount: Uint128::new(amount),
-    //             }],
-    //         )
-    //     }
-    //
-    //     // call to staking contract by sender
-    //     pub fn execute_fund_distribution_with_cw20(
-    //         &mut self,
-    //         executor: &str,
-    //         funds: AssetValidated,
-    //     ) -> AnyResult<AppResponse> {
-    //         let funds_amount = funds.amount.u128();
-    //         let curr_block = self.app.block_info().time;
-    //
-    //         self.execute_fund_distribution_with_cw20_curve(
-    //             executor,
-    //             funds,
-    //             FundingInfo {
-    //                 start_time: curr_block.seconds(),
-    //                 distribution_duration: 100,
-    //                 amount: Uint128::from(funds_amount),
-    //             },
-    //         )
-    //     }
-    //
-    //     pub fn execute_fund_distribution_with_cw20_curve(
-    //         &mut self,
-    //         executor: &str,
-    //         funds: AssetValidated,
-    //         funding_info: FundingInfo,
-    //     ) -> AnyResult<AppResponse> {
-    //         let token = match funds.info {
-    //             AssetInfoValidated::Token(contract_addr) => contract_addr,
-    //             _ => bail!("Only tokens are supported for cw20 distribution"),
-    //         };
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             token,
-    //             &Cw20ExecuteMsg::Send {
-    //                 contract: self.stake_contract.to_string(),
-    //                 amount: funds.amount,
-    //                 msg: to_binary(&ReceiveMsg::Fund { funding_info })?,
-    //             },
-    //             &[],
-    //         )
-    //     }
-    //
-    //     pub fn execute_unbond_all(&mut self, executor: &str) -> AnyResult<AppResponse> {
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             self.stake_contract.clone(),
-    //             &ExecuteMsg::UnbondAll {},
-    //             &[],
-    //         )
-    //     }
-    //
-    //     pub fn execute_stop_unbond_all(&mut self, executor: &str) -> AnyResult<AppResponse> {
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             self.stake_contract.clone(),
-    //             &ExecuteMsg::StopUnbondAll {},
-    //             &[],
-    //         )
-    //     }
-    //
-    //     pub fn withdraw_funds<'s>(
-    //         &mut self,
-    //         executor: &str,
-    //         owner: impl Into<Option<&'s str>>,
-    //         receiver: impl Into<Option<&'s str>>,
-    //     ) -> AnyResult<AppResponse> {
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             self.stake_contract.clone(),
-    //             &ExecuteMsg::WithdrawRewards {
-    //                 owner: owner.into().map(str::to_owned),
-    //                 receiver: receiver.into().map(str::to_owned),
-    //             },
-    //             &[],
-    //         )
-    //     }
-    //
-    //     #[allow(dead_code)]
-    //     pub fn delegate_withdrawal(
-    //         &mut self,
-    //         executor: &str,
-    //         delegated: &str,
-    //     ) -> AnyResult<AppResponse> {
-    //         self.app.execute_contract(
-    //             Addr::unchecked(executor),
-    //             self.stake_contract.clone(),
-    //             &ExecuteMsg::DelegateWithdrawal {
-    //                 delegated: delegated.to_owned(),
-    //             },
-    //             &[],
-    //         )
-    //     }
-    //
-    //     pub fn withdrawable_rewards(&self, owner: &str) -> StdResult<Vec<AssetValidated>> {
-    //         let resp: WithdrawableRewardsResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::WithdrawableRewards {
-    //                 owner: owner.to_owned(),
-    //             },
-    //         )?;
-    //         Ok(resp.rewards)
-    //     }
-    //
-    //     pub fn distributed_funds(&self) -> StdResult<Vec<AssetValidated>> {
-    //         let resp: DistributedRewardsResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::DistributedRewards {},
-    //         )?;
-    //         Ok(resp.distributed)
-    //     }
-    //
-    //     pub fn withdrawable_funds(&self) -> StdResult<Vec<AssetValidated>> {
-    //         let resp: DistributedRewardsResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::DistributedRewards {},
-    //         )?;
-    //         Ok(resp.withdrawable)
-    //     }
-    //
-    //     pub fn undistributed_funds(&self) -> StdResult<Vec<AssetValidated>> {
-    //         let resp: UndistributedRewardsResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::UndistributedRewards {},
-    //         )?;
-    //         Ok(resp.rewards)
-    //     }
-    //
-    //     #[allow(dead_code)]
-    //     pub fn delegated(&self, owner: &str) -> StdResult<Addr> {
-    //         let resp: DelegatedResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::Delegated {
-    //                 owner: owner.to_owned(),
-    //             },
-    //         )?;
-    //         Ok(resp.delegated)
-    //     }
-    //
+    pub fn execute_fund_distribution<'s>(
+        &mut self,
+        executor: &str,
+        sender: impl Into<Option<&'s str>>,
+        funds: AssetValidated,
+    ) -> AnyResult<AppResponse> {
+        let _sender = sender.into();
+
+        let curr_block = self.app.block_info().time;
+
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            self.stake_contract.clone(),
+            &ExecuteMsg::FundDistribution {
+                funding_info: FundingInfo {
+                    start_time: curr_block.seconds(),
+                    distribution_duration: 100,
+                    amount: funds.amount,
+                },
+            },
+            &[Coin {
+                denom: funds.info.to_string(),
+                amount: funds.amount,
+            }],
+        )
+    }
+
+    pub fn execute_fund_distribution_curve(
+        &mut self,
+        executor: &str,
+        denom: impl Into<String>,
+        amount: u128,
+        distribution_duration: u64,
+    ) -> AnyResult<AppResponse> {
+        let curr_block = self.app.block_info().time;
+
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            self.stake_contract.clone(),
+            &ExecuteMsg::FundDistribution {
+                funding_info: FundingInfo {
+                    start_time: curr_block.seconds(),
+                    distribution_duration,
+                    amount: Uint128::from(amount),
+                },
+            },
+            &[Coin {
+                denom: denom.into(),
+                amount: Uint128::new(amount),
+            }],
+        )
+    }
+
+    // call to staking contract by sender
+    pub fn execute_fund_distribution_with_cw20(
+        &mut self,
+        executor: &str,
+        funds: AssetValidated,
+    ) -> AnyResult<AppResponse> {
+        let funds_amount = funds.amount.u128();
+        let curr_block = self.app.block_info().time;
+
+        self.execute_fund_distribution_with_cw20_curve(
+            executor,
+            funds,
+            FundingInfo {
+                start_time: curr_block.seconds(),
+                distribution_duration: 100,
+                amount: Uint128::from(funds_amount),
+            },
+        )
+    }
+
+    pub fn execute_fund_distribution_with_cw20_curve(
+        &mut self,
+        executor: &str,
+        funds: AssetValidated,
+        funding_info: FundingInfo,
+    ) -> AnyResult<AppResponse> {
+        let token = match funds.info {
+            AssetInfoValidated::Cw20Token(contract_addr) => contract_addr,
+            _ => bail!("Only tokens are supported for cw20 distribution"),
+        };
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            token,
+            &Cw20ExecuteMsg::Send {
+                contract: self.stake_contract.to_string(),
+                amount: funds.amount,
+                msg: to_binary(&ReceiveMsg::Fund { funding_info })?,
+            },
+            &[],
+        )
+    }
+
+    pub fn execute_unbond_all(&mut self, executor: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            self.stake_contract.clone(),
+            &ExecuteMsg::UnbondAll {},
+            &[],
+        )
+    }
+
+    pub fn execute_stop_unbond_all(&mut self, executor: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            self.stake_contract.clone(),
+            &ExecuteMsg::StopUnbondAll {},
+            &[],
+        )
+    }
+
+    pub fn withdraw_funds<'s>(
+        &mut self,
+        executor: &str,
+        owner: impl Into<Option<&'s str>>,
+        receiver: impl Into<Option<&'s str>>,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            self.stake_contract.clone(),
+            &ExecuteMsg::WithdrawRewards {
+                owner: owner.into().map(str::to_owned),
+                receiver: receiver.into().map(str::to_owned),
+            },
+            &[],
+        )
+    }
+
+    #[allow(dead_code)]
+    pub fn delegate_withdrawal(
+        &mut self,
+        executor: &str,
+        delegated: &str,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(executor),
+            self.stake_contract.clone(),
+            &ExecuteMsg::DelegateWithdrawal {
+                delegated: delegated.to_owned(),
+            },
+            &[],
+        )
+    }
+
+    pub fn withdrawable_rewards(&self, owner: &str) -> StdResult<Vec<AssetValidated>> {
+        let resp: WithdrawableRewardsResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::WithdrawableRewards {
+                owner: owner.to_owned(),
+            },
+        )?;
+        Ok(resp.rewards)
+    }
+
+    pub fn distributed_funds(&self) -> StdResult<Vec<AssetValidated>> {
+        let resp: DistributedRewardsResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::DistributedRewards {},
+        )?;
+        Ok(resp.distributed)
+    }
+
+    pub fn withdrawable_funds(&self) -> StdResult<Vec<AssetValidated>> {
+        let resp: DistributedRewardsResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::DistributedRewards {},
+        )?;
+        Ok(resp.withdrawable)
+    }
+
+    pub fn undistributed_funds(&self) -> StdResult<Vec<AssetValidated>> {
+        let resp: UndistributedRewardsResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::UndistributedRewards {},
+        )?;
+        Ok(resp.rewards)
+    }
+
+    #[allow(dead_code)]
+    pub fn delegated(&self, owner: &str) -> StdResult<Addr> {
+        let resp: DelegatedResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::Delegated {
+                owner: owner.to_owned(),
+            },
+        )?;
+        Ok(resp.delegated)
+    }
+
     //     /// returns address' balance of native token
     //     pub fn query_balance(&self, address: &str, denom: &str) -> StdResult<u128> {
     //         let resp = self.app.wrap().query_balance(address, denom)?;
@@ -547,115 +547,113 @@ impl Suite {
     //         )?;
     //         Ok(balance.balance.u128())
     //     }
-    //
-    //     // returns address' balance on vesting contract
-    //     pub fn query_balance_staking_contract(&self) -> StdResult<u128> {
-    //         let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-    //             self.token_contract.clone(),
-    //             &Cw20QueryMsg::Balance {
-    //                 address: self.stake_contract.to_string(),
-    //             },
-    //         )?;
-    //         Ok(balance.balance.u128())
-    //     }
-    //
-    //     pub fn query_staked(
-    //         &self,
-    //         address: &str,
-    //         unbonding_period: impl Into<Option<u64>>,
-    //     ) -> StdResult<u128> {
-    //         let staked: StakedResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::Staked {
-    //                 address: address.to_owned(),
-    //                 unbonding_period: self.unbonding_period_or_default(unbonding_period),
-    //             },
-    //         )?;
-    //         Ok(staked.stake.u128())
-    //     }
-    //
-    //     pub fn query_staked_periods(&self) -> StdResult<Vec<BondingPeriodInfo>> {
-    //         let info: BondingInfoResponse = self
-    //             .app
-    //             .wrap()
-    //             .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::BondingInfo {})?;
-    //         Ok(info.bonding)
-    //     }
-    //
-    //     pub fn query_all_staked(&self, address: &str) -> StdResult<AllStakedResponse> {
-    //         let all_staked: AllStakedResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::AllStaked {
-    //                 address: address.to_owned(),
-    //             },
-    //         )?;
-    //         Ok(all_staked)
-    //     }
-    //
-    //     pub fn query_total_staked(&self) -> StdResult<u128> {
-    //         let total_staked: TotalStakedResponse = self
-    //             .app
-    //             .wrap()
-    //             .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::TotalStaked {})?;
-    //         Ok(total_staked.total_staked.u128())
-    //     }
-    //
-    //     pub fn query_claims(&self, address: &str) -> StdResult<Vec<Claim>> {
-    //         let claims: ClaimsResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::Claims {
-    //                 address: address.to_owned(),
-    //             },
-    //         )?;
-    //         Ok(claims.claims)
-    //     }
-    //
-    //     pub fn query_annualized_rewards(
-    //         &self,
-    //     ) -> StdResult<Vec<(UnbondingPeriod, Vec<AnnualizedReward>)>> {
-    //         let apr: AnnualizedRewardsResponse = self
-    //             .app
-    //             .wrap()
-    //             .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::AnnualizedRewards {})?;
-    //         Ok(apr.rewards)
-    //     }
-    //
-    //     pub fn query_rewards_power(&self, address: &str) -> StdResult<Vec<(AssetInfoValidated, u128)>> {
-    //         let rewards: RewardsPowerResponse = self.app.wrap().query_wasm_smart(
-    //             self.stake_contract.clone(),
-    //             &QueryMsg::RewardsPower {
-    //                 address: address.to_owned(),
-    //             },
-    //         )?;
-    //
-    //         Ok(rewards
-    //             .rewards
-    //             .into_iter()
-    //             .map(|(a, p)| (a, p.u128()))
-    //             .filter(|(_, p)| *p > 0)
-    //             .collect())
-    //     }
-    //
-    //     pub fn query_total_rewards_power(&self) -> StdResult<Vec<(AssetInfoValidated, u128)>> {
-    //         let rewards: RewardsPowerResponse = self
-    //             .app
-    //             .wrap()
-    //             .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::TotalRewardsPower {})?;
-    //
-    //         Ok(rewards
-    //             .rewards
-    //             .into_iter()
-    //             .map(|(a, p)| (a, p.u128()))
-    //             .filter(|(_, p)| *p > 0)
-    //             .collect())
-    //     }
-    //
-    //     pub fn query_unbond_all(&self) -> StdResult<bool> {
-    //         let resp: UnbondAllResponse = self
-    //             .app
-    //             .wrap()
-    //             .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::UnbondAll {})?;
-    //
-    //         Ok(resp.unbond_all)
-    //     }
+
+    // returns address' balance on vesting contract
+    pub fn query_balance_staking_contract(&self) -> StdResult<u128> {
+        let balance: Coin = self
+            .app
+            .wrap()
+            .query_balance(self.stake_contract.to_string(), self.lp_share.clone())?;
+        Ok(balance.amount.u128())
+    }
+
+    pub fn query_staked(
+        &self,
+        address: &str,
+        unbonding_period: impl Into<Option<u64>>,
+    ) -> StdResult<u128> {
+        let staked: StakedResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::Staked {
+                address: address.to_owned(),
+                unbonding_period: self.unbonding_period_or_default(unbonding_period),
+            },
+        )?;
+        Ok(staked.stake.u128())
+    }
+
+    pub fn query_staked_periods(&self) -> StdResult<Vec<BondingPeriodInfo>> {
+        let info: BondingInfoResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::BondingInfo {})?;
+        Ok(info.bonding)
+    }
+
+    pub fn query_all_staked(&self, address: &str) -> StdResult<AllStakedResponse> {
+        let all_staked: AllStakedResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::AllStaked {
+                address: address.to_owned(),
+            },
+        )?;
+        Ok(all_staked)
+    }
+
+    pub fn query_total_staked(&self) -> StdResult<u128> {
+        let total_staked: TotalStakedResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::TotalStaked {})?;
+        Ok(total_staked.total_staked.u128())
+    }
+
+    pub fn query_claims(&self, address: &str) -> StdResult<Vec<Claim>> {
+        let claims: ClaimsResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::Claims {
+                address: address.to_owned(),
+            },
+        )?;
+        Ok(claims.claims)
+    }
+
+    pub fn query_annualized_rewards(
+        &self,
+    ) -> StdResult<Vec<(UnbondingPeriod, Vec<AnnualizedReward>)>> {
+        let apr: AnnualizedRewardsResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::AnnualizedRewards {})?;
+        Ok(apr.rewards)
+    }
+
+    pub fn query_rewards_power(&self, address: &str) -> StdResult<Vec<(AssetInfoValidated, u128)>> {
+        let rewards: RewardsPowerResponse = self.app.wrap().query_wasm_smart(
+            self.stake_contract.clone(),
+            &QueryMsg::RewardsPower {
+                address: address.to_owned(),
+            },
+        )?;
+
+        Ok(rewards
+            .rewards
+            .into_iter()
+            .map(|(a, p)| (a, p.u128()))
+            .filter(|(_, p)| *p > 0)
+            .collect())
+    }
+
+    pub fn query_total_rewards_power(&self) -> StdResult<Vec<(AssetInfoValidated, u128)>> {
+        let rewards: RewardsPowerResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::TotalRewardsPower {})?;
+
+        Ok(rewards
+            .rewards
+            .into_iter()
+            .map(|(a, p)| (a, p.u128()))
+            .filter(|(_, p)| *p > 0)
+            .collect())
+    }
+
+    pub fn query_unbond_all(&self) -> StdResult<bool> {
+        let resp: UnbondAllResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::UnbondAll {})?;
+
+        Ok(resp.unbond_all)
+    }
 }
