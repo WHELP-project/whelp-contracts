@@ -141,6 +141,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bindings-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "coreum-wasm-sdk 0.1.4",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "bip32"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

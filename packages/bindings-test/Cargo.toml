@@ -1,0 +1,18 @@
+[package]
+name = "bindings-test"
+version.workspace = true
+authors = ["Jakub <jakub@moonbite.space>"]
+description = "Multitest app for Coreum-specific contracts"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+coreum-wasm-sdk = { workspace = true }
+cosmwasm-std = { workspace = true }
+cw-multi-test = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+
+
