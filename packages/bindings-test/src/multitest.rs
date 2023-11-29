@@ -7,10 +7,7 @@ use std::{
 
 use anyhow::{bail, Result as AnyResult};
 use schemars::JsonSchema;
-use serde::{
-    de::DeserializeOwned,
-    {Deserialize, Serialize},
-};
+use serde::de::DeserializeOwned;
 
 use coreum_wasm_sdk::{
     assetft,
@@ -18,13 +15,11 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     testing::{MockApi, MockQuerier, MockStorage},
-    to_json_binary, Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, BlockInfo, Coin,
-    CustomQuery, Empty, Order, OwnedDeps, Querier, QuerierResult, QuerierWrapper, QueryRequest,
-    StdError, StdResult, Storage, Timestamp,
+    to_json_binary, Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, BlockInfo, CustomQuery,
+    Empty, OwnedDeps, Querier, QuerierWrapper, QueryRequest, Storage,
 };
 use cw_multi_test::{
-    App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Executor, Module,
-    WasmKeeper,
+    App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Module, WasmKeeper,
 };
 
 /// How many seconds per block
@@ -80,16 +75,16 @@ impl Module for CoreumModule {
                 }
                 _ => bail!("Unsupported assetft message!"),
             },
-            _ => bail!("You have reached the coreum app execute module!"),
+            _ => bail!("Unsupported CoreumMsg execute!"),
         }
     }
 
     fn query(
         &self,
-        api: &dyn Api,
-        storage: &dyn Storage,
+        _api: &dyn Api,
+        _storage: &dyn Storage,
         querier: &dyn Querier,
-        block: &BlockInfo,
+        _block: &BlockInfo,
         request: CoreumQueries,
     ) -> AnyResult<Binary> {
         match request {
@@ -146,6 +141,12 @@ impl Deref for CoreumApp {
 impl DerefMut for CoreumApp {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl Default for CoreumApp {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
