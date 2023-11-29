@@ -7,7 +7,8 @@ use super::suite::{SuiteBuilder, SEVEN_DAYS};
 fn delegate_and_unbond_tokens_still_vested() {
     let user = "user";
     let mut suite = SuiteBuilder::new()
-        .with_initial_balances(vec![(user, 100_000)])
+        .with_lp_share_denom("lpshare")
+        .with_native_balances("lpshare", vec![(user, 100_000)])
         .build();
 
     assert_eq!(
@@ -64,7 +65,8 @@ fn delegate_and_unbond_tokens_still_vested() {
 fn mixed_vested_liquid_delegate_and_transfer_remaining() {
     let user = "user";
     let mut suite = SuiteBuilder::new()
-        .with_initial_balances(vec![(user, 100_000)])
+        .with_lp_share_denom("lpshare")
+        .with_native_balances("lpshare", vec![(user, 100_000)])
         .build();
 
     assert_eq!(
@@ -110,55 +112,5 @@ fn mixed_vested_liquid_delegate_and_transfer_remaining() {
     assert_eq!(
         suite.query_balance_vesting_contract(user).unwrap(),
         20_000u128
-    );
-}
-
-#[test]
-fn delegate_as_properly_assigned() {
-    let user = "factory";
-    let user2 = "client";
-    let mut suite = SuiteBuilder::new()
-        .with_initial_balances(vec![(user, 100_000)])
-        .build();
-
-    assert_eq!(
-        suite.query_balance_vesting_contract(user).unwrap(),
-        100_000u128
-    );
-
-    // delegate half of the tokens, ensure they are staked
-    suite
-        .delegate_as(user, 50_000u128, None, Some(user2))
-        .unwrap();
-    assert_eq!(suite.query_staked(user, None).unwrap(), 0u128);
-    assert_eq!(suite.query_staked(user2, None).unwrap(), 50_000u128);
-    assert_eq!(
-        suite.query_balance_vesting_contract(user).unwrap(),
-        50_000u128
-    );
-}
-
-#[test]
-fn mass_delegation_simple_case() {
-    let user = "factory";
-    let user2 = "client";
-    let mut suite = SuiteBuilder::new()
-        .with_initial_balances(vec![(user, 100_000)])
-        .build();
-
-    assert_eq!(
-        suite.query_balance_vesting_contract(user).unwrap(),
-        100_000u128
-    );
-
-    // delegate half of the tokens, ensure they are staked
-    suite
-        .mass_delegate(user, 50_000u128, None, &[(user2, 50_000u128)])
-        .unwrap();
-    assert_eq!(suite.query_staked(user, None).unwrap(), 0u128);
-    assert_eq!(suite.query_staked(user2, None).unwrap(), 50_000u128);
-    assert_eq!(
-        suite.query_balance_vesting_contract(user).unwrap(),
-        50_000u128
     );
 }

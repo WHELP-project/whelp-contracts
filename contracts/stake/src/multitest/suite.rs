@@ -74,8 +74,8 @@ impl SuiteBuilder {
         }
     }
 
-    pub fn with_lp_share_denom(mut self, denom: String) -> Self {
-        self.lp_share_denom = denom;
+    pub fn with_lp_share_denom(mut self, denom: &str) -> Self {
+        self.lp_share_denom = denom.to_owned();
         self
     }
 
