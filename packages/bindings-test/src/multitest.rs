@@ -18,9 +18,9 @@ use coreum_wasm_sdk::{
 };
 use cosmwasm_std::{
     testing::{MockApi, MockQuerier, MockStorage},
-    to_json_binary, Addr, Api, BankMsg, BankQuery, Binary, BlockInfo, Coin, CustomQuery, Empty,
-    Order, OwnedDeps, Querier, QuerierResult, QuerierWrapper, QueryRequest, StdError, StdResult,
-    Storage, Timestamp,
+    to_json_binary, Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, BlockInfo, Coin,
+    CustomQuery, Empty, Order, OwnedDeps, Querier, QuerierResult, QuerierWrapper, QueryRequest,
+    StdError, StdResult, Storage, Timestamp,
 };
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Executor, Module,
@@ -95,13 +95,12 @@ impl Module for CoreumModule {
         match request {
             CoreumQueries::AssetFT(r) => match r {
                 assetft::Query::Balance { account, denom } => {
-                    let bank_query = QueryRequest::Bank(BankQuery::Balance {
-                        address: account,
-                        denom,
-                    });
-                    // TODO!
-                    let res: assetft::BalanceResponse =
-                        querier.raw_query(api, storage, querier, block, bank_query.into());
+                    let bank_query: QueryRequest<cosmwasm_std::Empty> =
+                        QueryRequest::Bank(BankQuery::Balance {
+                            address: account,
+                            denom,
+                        });
+                    let res: BalanceResponse = QuerierWrapper::new(querier).query(&bank_query)?;
                     Ok(to_json_binary(&assetft::BalanceResponse {
                         balance: res.amount.amount.to_string(),
                         whitelisted: "".to_owned(),
