@@ -45,14 +45,14 @@ pub(super) fn contract_token() -> Box<dyn Contract<CoreumMsg, CoreumQueries>> {
 
 pub const COREUM_DENOM: &str = "ucore";
 
-pub(super) fn juno_power(amount: u128) -> Vec<(AssetInfoValidated, u128)> {
+pub(super) fn core_power(amount: u128) -> Vec<(AssetInfoValidated, u128)> {
     vec![(
         AssetInfoValidated::SmartToken(COREUM_DENOM.to_string()),
         amount,
     )]
 }
 
-pub(super) fn juno(amount: u128) -> AssetValidated {
+pub(super) fn core(amount: u128) -> AssetValidated {
     AssetInfoValidated::SmartToken(COREUM_DENOM.to_string()).with_balance(amount)
 }
 

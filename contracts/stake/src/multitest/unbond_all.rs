@@ -7,7 +7,7 @@ use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
 
 use crate::{multitest::suite::SuiteBuilder, ContractError};
 
-use super::suite::{contract_token, juno, SEVEN_DAYS};
+use super::suite::{contract_token, core, SEVEN_DAYS};
 
 const UNBONDER: &str = "unbonder";
 const ADMIN: &str = "admin";
@@ -289,7 +289,7 @@ fn multiple_distribution_flows() {
         .with_initial_balances(vec![(user, 100_000)])
         .with_admin("admin")
         .with_unbonder(UNBONDER)
-        .with_native_balances("juno", vec![(user, 1200)])
+        .with_native_balances("core", vec![(user, 1200)])
         .build();
 
     // Create CW20 token.
@@ -325,7 +325,7 @@ fn multiple_distribution_flows() {
         .create_distribution_flow(
             "admin",
             user,
-            AssetInfo::Native("juno".to_string()),
+            AssetInfo::Native("core".to_string()),
             vec![(unbonding_period, Decimal::one())],
         )
         .unwrap();
@@ -343,7 +343,7 @@ fn multiple_distribution_flows() {
 
     // Fund both distribution flows with same amount.
     suite
-        .execute_fund_distribution(user, None, juno(400))
+        .execute_fund_distribution(user, None, core(400))
         .unwrap();
     suite
         .execute_fund_distribution_with_cw20(

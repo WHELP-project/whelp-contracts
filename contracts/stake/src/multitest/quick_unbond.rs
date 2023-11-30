@@ -276,7 +276,7 @@ fn multiple_distributions() {
         .with_tokens_per_power(10)
         .with_unbonding_periods(UNBONDING_PERIODS.to_vec())
         .with_native_balances("cash", vec![(REWARDS_DISTRIBUTOR, 100_000)])
-        .with_native_balances("juno", vec![(REWARDS_DISTRIBUTOR, 100_000)])
+        .with_native_balances("core", vec![(REWARDS_DISTRIBUTOR, 100_000)])
         .with_initial_balances(vec![(VOTER1, 10), (VOTER2, 100), (VOTER3, 200)])
         .build();
 
@@ -296,7 +296,7 @@ fn multiple_distributions() {
         .create_distribution_flow(
             ADMIN,
             REWARDS_DISTRIBUTOR,
-            AssetInfo::Native("juno".to_string()),
+            AssetInfo::Native("core".to_string()),
             vec![
                 (UNBONDING_PERIODS[0], Decimal::percent(100)),
                 (UNBONDING_PERIODS[1], Decimal::percent(200)),
@@ -332,7 +332,7 @@ fn multiple_distributions() {
     );
     // => total power is 30
 
-    // distribute 3000 cash and 1500 juno
+    // distribute 3000 cash and 1500 core
     suite
         .distribute_funds(
             REWARDS_DISTRIBUTOR,
@@ -344,7 +344,7 @@ fn multiple_distributions() {
         .distribute_funds(
             REWARDS_DISTRIBUTOR,
             REWARDS_DISTRIBUTOR,
-            Some(AssetInfoValidated::Native("juno".to_string()).with_balance(1500u128)),
+            Some(AssetInfoValidated::Native("core".to_string()).with_balance(1500u128)),
         )
         .unwrap();
 
@@ -353,9 +353,9 @@ fn multiple_distributions() {
         let voter1_cash = suite.query_balance(VOTER1, "cash").unwrap();
         let voter2_cash = suite.query_balance(VOTER2, "cash").unwrap();
         let voter3_cash = suite.query_balance(VOTER3, "cash").unwrap();
-        let voter1_juno = suite.query_balance(VOTER1, "juno").unwrap();
-        let voter2_juno = suite.query_balance(VOTER2, "juno").unwrap();
-        let voter3_juno = suite.query_balance(VOTER3, "juno").unwrap();
+        let voter1_core = suite.query_balance(VOTER1, "core").unwrap();
+        let voter2_core = suite.query_balance(VOTER2, "core").unwrap();
+        let voter3_core = suite.query_balance(VOTER3, "core").unwrap();
 
         let voter1_rewards = suite.withdrawable_rewards(VOTER1).unwrap();
         let voter2_rewards = suite.withdrawable_rewards(VOTER2).unwrap();
@@ -377,19 +377,19 @@ fn multiple_distributions() {
             2000,
             "20 / 30 * 3000 = 2000"
         );
-        // assert juno rewards
+        // assert core rewards
         assert_eq!(
-            voter1_rewards[1].amount.u128() + voter1_juno,
+            voter1_rewards[1].amount.u128() + voter1_core,
             0,
             "no power => no rewards"
         );
         assert_eq!(
-            voter2_rewards[1].amount.u128() + voter2_juno,
+            voter2_rewards[1].amount.u128() + voter2_core,
             500,
             "10 / 30 * 1500 = 500"
         );
         assert_eq!(
-            voter3_rewards[1].amount.u128() + voter3_juno,
+            voter3_rewards[1].amount.u128() + voter3_core,
             1000,
             "20 / 30 * 1500 = 1000"
         );

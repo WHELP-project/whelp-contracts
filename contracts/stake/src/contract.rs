@@ -1245,7 +1245,7 @@ mod tests {
     const UNBONDING_PERIOD: u64 = UNBONDING_BLOCKS / 5;
     const UNBONDING_PERIOD_2: u64 = 2 * UNBONDING_PERIOD;
     const SMART_TOKEN_DENOM: &str = "wasm1234567890";
-    const DENOM: &str = "juno";
+    const DENOM: &str = "core";
 
     #[test]
     fn check_crate_name() {
@@ -1963,7 +1963,7 @@ mod tests {
         assert_eq!(
             err,
             ContractError::DistributionAlreadyExists(AssetInfoValidated::SmartToken(
-                "juno".to_string()
+                "core".to_string()
             ))
         );
     }

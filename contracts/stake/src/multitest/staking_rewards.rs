@@ -4,7 +4,7 @@ use dex::stake::UnbondingPeriod;
 
 use crate::error::ContractError;
 use crate::msg::{AllStakedResponse, StakedResponse};
-use crate::multitest::suite::{juno_power, SEVEN_DAYS};
+use crate::multitest::suite::{core_power, SEVEN_DAYS};
 
 use super::suite::SuiteBuilder;
 use test_case::test_case;
@@ -151,7 +151,7 @@ fn one_user_multiple_periods_rebond_then_bond() {
         .create_distribution_flow(
             "admin",
             user,
-            AssetInfo::Native("juno".to_string()),
+            AssetInfo::Native("core".to_string()),
             vec![
                 (unbonding_period1, Decimal::percent(25)),
                 (unbonding_period2, Decimal::percent(60)),
@@ -182,9 +182,9 @@ fn one_user_multiple_periods_rebond_then_bond() {
 
     assert_eq!(
         suite.query_rewards_power(user).unwrap(),
-        vec![(AssetInfoValidated::Native("juno".to_string()), 38u128)]
+        vec![(AssetInfoValidated::Native("core".to_string()), 38u128)]
     );
-    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(38)); // 0.25 * 0 + 0.6 * 50_000 + 0.8 * 10_000
+    assert_eq!(suite.query_total_rewards_power().unwrap(), core_power(38)); // 0.25 * 0 + 0.6 * 50_000 + 0.8 * 10_000
 
     // top some more on first unbonding period but not more than we originally topped up
     suite.delegate(user, 25_000u128, unbonding_period1).unwrap();
@@ -219,9 +219,9 @@ fn one_user_multiple_periods_rebond_then_bond() {
     );
     assert_eq!(
         suite.query_rewards_power(user).unwrap(),
-        vec![(AssetInfoValidated::Native("juno".to_string()), 44u128)]
+        vec![(AssetInfoValidated::Native("core".to_string()), 44u128)]
     );
-    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(44)); // 0.25 * 25_000 + 0.6 * 50_000 + 0.8 * 10_000
+    assert_eq!(suite.query_total_rewards_power().unwrap(), core_power(44)); // 0.25 * 25_000 + 0.6 * 50_000 + 0.8 * 10_000
 }
 
 #[test]
@@ -387,7 +387,7 @@ fn multiple_users_multiple_unbonding_periods() {
         .create_distribution_flow(
             "admin",
             members[0],
-            AssetInfo::Native("juno".to_string()),
+            AssetInfo::Native("core".to_string()),
             vec![
                 (unbonding_period1, Decimal::percent(1)),
                 (unbonding_period2, Decimal::percent(40)),
@@ -424,10 +424,10 @@ fn multiple_users_multiple_unbonding_periods() {
 
     assert_eq!(
         suite.query_rewards_power(user1).unwrap(),
-        vec![(AssetInfoValidated::Native("juno".to_string()), 6u128)]
+        vec![(AssetInfoValidated::Native("core".to_string()), 6u128)]
     ); // same as before
 
-    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(27)); // same as before
+    assert_eq!(suite.query_total_rewards_power().unwrap(), core_power(27)); // same as before
 }
 
 #[test]
