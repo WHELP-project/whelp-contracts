@@ -1383,6 +1383,7 @@ pub fn compute_offer_amount(
 /// * **deposits** array with offer and ask amounts for a swap.
 ///
 /// * **pools** array with total amount of assets in the pool.
+#[allow(dead_code)]
 fn assert_slippage_tolerance(
     slippage_tolerance: Option<Decimal>,
     deposits: &[Uint128; 2],
@@ -1528,6 +1529,7 @@ fn stop_changing_amp(mut config: Config, deps: DepsMut, env: Env) -> StdResult<(
 }
 
 /// Compute the current pool D value.
+#[allow(dead_code)]
 fn query_compute_d(deps: Deps<CoreumQueries>, env: Env) -> StdResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
 
