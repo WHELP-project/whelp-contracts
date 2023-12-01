@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::vec;
 
 use coreum_wasm_sdk::{
@@ -29,7 +28,7 @@ use dex::{
         get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
-        StablePoolUpdateParams, DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE,
+        StablePoolUpdateParams, LP_TOKEN_PRECISION,
     },
     DecimalCheckedOps,
 };
@@ -205,9 +204,9 @@ pub fn execute(
         ExecuteMsg::Receive(msg) => receive_cw20(deps, env, info, msg),
         ExecuteMsg::ProvideLiquidity {
             assets,
-            slippage_tolerance,
+            slippage_tolerance: _,
             receiver,
-        } => provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver),
+        } => provide_liquidity(deps, env, info, assets, receiver),
         ExecuteMsg::UpdateFees { fee_config } => update_fees(deps, info, fee_config),
         ExecuteMsg::Swap {
             offer_asset,
@@ -330,10 +329,6 @@ pub fn update_fees(
 ///
 /// * **assets** is an array with assets available in the pool.
 ///
-/// * **slippage_tolerance** is an optional parameter which is used to specify how much
-/// the pool price can move until the provide liquidity transaction goes through.
-///
-///
 /// * **receiver** is an optional parameter which defines the receiver of the LP tokens.
 /// If no custom receiver is specified, the pool will mint LP tokens for the function caller.
 ///
@@ -343,7 +338,6 @@ pub fn provide_liquidity(
     env: Env,
     info: MessageInfo,
     assets: Vec<Asset>,
-    _slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
     check_if_frozen(&deps)?;
@@ -1374,44 +1368,6 @@ pub fn compute_offer_amount(
         .saturating_sub(before_commission_deduction.try_into()?);
     let commission_amount = before_commission_deduction * decimal2decimal256(commission_rate)?;
     Ok((offer_amount, spread_amount, commission_amount.try_into()?))
-}
-
-/// This is an internal function that enforces slippage tolerance for swaps.
-///
-/// * **slippage_tolerance** slippage tolerance to enforce.
-///
-/// * **deposits** array with offer and ask amounts for a swap.
-///
-/// * **pools** array with total amount of assets in the pool.
-#[allow(dead_code)]
-fn assert_slippage_tolerance(
-    slippage_tolerance: Option<Decimal>,
-    deposits: &[Uint128; 2],
-    pools: &[AssetValidated],
-) -> Result<(), ContractError> {
-    let default_slippage = Decimal::from_str(DEFAULT_SLIPPAGE)?;
-    let max_allowed_slippage = Decimal::from_str(MAX_ALLOWED_SLIPPAGE)?;
-
-    let slippage_tolerance = slippage_tolerance.unwrap_or(default_slippage);
-    if slippage_tolerance.gt(&max_allowed_slippage) {
-        return Err(ContractError::AllowedSpreadAssertion {});
-    }
-
-    let slippage_tolerance: Decimal256 = decimal2decimal256(slippage_tolerance)?;
-    let one_minus_slippage_tolerance = Decimal256::one() - slippage_tolerance;
-    let deposits: [Uint256; 2] = [deposits[0].into(), deposits[1].into()];
-    let pools: [Uint256; 2] = [pools[0].amount.into(), pools[1].amount.into()];
-
-    // Ensure each price does not change more than what the slippage tolerance allows
-    if Decimal256::from_ratio(deposits[0], deposits[1]) * one_minus_slippage_tolerance
-        > Decimal256::from_ratio(pools[0], pools[1])
-        || Decimal256::from_ratio(deposits[1], deposits[0]) * one_minus_slippage_tolerance
-            > Decimal256::from_ratio(pools[1], pools[0])
-    {
-        return Err(ContractError::MaxSlippageAssertion {});
-    }
-
-    Ok(())
 }
 
 /// Returns the total amount of assets in the pool as well as the total amount of LP tokens currently minted.
