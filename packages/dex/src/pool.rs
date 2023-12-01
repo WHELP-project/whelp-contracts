@@ -9,8 +9,8 @@ use crate::{
 
 use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Decimal, Decimal256, QuerierWrapper, StdError, StdResult, Uint128,
-    WasmMsg,
+    to_json_binary, Addr, Binary, Decimal, Decimal256, QuerierWrapper, StdError, StdResult,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ReceiveMsg;
 
@@ -144,7 +144,7 @@ impl StakeConfig {
             .to_string();
         Ok(WasmMsg::Instantiate {
             code_id: self.staking_code_id,
-            msg: to_binary(&crate::stake::InstantiateMsg {
+            msg: to_json_binary(&crate::stake::InstantiateMsg {
                 lp_share_denom, // denom of LP token
                 tokens_per_power: self.tokens_per_power,
                 min_bond: self.min_bond,

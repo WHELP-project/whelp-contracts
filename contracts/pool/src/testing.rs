@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::{assetft, core::CoreumMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    assert_approx_eq, attr, coin, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
+    assert_approx_eq, attr, coin, coins, from_json, to_json_binary, Addr, BankMsg, BlockInfo, Coin,
     CosmosMsg, Decimal, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -96,7 +96,7 @@ fn proper_initialization() {
                     code_id: 11,
                     funds: vec![],
                     label: "Dex-Stake".to_owned(),
-                    msg: to_binary(&dex::stake::InstantiateMsg {
+                    msg: to_json_binary(&dex::stake::InstantiateMsg {
                         lp_share_denom: "uuusdmapplp-cosmos2contract".to_owned(),
                         tokens_per_power: Uint128::new(1000),
                         min_bond: Uint128::new(1000),
@@ -309,7 +309,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from("addr0000"),
         amount: offer_amount,
-        msg: to_binary(&Cw20HookMsg::Swap {
+        msg: to_json_binary(&Cw20HookMsg::Swap {
             ask_asset_info: None,
             belief_price: None,
             max_spread: Some(Decimal::percent(50)),
@@ -402,7 +402,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from("addr0000"),
         amount: offer_amount,
-        msg: to_binary(&Cw20HookMsg::Swap {
+        msg: to_json_binary(&Cw20HookMsg::Swap {
             ask_asset_info: None,
             belief_price: None,
             max_spread: Some(Decimal::percent(50)),
@@ -489,7 +489,7 @@ fn provide_liquidity() {
         &SubMsg {
             msg: WasmMsg::Execute {
                 contract_addr: String::from("asset0000"),
-                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
                     owner: String::from("addr0000"),
                     recipient: String::from(MOCK_CONTRACT_ADDR),
                     amount: Uint128::from(100_000000000000000000u128),
@@ -592,7 +592,7 @@ fn provide_liquidity() {
         &SubMsg {
             msg: WasmMsg::Execute {
                 contract_addr: String::from("asset0000"),
-                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
                     owner: String::from("addr0000"),
                     recipient: String::from(MOCK_CONTRACT_ADDR),
                     amount: Uint128::from(100_000000000000000000u128),
@@ -979,7 +979,7 @@ fn withdraw_liquidity() {
         &SubMsg {
             msg: WasmMsg::Execute {
                 contract_addr: String::from("asset0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: String::from("addr0000"),
                     amount: Uint128::from(100u128),
                 })
@@ -1141,7 +1141,7 @@ fn query_twap() {
     env.block.time = env.block.time.plus_seconds(HALF_HOUR);
 
     // query twap after swap price change
-    let twap: TwapResponse = from_binary(
+    let twap: TwapResponse = from_json(
         &query(
             deps.as_ref(),
             env,
@@ -1369,7 +1369,7 @@ fn try_native_to_token() {
         &SubMsg {
             msg: WasmMsg::Execute {
                 contract_addr: String::from("asset0000"),
-                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: String::from("addr0000"),
                     amount: expected_return_amount,
                 })
@@ -1462,7 +1462,7 @@ fn try_token_to_native() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from("addr0000"),
         amount: offer_amount,
-        msg: to_binary(&Cw20HookMsg::Swap {
+        msg: to_json_binary(&Cw20HookMsg::Swap {
             ask_asset_info: None,
             belief_price: None,
             max_spread: Some(Decimal::percent(50)),
@@ -1588,7 +1588,7 @@ fn try_token_to_native() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from("addr0000"),
         amount: offer_amount,
-        msg: to_binary(&Cw20HookMsg::Swap {
+        msg: to_json_binary(&Cw20HookMsg::Swap {
             ask_asset_info: None,
             belief_price: None,
             max_spread: None,
