@@ -160,7 +160,7 @@ pub fn query_fee_info(
 
 /// Accepts two tokens as input and returns a pool's information.
 pub fn query_pool_info(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     factory_contract: impl Into<String>,
     asset_infos: &[AssetInfo],
 ) -> StdResult<PairInfo> {
