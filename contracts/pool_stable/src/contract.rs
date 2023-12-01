@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::vec;
 
 use coreum_wasm_sdk::{
@@ -7,7 +6,7 @@ use coreum_wasm_sdk::{
     core::{CoreumMsg, CoreumQueries},
 };
 use cosmwasm_std::{
-    attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
+    attr, coin, ensure, entry_point, from_json, to_json_binary, Addr, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Fraction, MessageInfo, QuerierWrapper,
     Reply, StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
@@ -29,7 +28,7 @@ use dex::{
         get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
         CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
-        StablePoolUpdateParams, DEFAULT_SLIPPAGE, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE,
+        StablePoolUpdateParams, LP_TOKEN_PRECISION,
     },
     DecimalCheckedOps,
 };
@@ -40,8 +39,8 @@ use crate::{
         get_precision, store_precisions, Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT,
     },
     utils::{
-        accumulate_prices, adjust_precision, calc_new_price_a_per_b, calc_spot_price,
-        compute_current_amp, compute_swap, find_spot_price, select_pools, SwapResult,
+        accumulate_prices, adjust_precision, calc_new_price_a_per_b, compute_current_amp,
+        compute_swap, select_pools, SwapResult,
     },
 };
 
@@ -81,7 +80,7 @@ pub fn instantiate(
 
     msg.validate_fees()?;
 
-    let params: StablePoolParams = from_binary(&msg.init_params.unwrap())?;
+    let params: StablePoolParams = from_json(&msg.init_params.unwrap())?;
 
     if params.amp == 0 || params.amp > MAX_AMP {
         return Err(ContractError::IncorrectAmp { max_amp: MAX_AMP });
@@ -205,9 +204,9 @@ pub fn execute(
         ExecuteMsg::Receive(msg) => receive_cw20(deps, env, info, msg),
         ExecuteMsg::ProvideLiquidity {
             assets,
-            slippage_tolerance,
+            slippage_tolerance: _,
             receiver,
-        } => provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver),
+        } => provide_liquidity(deps, env, info, assets, receiver),
         ExecuteMsg::UpdateFees { fee_config } => update_fees(deps, info, fee_config),
         ExecuteMsg::Swap {
             offer_asset,
@@ -266,7 +265,7 @@ pub fn receive_cw20(
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    match from_binary(&cw20_msg.msg)? {
+    match from_json(&cw20_msg.msg)? {
         Cw20HookMsg::Swap {
             ask_asset_info,
             belief_price,
@@ -330,20 +329,15 @@ pub fn update_fees(
 ///
 /// * **assets** is an array with assets available in the pool.
 ///
-/// * **slippage_tolerance** is an optional parameter which is used to specify how much
-/// the pool price can move until the provide liquidity transaction goes through.
-///
-///
 /// * **receiver** is an optional parameter which defines the receiver of the LP tokens.
 /// If no custom receiver is specified, the pool will mint LP tokens for the function caller.
 ///
 /// NOTE - the address that wants to provide liquidity should approve the pool contract to pull its relevant tokens.
 pub fn provide_liquidity(
-    mut deps: DepsMut<CoreumQueries>,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     assets: Vec<Asset>,
-    slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
     check_if_frozen(&deps)?;
@@ -419,7 +413,7 @@ pub fn provide_liquidity(
             if let AssetInfoValidated::Cw20Token(contract_addr) = &deposit.info {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.to_string(),
-                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
                         owner: info.sender.to_string(),
                         recipient: env.contract.address.to_string(),
                         amount: deposit.amount,
@@ -599,7 +593,7 @@ pub fn withdraw_liquidity(
     assets: Vec<Asset>,
 ) -> Result<Response, ContractError> {
     let assets = check_assets(deps.api, &assets)?;
-    let mut config = CONFIG.load(deps.storage).unwrap();
+    let config = CONFIG.load(deps.storage).unwrap();
 
     if info.funds[0].denom.clone() != config.pool_info.liquidity_token.clone() {
         return Err(ContractError::Unauthorized {});
@@ -637,7 +631,7 @@ pub fn withdraw_liquidity(
         refund_assets[0].clone().into_msg(sender.clone())?,
         refund_assets[1].clone().into_msg(sender.clone())?,
         CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Burn {
-            coin: coin(amount.u128(), &config.pool_info.liquidity_token),
+            coin: coin(burn_amount.u128(), &config.pool_info.liquidity_token),
         })),
     ];
     LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
@@ -779,7 +773,7 @@ pub fn swap(
     );
 
     // Compute the protocol fee
-    let mut protocol_fee_amount = Uint128::zero();
+    let protocol_fee_amount = Uint128::zero();
     // FIXME: Uncomment when factory is ready
     // if let Some(fee_address) = factory_config.fee_address {
     //     if let Some(f) = calculate_protocol_fee(
@@ -897,16 +891,16 @@ pub fn calculate_protocol_fee(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Pair {} => to_binary(&CONFIG.load(deps.storage)?.pool_info),
-        QueryMsg::Pool {} => to_binary(&query_pool(deps)?),
-        QueryMsg::Share { amount } => to_binary(&query_share(deps, amount)?),
+        QueryMsg::Pair {} => to_json_binary(&CONFIG.load(deps.storage)?.pool_info),
+        QueryMsg::Pool {} => to_json_binary(&query_pool(deps)?),
+        QueryMsg::Share { amount } => to_json_binary(&query_share(deps, amount)?),
         QueryMsg::Simulation {
             offer_asset,
             ask_asset_info,
             referral,
             referral_commission,
             ..
-        } => to_binary(&query_simulation(
+        } => to_json_binary(&query_simulation(
             deps,
             env,
             offer_asset,
@@ -920,7 +914,7 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
             referral,
             referral_commission,
             ..
-        } => to_binary(&query_reverse_simulation(
+        } => to_json_binary(&query_reverse_simulation(
             deps,
             env,
             ask_asset,
@@ -928,12 +922,12 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
             referral,
             referral_commission,
         )?),
-        QueryMsg::CumulativePrices {} => to_binary(&query_cumulative_prices(deps, env)?),
+        QueryMsg::CumulativePrices {} => to_json_binary(&query_cumulative_prices(deps, env)?),
         QueryMsg::Twap {
             duration,
             start_age,
             end_age,
-        } => to_binary(&dex::oracle::query_oracle_range(
+        } => to_json_binary(&dex::oracle::query_oracle_range(
             deps.storage,
             &env,
             &CONFIG.load(deps.storage)?.pool_info.asset_infos,
@@ -941,7 +935,7 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
             start_age,
             end_age,
         )?),
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         _ => Err(StdError::generic_err("Query is not supported")),
     }
 }
@@ -980,10 +974,10 @@ pub fn query_simulation(
     env: Env,
     offer_asset: Asset,
     ask_asset_info: Option<AssetInfo>,
-    referral: bool,
-    referral_commission: Option<Decimal>,
+    _referral: bool,
+    _referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let mut offer_asset = offer_asset.validate(deps.api)?;
+    let offer_asset = offer_asset.validate(deps.api)?;
     let ask_asset_info = ask_asset_info.map(|a| a.validate(deps.api)).transpose()?;
     let mut config = CONFIG.load(deps.storage)?;
     let pools = config
@@ -1376,43 +1370,6 @@ pub fn compute_offer_amount(
     Ok((offer_amount, spread_amount, commission_amount.try_into()?))
 }
 
-/// This is an internal function that enforces slippage tolerance for swaps.
-///
-/// * **slippage_tolerance** slippage tolerance to enforce.
-///
-/// * **deposits** array with offer and ask amounts for a swap.
-///
-/// * **pools** array with total amount of assets in the pool.
-fn assert_slippage_tolerance(
-    slippage_tolerance: Option<Decimal>,
-    deposits: &[Uint128; 2],
-    pools: &[AssetValidated],
-) -> Result<(), ContractError> {
-    let default_slippage = Decimal::from_str(DEFAULT_SLIPPAGE)?;
-    let max_allowed_slippage = Decimal::from_str(MAX_ALLOWED_SLIPPAGE)?;
-
-    let slippage_tolerance = slippage_tolerance.unwrap_or(default_slippage);
-    if slippage_tolerance.gt(&max_allowed_slippage) {
-        return Err(ContractError::AllowedSpreadAssertion {});
-    }
-
-    let slippage_tolerance: Decimal256 = decimal2decimal256(slippage_tolerance)?;
-    let one_minus_slippage_tolerance = Decimal256::one() - slippage_tolerance;
-    let deposits: [Uint256; 2] = [deposits[0].into(), deposits[1].into()];
-    let pools: [Uint256; 2] = [pools[0].amount.into(), pools[1].amount.into()];
-
-    // Ensure each price does not change more than what the slippage tolerance allows
-    if Decimal256::from_ratio(deposits[0], deposits[1]) * one_minus_slippage_tolerance
-        > Decimal256::from_ratio(pools[0], pools[1])
-        || Decimal256::from_ratio(deposits[1], deposits[0]) * one_minus_slippage_tolerance
-            > Decimal256::from_ratio(pools[1], pools[0])
-    {
-        return Err(ContractError::MaxSlippageAssertion {});
-    }
-
-    Ok(())
-}
-
 /// Returns the total amount of assets in the pool as well as the total amount of LP tokens currently minted.
 pub fn pool_info(
     deps: Deps<CoreumQueries>,
@@ -1452,7 +1409,7 @@ pub fn update_config(
         return Err(ContractError::Unauthorized {});
     }
 
-    match from_binary::<StablePoolUpdateParams>(&params)? {
+    match from_json::<StablePoolUpdateParams>(&params)? {
         StablePoolUpdateParams::StartChangingAmp {
             next_amp,
             next_amp_time,
@@ -1528,6 +1485,7 @@ fn stop_changing_amp(mut config: Config, deps: DepsMut, env: Env) -> StdResult<(
 }
 
 /// Compute the current pool D value.
+#[allow(dead_code)]
 fn query_compute_d(deps: Deps<CoreumQueries>, env: Env) -> StdResult<Uint128> {
     let config = CONFIG.load(deps.storage)?;
 
@@ -1547,9 +1505,9 @@ fn query_compute_d(deps: Deps<CoreumQueries>, env: Env) -> StdResult<Uint128> {
 /// Updates the config's target rate from the configured lsd hub contract if it is outdated.
 /// Returns `true` if the target rate was updated, `false` otherwise.
 fn update_target_rate(
-    querier: QuerierWrapper<CoreumQueries>,
-    config: &mut Config,
-    env: &Env,
+    _querier: QuerierWrapper<CoreumQueries>,
+    _config: &mut Config,
+    _env: &Env,
 ) -> StdResult<bool> {
     Ok(false)
 }

@@ -360,11 +360,11 @@ pub fn recurse_bisect_spot_price(
 /// Pretend we swapped amount from token into to token.
 /// Return the pools value as if this happened to use for future calculations
 fn pools_after_swap(
-    config: &Config,
+    _config: &Config,
     offer: &AssetInfoValidated,
     ask: &AssetInfoValidated,
     pools: &[DecimalAsset],
-    mut amount: Decimal256,
+    amount: Decimal256,
 ) -> Vec<DecimalAsset> {
     pools
         .iter()

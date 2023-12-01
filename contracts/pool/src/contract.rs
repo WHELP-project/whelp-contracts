@@ -6,7 +6,7 @@ use coreum_wasm_sdk::{
     core::{CoreumMsg, CoreumQueries},
 };
 use cosmwasm_std::{
-    attr, coin, ensure, entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin,
+    attr, coin, ensure, entry_point, from_json, to_json_binary, Addr, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, Deps, DepsMut, Env, Isqrt, MessageInfo, Reply, StdError,
     StdResult, Uint128, Uint256, WasmMsg,
 };
@@ -99,7 +99,7 @@ pub fn instantiate(
         .add_submessage(SubMsg::reply_on_success(
             WasmMsg::Instantiate {
                 code_id: msg.staking_config.staking_code_id,
-                msg: to_binary(&dex::stake::InstantiateMsg {
+                msg: to_json_binary(&dex::stake::InstantiateMsg {
                     lp_share_denom,
                     tokens_per_power: msg.staking_config.tokens_per_power,
                     min_bond: msg.staking_config.min_bond,
@@ -242,7 +242,7 @@ pub fn receive_cw20(
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    match from_binary(&cw20_msg.msg)? {
+    match from_json(&cw20_msg.msg)? {
         Cw20HookMsg::Swap {
             belief_price,
             max_spread,
@@ -919,15 +919,15 @@ pub fn calculate_protocol_fee(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Pair {} => to_binary(&CONFIG.load(deps.storage)?.pool_info),
-        QueryMsg::Pool {} => to_binary(&query_pool(deps)?),
-        QueryMsg::Share { amount } => to_binary(&query_share(deps, amount)?),
+        QueryMsg::Pair {} => to_json_binary(&CONFIG.load(deps.storage)?.pool_info),
+        QueryMsg::Pool {} => to_json_binary(&query_pool(deps)?),
+        QueryMsg::Share { amount } => to_json_binary(&query_share(deps, amount)?),
         QueryMsg::Simulation {
             offer_asset,
             referral,
             referral_commission,
             ..
-        } => to_binary(&query_simulation(
+        } => to_json_binary(&query_simulation(
             deps,
             offer_asset,
             referral,
@@ -938,18 +938,18 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
             referral,
             referral_commission,
             ..
-        } => to_binary(&query_reverse_simulation(
+        } => to_json_binary(&query_reverse_simulation(
             deps,
             ask_asset,
             referral,
             referral_commission,
         )?),
-        QueryMsg::CumulativePrices {} => to_binary(&query_cumulative_prices(deps, env)?),
+        QueryMsg::CumulativePrices {} => to_json_binary(&query_cumulative_prices(deps, env)?),
         QueryMsg::Twap {
             duration,
             start_age,
             end_age,
-        } => to_binary(&dex::oracle::query_oracle_range(
+        } => to_json_binary(&dex::oracle::query_oracle_range(
             deps.storage,
             &env,
             &CONFIG.load(deps.storage)?.pool_info.asset_infos,
@@ -957,7 +957,7 @@ pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Bi
             start_age,
             end_age,
         )?),
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         _ => Err(StdError::generic_err("Query is not supported")),
     }
 }

@@ -4,8 +4,8 @@ use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure_eq, from_slice, to_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Order, StdError, StdResult, Storage, Uint128, WasmMsg,
+    ensure_eq, from_json, to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Order, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_controllers::Claim;
@@ -411,7 +411,7 @@ pub fn execute_mass_bond(
     // ensure that cw20 token contract's addresses matches
     if cfg.lp_share_denom != lp_share.denom {
         return Err(ContractError::DenomNotMatch {
-            got: lp_share.denom.into(),
+            got: lp_share.denom,
             expected: cfg.lp_share_denom,
         });
     }
@@ -441,7 +441,7 @@ pub fn execute_mass_bond(
             |bonding_info| -> StdResult<_> {
                 let mut bonding_info = bonding_info.unwrap_or_default();
                 old_stake = bonding_info.total_stake();
-                bonding_info.add_unlocked_tokens(lp_share.amount.clone());
+                bonding_info.add_unlocked_tokens(lp_share.amount);
                 Ok(bonding_info)
             },
         )?
@@ -475,7 +475,7 @@ pub fn execute_mass_bond(
     // update total after all individuals are handled
     TOTAL_STAKED.update::<_, StdError>(deps.storage, |token_info| {
         Ok(TokenInfo {
-            staked: token_info.staked + lp_share.amount.clone(),
+            staked: token_info.staked + lp_share.amount,
             unbonding: token_info.unbonding,
         })
     })?;
@@ -550,8 +550,8 @@ pub fn execute_receive(
     // This cannot be fully trusted (the cw20 contract can fake it), so only use it for actions
     // in the address's favor (like paying/bonding tokens, not withdrawls)
 
-    let msg: ReceiveMsg = from_slice(&wrapper.msg)?;
-    let api = deps.api;
+    let msg: ReceiveMsg = from_json(&wrapper.msg)?;
+    let _api = deps.api;
     match msg {
         ReceiveMsg::Fund { funding_info } => {
             if UNBOND_ALL.load(deps.storage)? {
@@ -711,7 +711,7 @@ pub fn execute_quick_unbond(
         if !amount.is_zero() {
             let undelegate_msg = WasmMsg::Execute {
                 contract_addr: cfg.lp_share_denom.to_string(),
-                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: staker.to_string(),
                     amount,
                 })?,
@@ -929,31 +929,33 @@ fn coin_to_string(amount: Uint128, address: &str) -> String {
 pub fn query(deps: Deps<CoreumQueries>, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Claims { address } => {
-            to_binary(&CLAIMS.query_claims(deps, &deps.api.addr_validate(&address)?)?)
+            to_json_binary(&CLAIMS.query_claims(deps, &deps.api.addr_validate(&address)?)?)
         }
         QueryMsg::Staked {
             address,
             unbonding_period,
-        } => to_binary(&query_staked(deps, &env, address, unbonding_period)?),
-        QueryMsg::AnnualizedRewards {} => to_binary(&query_annualized_rewards(deps, env)?),
-        QueryMsg::BondingInfo {} => to_binary(&query_bonding_info(deps)?),
-        QueryMsg::AllStaked { address } => to_binary(&query_all_staked(deps, env, address)?),
-        QueryMsg::TotalStaked {} => to_binary(&query_total_staked(deps)?),
-        QueryMsg::TotalUnbonding {} => to_binary(&query_total_unbonding(deps)?),
-        QueryMsg::Admin {} => to_binary(&ADMIN.query_admin(deps)?),
-        QueryMsg::TotalRewardsPower {} => to_binary(&query_total_rewards(deps)?),
-        QueryMsg::RewardsPower { address } => to_binary(&query_rewards(deps, address)?),
+        } => to_json_binary(&query_staked(deps, &env, address, unbonding_period)?),
+        QueryMsg::AnnualizedRewards {} => to_json_binary(&query_annualized_rewards(deps, env)?),
+        QueryMsg::BondingInfo {} => to_json_binary(&query_bonding_info(deps)?),
+        QueryMsg::AllStaked { address } => to_json_binary(&query_all_staked(deps, env, address)?),
+        QueryMsg::TotalStaked {} => to_json_binary(&query_total_staked(deps)?),
+        QueryMsg::TotalUnbonding {} => to_json_binary(&query_total_unbonding(deps)?),
+        QueryMsg::Admin {} => to_json_binary(&ADMIN.query_admin(deps)?),
+        QueryMsg::TotalRewardsPower {} => to_json_binary(&query_total_rewards(deps)?),
+        QueryMsg::RewardsPower { address } => to_json_binary(&query_rewards(deps, address)?),
         QueryMsg::WithdrawableRewards { owner } => {
-            to_binary(&query_withdrawable_rewards(deps, owner)?)
+            to_json_binary(&query_withdrawable_rewards(deps, owner)?)
         }
-        QueryMsg::DistributedRewards {} => to_binary(&query_distributed_rewards(deps)?),
-        QueryMsg::UndistributedRewards {} => to_binary(&query_undistributed_rewards(deps, env)?),
-        QueryMsg::Delegated { owner } => to_binary(&query_delegated(deps, owner)?),
-        QueryMsg::DistributionData {} => to_binary(&query_distribution_data(deps)?),
+        QueryMsg::DistributedRewards {} => to_json_binary(&query_distributed_rewards(deps)?),
+        QueryMsg::UndistributedRewards {} => {
+            to_json_binary(&query_undistributed_rewards(deps, env)?)
+        }
+        QueryMsg::Delegated { owner } => to_json_binary(&query_delegated(deps, owner)?),
+        QueryMsg::DistributionData {} => to_json_binary(&query_distribution_data(deps)?),
         QueryMsg::WithdrawAdjustmentData { addr, asset } => {
-            to_binary(&query_withdraw_adjustment_data(deps, addr, asset)?)
+            to_json_binary(&query_withdraw_adjustment_data(deps, addr, asset)?)
         }
-        QueryMsg::UnbondAll {} => to_binary(&query_unbond_all(deps)?),
+        QueryMsg::UnbondAll {} => to_json_binary(&query_unbond_all(deps)?),
     }
 }
 
@@ -1224,7 +1226,7 @@ mod tests {
     use std::marker::PhantomData;
 
     use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage};
-    use cosmwasm_std::{coin, from_slice, BankMsg, Coin, CosmosMsg, Decimal, OwnedDeps, WasmMsg};
+    use cosmwasm_std::{coin, from_json, BankMsg, Coin, CosmosMsg, Decimal, OwnedDeps};
     use cw_controllers::Claim;
     use cw_utils::Duration;
     use dex::asset::{native_asset_info, token_asset_info};
@@ -1399,7 +1401,7 @@ mod tests {
 
         // make sure distribution logic is set up properly
         let raw = query(deps.as_ref(), mock_env(), QueryMsg::DistributionData {}).unwrap();
-        let res: DistributionDataResponse = from_slice(&raw).unwrap();
+        let res: DistributionDataResponse = from_json(raw).unwrap();
         assert_eq!(
             res.distributions,
             vec![(
@@ -1424,7 +1426,7 @@ mod tests {
             },
         )
         .unwrap();
-        let res: WithdrawAdjustmentDataResponse = from_slice(&raw).unwrap();
+        let res: WithdrawAdjustmentDataResponse = from_json(raw).unwrap();
         assert_eq!(
             res,
             WithdrawAdjustment {

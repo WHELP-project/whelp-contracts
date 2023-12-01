@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_binary, Addr, Empty, StdError, Uint128};
+use cosmwasm_std::{to_json_binary, Addr, Empty, StdError, Uint128};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -94,7 +94,7 @@ fn stake_old_migrate_with_unbond_all_and_unbond() {
         &Cw20ExecuteMsg::Send {
             contract: stake_old_contract.to_string(),
             amount: 500_000u128.into(),
-            msg: to_binary(&ReceiveMsg::Delegate {
+            msg: to_json_binary(&ReceiveMsg::Delegate {
                 unbonding_period: SEVEN_DAYS,
                 delegate_as: None,
             })

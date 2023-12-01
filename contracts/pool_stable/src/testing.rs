@@ -1,33 +1,25 @@
 use coreum_wasm_sdk::{assetft, core::CoreumMsg};
-use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    assert_approx_eq, attr, coin, coins, from_binary, to_binary, Addr, BankMsg, BlockInfo, Coin,
-    CosmosMsg, Decimal, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
+    testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
+    {coin, to_json_binary, Addr, BlockInfo, Coin, Decimal, Env, ReplyOn, Timestamp, Uint128},
 };
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cw20::Cw20ReceiveMsg;
 
-use proptest::prelude::*;
-
-use dex::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated, MINIMUM_LIQUIDITY_AMOUNT};
-use dex::factory::PoolType;
-use dex::fee_config::FeeConfig;
-use dex::oracle::{SamplePeriod, TwapResponse};
-use dex::pool::{
-    assert_max_spread, ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo,
-    PoolResponse, ReverseSimulationResponse, SimulationResponse, StablePoolParams, StakeConfig,
-    LP_TOKEN_PRECISION, TWAP_PRECISION,
+use dex::{
+    asset::{Asset, AssetInfo, AssetInfoValidated, MINIMUM_LIQUIDITY_AMOUNT},
+    fee_config::FeeConfig,
+    pool::{
+        ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, StablePoolParams,
+        StakeConfig, LP_TOKEN_PRECISION,
+    },
 };
-use dex::pool::{MigrateMsg, QueryMsg};
 
-use crate::contract::{compute_offer_amount, query};
-use crate::contract::{
-    execute, instantiate, migrate, query_pool, query_reverse_simulation, query_simulation,
+use crate::{
+    contract::{execute, instantiate, migrate},
+    mock_querier::mock_dependencies,
+    state::CONFIG,
 };
-use crate::state::{Config, CONFIG};
-// TODO: Copied here just as a temporary measure
-use crate::mock_querier::mock_dependencies;
 
-pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 fn default_stake_config() -> StakeConfig {
@@ -56,7 +48,7 @@ fn proper_initialization() {
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
         init_params: Some(
-            to_binary(&StablePoolParams {
+            to_json_binary(&StablePoolParams {
                 amp: 100,
                 owner: None,
                 lsd: None,
@@ -144,7 +136,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
         ],
         // factory_addr: String::from("factory"),
         init_params: Some(
-            to_binary(&StablePoolParams {
+            to_json_binary(&StablePoolParams {
                 amp: 100,
                 owner: None,
                 lsd: None,
@@ -299,7 +291,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from("addr0000"),
         amount: offer_amount,
-        msg: to_binary(&Cw20HookMsg::Swap {
+        msg: to_json_binary(&Cw20HookMsg::Swap {
             ask_asset_info: None,
             belief_price: None,
             max_spread: Some(Decimal::percent(50)),
@@ -392,7 +384,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: String::from("addr0000"),
         amount: offer_amount,
-        msg: to_binary(&Cw20HookMsg::Swap {
+        msg: to_json_binary(&Cw20HookMsg::Swap {
             ask_asset_info: None,
             belief_price: None,
             max_spread: Some(Decimal::percent(50)),
@@ -479,7 +471,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //         &SubMsg {
 //             msg: WasmMsg::Execute {
 //                 contract_addr: String::from("asset0000"),
-//                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+//                 msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
 //                     owner: String::from("addr0000"),
 //                     recipient: String::from(MOCK_CONTRACT_ADDR),
 //                     amount: Uint128::from(100_000000000000000000u128),
@@ -582,7 +574,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //         &SubMsg {
 //             msg: WasmMsg::Execute {
 //                 contract_addr: String::from("asset0000"),
-//                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+//                 msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
 //                     owner: String::from("addr0000"),
 //                     recipient: String::from(MOCK_CONTRACT_ADDR),
 //                     amount: Uint128::from(100_000000000000000000u128),
@@ -969,7 +961,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //         &SubMsg {
 //             msg: WasmMsg::Execute {
 //                 contract_addr: String::from("asset0000"),
-//                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
+//                 msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
 //                     recipient: String::from("addr0000"),
 //                     amount: Uint128::from(100u128),
 //                 })
@@ -1131,7 +1123,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //     env.block.time = env.block.time.plus_seconds(HALF_HOUR);
 //
 //     // query twap after swap price change
-//     let twap: TwapResponse = from_binary(
+//     let twap: TwapResponse = from_json(
 //         &query(
 //             deps.as_ref(),
 //             env,
@@ -1359,7 +1351,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //         &SubMsg {
 //             msg: WasmMsg::Execute {
 //                 contract_addr: String::from("asset0000"),
-//                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
+//                 msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
 //                     recipient: String::from("addr0000"),
 //                     amount: expected_return_amount,
 //                 })
@@ -1452,7 +1444,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
 //         sender: String::from("addr0000"),
 //         amount: offer_amount,
-//         msg: to_binary(&Cw20HookMsg::Swap {
+//         msg: to_json_binary(&Cw20HookMsg::Swap {
 //             ask_asset_info: None,
 //             belief_price: None,
 //             max_spread: Some(Decimal::percent(50)),
@@ -1578,7 +1570,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
 //     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
 //         sender: String::from("addr0000"),
 //         amount: offer_amount,
-//         msg: to_binary(&Cw20HookMsg::Swap {
+//         msg: to_json_binary(&Cw20HookMsg::Swap {
 //             ask_asset_info: None,
 //             belief_price: None,
 //             max_spread: None,

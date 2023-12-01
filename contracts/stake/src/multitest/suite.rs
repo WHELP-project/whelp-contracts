@@ -4,7 +4,7 @@ use anyhow::{bail, Result as AnyResult};
 
 use coreum_test_tube::CoreumTestApp;
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
-use cosmwasm_std::{coin, to_binary, Addr, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{coin, to_json_binary, Addr, Coin, Decimal, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
 use cw_controllers::{Claim, ClaimsResponse};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
@@ -262,7 +262,7 @@ impl Suite {
             &Cw20ExecuteMsg::Send {
                 contract: self.stake_contract.to_string(),
                 amount: amount.into(),
-                msg: to_binary(&ReceiveMsg::MassDelegate {
+                msg: to_json_binary(&ReceiveMsg::MassDelegate {
                     unbonding_period: self.unbonding_period_or_default(unbonding_period),
                     delegate_to,
                 })?,
@@ -458,7 +458,7 @@ impl Suite {
             &Cw20ExecuteMsg::Send {
                 contract: self.stake_contract.to_string(),
                 amount: funds.amount,
-                msg: to_binary(&ReceiveMsg::Fund { funding_info })?,
+                msg: to_json_binary(&ReceiveMsg::Fund { funding_info })?,
             },
             &[],
         )
