@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_json, from_json, to_json_binary, Addr, Coin, Decimal, OwnedDeps, Querier, QuerierResult,
+    from_json, to_json_binary, Addr, Coin, Decimal, OwnedDeps, Querier, QuerierResult,
     QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
 

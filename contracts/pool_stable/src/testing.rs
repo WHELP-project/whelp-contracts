@@ -1,26 +1,25 @@
 use coreum_wasm_sdk::{assetft, core::CoreumMsg};
-use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coin, to_json_binary, Addr, BlockInfo, Coin, Decimal, Env, ReplyOn, Timestamp, Uint128,
+    testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
+    {coin, to_json_binary, Addr, BlockInfo, Coin, Decimal, Env, ReplyOn, Timestamp, Uint128},
 };
 use cw20::Cw20ReceiveMsg;
 
-use dex::asset::{Asset, AssetInfo, AssetInfoValidated, MINIMUM_LIQUIDITY_AMOUNT};
-
-use dex::fee_config::FeeConfig;
-
-use dex::pool::MigrateMsg;
-use dex::pool::{
-    ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, StablePoolParams, StakeConfig,
-    LP_TOKEN_PRECISION,
+use dex::{
+    asset::{Asset, AssetInfo, AssetInfoValidated, MINIMUM_LIQUIDITY_AMOUNT},
+    fee_config::FeeConfig,
+    pool::{
+        ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, StablePoolParams,
+        StakeConfig, LP_TOKEN_PRECISION,
+    },
 };
 
-use crate::contract::{execute, instantiate, migrate};
-use crate::state::CONFIG;
-// TODO: Copied here just as a temporary measure
-use crate::mock_querier::mock_dependencies;
+use crate::{
+    contract::{execute, instantiate, migrate},
+    mock_querier::mock_dependencies,
+    state::CONFIG,
+};
 
-pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 fn default_stake_config() -> StakeConfig {

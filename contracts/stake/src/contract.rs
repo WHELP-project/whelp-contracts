@@ -1401,7 +1401,7 @@ mod tests {
 
         // make sure distribution logic is set up properly
         let raw = query(deps.as_ref(), mock_env(), QueryMsg::DistributionData {}).unwrap();
-        let res: DistributionDataResponse = from_json(&raw).unwrap();
+        let res: DistributionDataResponse = from_json(raw).unwrap();
         assert_eq!(
             res.distributions,
             vec![(
@@ -1426,7 +1426,7 @@ mod tests {
             },
         )
         .unwrap();
-        let res: WithdrawAdjustmentDataResponse = from_json(&raw).unwrap();
+        let res: WithdrawAdjustmentDataResponse = from_json(raw).unwrap();
         assert_eq!(
             res,
             WithdrawAdjustment {
