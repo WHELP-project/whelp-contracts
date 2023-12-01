@@ -1,5 +1,5 @@
 use crate::state::Config;
-use cosmwasm_std::{Decimal256, Fraction, StdError, StdResult, Uint128, Uint256, Uint64};
+use cosmwasm_std::{Decimal256, StdError, StdResult, Uint128, Uint256, Uint64};
 use dex::asset::{AssetInfoValidated, Decimal256Ext, DecimalAsset};
 use itertools::Itertools;
 
@@ -73,7 +73,7 @@ pub(crate) fn compute_d(
 pub(crate) fn calc_y(
     from_asset: &DecimalAsset,
     to: &AssetInfoValidated,
-    mut new_amount: Decimal256,
+    new_amount: Decimal256,
     pools: &[DecimalAsset],
     amp: Uint64,
     target_precision: u8,
@@ -144,20 +144,24 @@ pub(crate) fn calc_y(
 }
 
 /// Applies the target rate to the amount if the asset is the LSD token.
-pub(crate) fn apply_rate(asset: &AssetInfoValidated, amount: Uint128, config: &Config) -> Uint128 {
+pub(crate) fn apply_rate(
+    _asset: &AssetInfoValidated,
+    amount: Uint128,
+    _config: &Config,
+) -> Uint128 {
     amount
 }
 
 /// Applies the target rate to the amount if the asset is the LSD token.
 pub(crate) fn apply_rate_decimal(
-    asset: &AssetInfoValidated,
+    _asset: &AssetInfoValidated,
     amount: Decimal256,
-    config: &Config,
+    _config: &Config,
 ) -> Decimal256 {
     amount
 }
 
-fn inverse_rate(to: &AssetInfoValidated, y: Uint128, config: &Config) -> Uint128 {
+fn inverse_rate(_to: &AssetInfoValidated, y: Uint128, _config: &Config) -> Uint128 {
     y
 }
 

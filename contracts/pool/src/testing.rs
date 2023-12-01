@@ -1142,7 +1142,7 @@ fn query_twap() {
 
     // query twap after swap price change
     let twap: TwapResponse = from_json(
-        &query(
+        query(
             deps.as_ref(),
             env,
             QueryMsg::Twap {

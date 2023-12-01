@@ -40,8 +40,8 @@ use crate::{
         get_precision, store_precisions, Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT,
     },
     utils::{
-        accumulate_prices, adjust_precision, calc_new_price_a_per_b, calc_spot_price,
-        compute_current_amp, compute_swap, find_spot_price, select_pools, SwapResult,
+        accumulate_prices, adjust_precision, calc_new_price_a_per_b, compute_current_amp,
+        compute_swap, select_pools, SwapResult,
     },
 };
 
@@ -339,11 +339,11 @@ pub fn update_fees(
 ///
 /// NOTE - the address that wants to provide liquidity should approve the pool contract to pull its relevant tokens.
 pub fn provide_liquidity(
-    mut deps: DepsMut<CoreumQueries>,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     assets: Vec<Asset>,
-    slippage_tolerance: Option<Decimal>,
+    _slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
     check_if_frozen(&deps)?;
@@ -599,7 +599,7 @@ pub fn withdraw_liquidity(
     assets: Vec<Asset>,
 ) -> Result<Response, ContractError> {
     let assets = check_assets(deps.api, &assets)?;
-    let mut config = CONFIG.load(deps.storage).unwrap();
+    let config = CONFIG.load(deps.storage).unwrap();
 
     if info.funds[0].denom.clone() != config.pool_info.liquidity_token.clone() {
         return Err(ContractError::Unauthorized {});
@@ -637,7 +637,7 @@ pub fn withdraw_liquidity(
         refund_assets[0].clone().into_msg(sender.clone())?,
         refund_assets[1].clone().into_msg(sender.clone())?,
         CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Burn {
-            coin: coin(amount.u128(), &config.pool_info.liquidity_token),
+            coin: coin(burn_amount.u128(), &config.pool_info.liquidity_token),
         })),
     ];
     LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
@@ -779,7 +779,7 @@ pub fn swap(
     );
 
     // Compute the protocol fee
-    let mut protocol_fee_amount = Uint128::zero();
+    let protocol_fee_amount = Uint128::zero();
     // FIXME: Uncomment when factory is ready
     // if let Some(fee_address) = factory_config.fee_address {
     //     if let Some(f) = calculate_protocol_fee(
@@ -980,10 +980,10 @@ pub fn query_simulation(
     env: Env,
     offer_asset: Asset,
     ask_asset_info: Option<AssetInfo>,
-    referral: bool,
-    referral_commission: Option<Decimal>,
+    _referral: bool,
+    _referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let mut offer_asset = offer_asset.validate(deps.api)?;
+    let offer_asset = offer_asset.validate(deps.api)?;
     let ask_asset_info = ask_asset_info.map(|a| a.validate(deps.api)).transpose()?;
     let mut config = CONFIG.load(deps.storage)?;
     let pools = config
@@ -1547,9 +1547,9 @@ fn query_compute_d(deps: Deps<CoreumQueries>, env: Env) -> StdResult<Uint128> {
 /// Updates the config's target rate from the configured lsd hub contract if it is outdated.
 /// Returns `true` if the target rate was updated, `false` otherwise.
 fn update_target_rate(
-    querier: QuerierWrapper<CoreumQueries>,
-    config: &mut Config,
-    env: &Env,
+    _querier: QuerierWrapper<CoreumQueries>,
+    _config: &mut Config,
+    _env: &Env,
 ) -> StdResult<bool> {
     Ok(false)
 }

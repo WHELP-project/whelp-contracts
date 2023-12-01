@@ -4,7 +4,7 @@ use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure_eq, from_slice, to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env,
+    ensure_eq, from_json, to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env,
     MessageInfo, Order, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -411,7 +411,7 @@ pub fn execute_mass_bond(
     // ensure that cw20 token contract's addresses matches
     if cfg.lp_share_denom != lp_share.denom {
         return Err(ContractError::DenomNotMatch {
-            got: lp_share.denom.into(),
+            got: lp_share.denom,
             expected: cfg.lp_share_denom,
         });
     }
@@ -441,7 +441,7 @@ pub fn execute_mass_bond(
             |bonding_info| -> StdResult<_> {
                 let mut bonding_info = bonding_info.unwrap_or_default();
                 old_stake = bonding_info.total_stake();
-                bonding_info.add_unlocked_tokens(lp_share.amount.clone());
+                bonding_info.add_unlocked_tokens(lp_share.amount);
                 Ok(bonding_info)
             },
         )?
@@ -475,7 +475,7 @@ pub fn execute_mass_bond(
     // update total after all individuals are handled
     TOTAL_STAKED.update::<_, StdError>(deps.storage, |token_info| {
         Ok(TokenInfo {
-            staked: token_info.staked + lp_share.amount.clone(),
+            staked: token_info.staked + lp_share.amount,
             unbonding: token_info.unbonding,
         })
     })?;
@@ -550,8 +550,8 @@ pub fn execute_receive(
     // This cannot be fully trusted (the cw20 contract can fake it), so only use it for actions
     // in the address's favor (like paying/bonding tokens, not withdrawls)
 
-    let msg: ReceiveMsg = from_slice(&wrapper.msg)?;
-    let api = deps.api;
+    let msg: ReceiveMsg = from_json(&wrapper.msg)?;
+    let _api = deps.api;
     match msg {
         ReceiveMsg::Fund { funding_info } => {
             if UNBOND_ALL.load(deps.storage)? {
@@ -1226,7 +1226,7 @@ mod tests {
     use std::marker::PhantomData;
 
     use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage};
-    use cosmwasm_std::{coin, from_slice, BankMsg, Coin, CosmosMsg, Decimal, OwnedDeps, WasmMsg};
+    use cosmwasm_std::{coin, from_json, BankMsg, Coin, CosmosMsg, Decimal, OwnedDeps};
     use cw_controllers::Claim;
     use cw_utils::Duration;
     use dex::asset::{native_asset_info, token_asset_info};
@@ -1401,7 +1401,7 @@ mod tests {
 
         // make sure distribution logic is set up properly
         let raw = query(deps.as_ref(), mock_env(), QueryMsg::DistributionData {}).unwrap();
-        let res: DistributionDataResponse = from_slice(&raw).unwrap();
+        let res: DistributionDataResponse = from_json(&raw).unwrap();
         assert_eq!(
             res.distributions,
             vec![(
@@ -1426,7 +1426,7 @@ mod tests {
             },
         )
         .unwrap();
-        let res: WithdrawAdjustmentDataResponse = from_slice(&raw).unwrap();
+        let res: WithdrawAdjustmentDataResponse = from_json(&raw).unwrap();
         assert_eq!(
             res,
             WithdrawAdjustment {

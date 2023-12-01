@@ -1,29 +1,22 @@
 use coreum_wasm_sdk::{assetft, core::CoreumMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    assert_approx_eq, attr, coin, coins, from_json, to_json_binary, Addr, BankMsg, BlockInfo, Coin,
-    CosmosMsg, Decimal, Env, Fraction, ReplyOn, StdError, Timestamp, Uint128, WasmMsg,
+    coin, to_json_binary, Addr, BlockInfo, Coin, Decimal, Env, ReplyOn, Timestamp, Uint128,
 };
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cw20::Cw20ReceiveMsg;
 
-use proptest::prelude::*;
+use dex::asset::{Asset, AssetInfo, AssetInfoValidated, MINIMUM_LIQUIDITY_AMOUNT};
 
-use dex::asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated, MINIMUM_LIQUIDITY_AMOUNT};
-use dex::factory::PoolType;
 use dex::fee_config::FeeConfig;
-use dex::oracle::{SamplePeriod, TwapResponse};
-use dex::pool::{
-    assert_max_spread, ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PairInfo,
-    PoolResponse, ReverseSimulationResponse, SimulationResponse, StablePoolParams, StakeConfig,
-    LP_TOKEN_PRECISION, TWAP_PRECISION,
-};
-use dex::pool::{MigrateMsg, QueryMsg};
 
-use crate::contract::{compute_offer_amount, query};
-use crate::contract::{
-    execute, instantiate, migrate, query_pool, query_reverse_simulation, query_simulation,
+use dex::pool::MigrateMsg;
+use dex::pool::{
+    ContractError, Cw20HookMsg, ExecuteMsg, InstantiateMsg, StablePoolParams, StakeConfig,
+    LP_TOKEN_PRECISION,
 };
-use crate::state::{Config, CONFIG};
+
+use crate::contract::{execute, instantiate, migrate};
+use crate::state::CONFIG;
 // TODO: Copied here just as a temporary measure
 use crate::mock_querier::mock_dependencies;
 
