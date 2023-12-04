@@ -59,8 +59,6 @@ pub struct PoolConfig {
 pub struct InstantiateMsg {
     /// IDs of contracts that are allowed to instantiate pools
     pub pool_configs: Vec<PoolConfig>,
-    /// CW20 token contract code identifier
-    pub token_code_id: u64,
     /// Contract address to send governance fees to (the protocol).
     /// If this is not specified, no protocol fees are paid out regardless of the fee configuration
     pub fee_address: Option<String>,
@@ -149,8 +147,6 @@ pub struct PartialDefaultStakeConfig {
 pub enum ExecuteMsg {
     /// UpdateConfig updates relevant code IDs
     UpdateConfig {
-        /// CW20 token contract code identifier
-        token_code_id: Option<u64>,
         /// Contract address to send governance fees to (the protocol)
         fee_address: Option<String>,
         /// Whether only the owner or anyone can create new pools
@@ -349,8 +345,6 @@ pub struct ConfigResponse {
     pub owner: Addr,
     /// IDs of contracts which are allowed to create pools
     pub pool_configs: Vec<PoolConfig>,
-    /// CW20 token contract code identifier
-    pub token_code_id: u64,
     /// Address of contract to send governance fees to (the protocol)
     pub fee_address: Option<Addr>,
     /// Maximum referral commission
@@ -391,8 +385,6 @@ pub enum UpdateAddr {
 #[cw_serde]
 #[allow(clippy::large_enum_variant)]
 pub enum MigrateMsg {
-    /// Used to instantiate from cw-placeholder
-    Init(InstantiateMsg),
     Update(),
     /// Required with <=2.1.0 migration
     AddPermissionlessPoolDeposit(Asset),

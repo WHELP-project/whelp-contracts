@@ -16,7 +16,6 @@ backtraces = ["cosmwasm-std/backtraces"]
 thiserror = { workspace = true }
 coreum-wasm-sdk = { workspace = true }
 cw20 = { workspace = true }
-cw20-base = { workspace = true }
 cw-utils = { workspace = true }
 cosmwasm-std = { workspace = true }
 uint = { workspace = true }

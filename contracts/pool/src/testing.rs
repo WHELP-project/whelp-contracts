@@ -51,7 +51,7 @@ fn proper_initialization() {
     )]);
 
     let msg = InstantiateMsg {
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         asset_infos: vec![
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
@@ -159,7 +159,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -440,7 +440,7 @@ fn provide_liquidity() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -890,7 +890,7 @@ fn withdraw_liquidity() {
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
 
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -1042,7 +1042,7 @@ fn query_twap() {
     // instantiate the contract
     let msg = InstantiateMsg {
         asset_infos: vec![uusd.clone().into(), token.clone().into()],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -1199,7 +1199,7 @@ fn try_native_to_token() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -1256,8 +1256,7 @@ fn try_native_to_token() {
     let expected_spread_amount = Uint128::new(47619047u128);
 
     let expected_commission_amount = expected_ret_amount.multiply_ratio(3u128, 1000u128); // 0.3%
-    let _expected_protocol_fee_amount =
-        expected_commission_amount.multiply_ratio(166u128, 1000u128); // 0.166
+    let expected_protocol_fee_amount = expected_commission_amount.multiply_ratio(166u128, 1000u128); // 0.166
 
     let expected_return_amount = expected_ret_amount
         .checked_sub(expected_commission_amount)
@@ -1358,9 +1357,7 @@ fn try_native_to_token() {
             attr("commission_amount", expected_commission_amount.to_string()),
             attr(
                 "protocol_fee_amount",
-                // FIXME: Temporary workaround till Factory is not done
-                // expected_protocol_fee_amount.to_string()
-                0u128.to_string()
+                expected_protocol_fee_amount.to_string()
             ),
         ]
     );
@@ -1416,7 +1413,7 @@ fn try_token_to_native() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -1486,8 +1483,7 @@ fn try_token_to_native() {
     let expected_spread_amount = Uint128::new(47619047u128);
 
     let expected_commission_amount = expected_ret_amount.multiply_ratio(3u128, 1000u128); // 0.3%
-    let _expected_protocol_fee_amount =
-        expected_commission_amount.multiply_ratio(166u128, 1000u128);
+    let expected_protocol_fee_amount = expected_commission_amount.multiply_ratio(166u128, 1000u128);
     let expected_return_amount = expected_ret_amount
         .checked_sub(expected_commission_amount)
         .unwrap();
@@ -1561,9 +1557,7 @@ fn try_token_to_native() {
             attr("commission_amount", expected_commission_amount.to_string()),
             attr(
                 "protocol_fee_amount",
-                // FIXME: Temporary workaround till Factory is not done
-                // expected_protocol_fee_amount.to_string()
-                0u128.to_string()
+                expected_protocol_fee_amount.to_string()
             ),
         ]
     );
@@ -1678,7 +1672,7 @@ fn test_query_pool() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -1739,7 +1733,7 @@ fn test_query_share() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: None,
         staking_config: default_stake_config(),
         trading_starts: 0,
@@ -1855,7 +1849,7 @@ fn test_accumulate_prices() {
                         protocol_fee_bps: 0,
                     },
                 },
-                // factory_addr: Addr::unchecked("factory"),
+                factory_addr: Addr::unchecked("factory"),
                 block_time_last: case.block_time_last,
                 price0_cumulative_last: Uint128::new(case.last0),
                 price1_cumulative_last: Uint128::new(case.last1),

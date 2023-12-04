@@ -97,7 +97,7 @@ pub struct InstantiateMsg {
     /// Information about assets in the pool
     pub asset_infos: Vec<AssetInfo>,
     /// The factory contract address
-    // pub factory_addr: String,
+    pub factory_addr: String,
     /// Optional binary serialised parameters for custom pool types
     pub init_params: Option<Binary>,
     /// The fees for this pool
