@@ -155,7 +155,7 @@ pub const PAIRS_TO_MIGRATE: Item<Vec<Addr>> = Item::new("pairs_to_migrate");
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::testing::MockApi;
-    use ex::asset::{native_asset_info, token_asset_info};
+    use dex::asset::{native_asset_info, token_asset_info};
 
     use super::*;
 

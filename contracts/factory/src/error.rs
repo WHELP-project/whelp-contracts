@@ -14,10 +14,10 @@ pub enum ContractError {
     Unauthorized {},
 
     #[error("Pair was already created")]
-    PairWasCreated {},
+    PoolWasCreated {},
 
     #[error("Pair was already registered")]
-    PairWasRegistered {},
+    PoolWasRegistered {},
 
     #[error("Duplicate of pair configs")]
     PoolConfigDuplicate {},

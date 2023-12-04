@@ -82,7 +82,7 @@ pub fn instantiate(
     let config_set: HashSet<String> = msg
         .pool_configs
         .iter()
-        .map(|pc| pc.pair_type.to_string())
+        .map(|pc| pc.pool_type.to_string())
         .collect();
 
     if config_set.len() != msg.pool_configs.len() {
@@ -94,7 +94,7 @@ pub fn instantiate(
         if !pc.fee_config.valid_fee_bps() {
             return Err(ContractError::PoolConfigInvalidFeeBps {});
         }
-        PAIR_CONFIGS.save(deps.storage, pc.pair_type.to_string(), pc)?;
+        PAIR_CONFIGS.save(deps.storage, pc.pool_type.to_string(), pc)?;
     }
     CONFIG.save(deps.storage, &config)?;
 
@@ -126,7 +126,7 @@ pub struct UpdateConfig {
 /// * configuration or creates a new pair type if a [`Custom`] name is used (which hasn't been used before).
 ///
 /// * **ExecuteMsg::CreatePool {
-///             pair_type,
+///             pool_type,
 ///             asset_infos,
 ///             init_params,
 ///         }** Creates a new pair with the specified input parameters.
@@ -179,7 +179,7 @@ pub fn execute(
             deps,
             info,
             env,
-            pair_type,
+            pool_type,
             asset_infos,
             init_params,
             total_fee_bps,
@@ -772,7 +772,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let resp = ConfigResponse {
         owner: config.owner,
         token_code_id: config.token_code_id,
-        pair_configs: PAIR_CONFIGS
+        pool_configs: PAIR_CONFIGS
             .range(deps.storage, None, None, Order::Ascending)
             .map(|item| Ok(item?.1))
             .collect::<StdResult<Vec<_>>>()?,
@@ -806,7 +806,7 @@ pub fn query_pairs(
     start_after: Option<Vec<AssetInfo>>,
     limit: Option<u32>,
 ) -> StdResult<PoolsResponse> {
-    let pairs = read_pairs(deps, start_after, limit)?
+    let pools = read_pairs(deps, start_after, limit)?
         .iter()
         .map(|pair_addr| query_pair_info(&deps.querier, pair_addr))
         .collect::<StdResult<Vec<_>>>()?;
@@ -829,7 +829,7 @@ pub fn query_fee_info(deps: Deps, pool_type: PoolType) -> StdResult<FeeInfoRespo
 
 /// Manages the contract migration.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     match msg {
         MigrateMsg::Update() => {
             ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
