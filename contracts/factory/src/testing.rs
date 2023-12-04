@@ -107,7 +107,7 @@ fn proper_initialization() {
         pool_configs: vec![
             PoolConfig {
                 code_id: 325u64,
-                pool_type: PoolType::Lsd {},
+                pool_type: PoolType::Xyk {},
                 fee_config: FeeConfig {
                     total_fee_bps: 100,
                     protocol_fee_bps: 10,
@@ -584,7 +584,7 @@ fn register() {
         asset_infos: validated_asset_infos.clone(),
         contract_addr: Addr::unchecked("pair0000"),
         staking_addr: Addr::unchecked("stake0000"),
-        liquidity_token: Addr::unchecked("liquidity0000"),
+        liquidity_token: "liquidity0000".to_owned(),
         pool_type: PoolType::Xyk {},
         fee_config: FeeConfig {
             total_fee_bps: 0,
@@ -607,7 +607,7 @@ fn register() {
     let query_res = query(
         deps.as_ref(),
         env,
-        QueryMsg::Pair {
+        QueryMsg::Pool {
             asset_infos: asset_infos.clone(),
         },
     )
@@ -617,7 +617,7 @@ fn register() {
     assert_eq!(
         pair_res,
         PairInfo {
-            liquidity_token: Addr::unchecked("liquidity0000"),
+            liquidity_token: "liquidity0000".to_owned(),
             contract_addr: Addr::unchecked("pair0000"),
             staking_addr: Addr::unchecked("stake0000"),
             asset_infos: validated_asset_infos.clone(),
@@ -661,7 +661,7 @@ fn register() {
         asset_infos: validated_asset_infos_2.clone(),
         contract_addr: Addr::unchecked("pair0001"),
         staking_addr: Addr::unchecked("stake0001"),
-        liquidity_token: Addr::unchecked("liquidity0001"),
+        liquidity_token: "liquidity0001".to_owned(),
         pool_type: PoolType::Xyk {},
         fee_config: FeeConfig {
             total_fee_bps: 0,
@@ -681,7 +681,7 @@ fn register() {
 
     let _res = reply::instantiate_pair(deps.as_mut(), mock_env(), instantiate_res).unwrap();
 
-    let query_msg = QueryMsg::Pairs {
+    let query_msg = QueryMsg::Pools {
         start_after: None,
         limit: None,
     };
@@ -689,10 +689,10 @@ fn register() {
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
     let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
+        pairs_res.pools,
         vec![
             PairInfo {
-                liquidity_token: Addr::unchecked("liquidity0000"),
+                liquidity_token: "liquidity0000".to_owned(),
                 contract_addr: Addr::unchecked("pair0000"),
                 staking_addr: Addr::unchecked("stake0000"),
                 asset_infos: validated_asset_infos.clone(),
@@ -703,7 +703,7 @@ fn register() {
                 },
             },
             PairInfo {
-                liquidity_token: Addr::unchecked("liquidity0001"),
+                liquidity_token: "liquidity0001".to_owned(),
                 contract_addr: Addr::unchecked("pair0001"),
                 staking_addr: Addr::unchecked("stake0001"),
                 asset_infos: validated_asset_infos_2.clone(),
@@ -716,7 +716,7 @@ fn register() {
         ]
     );
 
-    let query_msg = QueryMsg::Pairs {
+    let query_msg = QueryMsg::Pools {
         start_after: None,
         limit: Some(1),
     };
@@ -724,9 +724,9 @@ fn register() {
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
     let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
+        pairs_res.pools,
         vec![PairInfo {
-            liquidity_token: Addr::unchecked("liquidity0000"),
+            liquidity_token: "liquidity0000".to_owned(),
             contract_addr: Addr::unchecked("pair0000"),
             staking_addr: Addr::unchecked("stake0000"),
             asset_infos: validated_asset_infos.clone(),
@@ -738,7 +738,7 @@ fn register() {
         }]
     );
 
-    let query_msg = QueryMsg::Pairs {
+    let query_msg = QueryMsg::Pools {
         start_after: Some(asset_infos),
         limit: None,
     };
@@ -746,9 +746,9 @@ fn register() {
     let res = query(deps.as_ref(), env, query_msg).unwrap();
     let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
+        pairs_res.pools,
         vec![PairInfo {
-            liquidity_token: Addr::unchecked("liquidity0001"),
+            liquidity_token: "liquidity0001".to_owned(),
             contract_addr: Addr::unchecked("pair0001"),
             staking_addr: Addr::unchecked("stake0001"),
             asset_infos: validated_asset_infos_2,
@@ -790,7 +790,7 @@ fn register() {
 
     assert_eq!(res.attributes[0], attr("action", "deregister"));
 
-    let query_msg = QueryMsg::Pairs {
+    let query_msg = QueryMsg::Pools {
         start_after: None,
         limit: None,
     };
@@ -798,9 +798,9 @@ fn register() {
     let res = query(deps.as_ref(), env, query_msg).unwrap();
     let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
+        pairs_res.pools,
         vec![PairInfo {
-            liquidity_token: Addr::unchecked("liquidity0000"),
+            liquidity_token: "liquidity0000".to_owned(),
             contract_addr: Addr::unchecked("pair0000"),
             staking_addr: Addr::unchecked("stake0000"),
             asset_infos: validated_asset_infos,
