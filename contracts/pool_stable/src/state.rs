@@ -12,7 +12,7 @@ pub struct Config {
     /// The pair information stored in a [`PairInfo`] struct
     pub pool_info: PairInfo,
     /// The factory contract address
-    // pub factory_addr: Addr,
+    pub factory_addr: Addr,
     /// The last timestamp when the pair contract update the asset cumulative prices
     pub block_time_last: u64,
     /// This is the current amplification used in the pool

@@ -144,7 +144,7 @@ pub struct FeeInfo {
 ///
 /// * **pool_type** pool type we query information for.
 pub fn query_fee_info(
-    querier: &QuerierWrapper,
+    querier: &QuerierWrapper<CoreumQueries>,
     factory_contract: impl Into<String>,
     pool_type: PoolType,
 ) -> StdResult<FeeInfo> {

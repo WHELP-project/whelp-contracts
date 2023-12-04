@@ -24,12 +24,13 @@ use dex::{
     factory::PoolType,
     fee_config::FeeConfig,
     pool::{
-        assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
-        get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
-        CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
-        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, StablePoolParams,
-        StablePoolUpdateParams, LP_TOKEN_PRECISION,
+        add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
+        get_share_in_assets, handle_referral, handle_reply, save_tmp_staking_config, take_referral,
+        ConfigResponse, ContractError, CumulativePricesResponse, Cw20HookMsg, ExecuteMsg,
+        InstantiateMsg, MigrateMsg, PairInfo, PoolResponse, QueryMsg, ReverseSimulationResponse,
+        SimulationResponse, StablePoolParams, StablePoolUpdateParams, LP_TOKEN_PRECISION,
     },
+    querier::{query_factory_config, query_fee_info},
     DecimalCheckedOps,
 };
 
@@ -70,7 +71,7 @@ pub fn instantiate(
 
     msg.validate_fees()?;
 
-    // let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
+    let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
 
     let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
@@ -107,7 +108,7 @@ pub fn instantiate(
             pool_type: PoolType::Stable {},
             fee_config: msg.fee_config,
         },
-        // factory_addr,
+        factory_addr,
         block_time_last: 0,
         init_amp: params.amp * AMP_PRECISION,
         init_amp_time: env.block.time.seconds(),
@@ -489,7 +490,7 @@ pub fn provide_liquidity(
         // let fee_info = query_fee_info(
         //     &deps.querier,
         //     &config.factory_addr,
-        //     config.pair_info.pair_type.clone(),
+        //     config.pool_info.pair_type.clone(),
         // )?;
 
         // FIXME: Bring this back when factory is ready
@@ -670,13 +671,13 @@ pub fn swap(
     env: Env,
     info: MessageInfo,
     sender: Addr,
-    offer_asset: AssetValidated,
+    mut offer_asset: AssetValidated,
     ask_asset_info: Option<AssetInfo>,
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
     to: Option<Addr>,
-    _referral_address: Option<Addr>,
-    _referral_commission: Option<Decimal>,
+    referral_address: Option<Addr>,
+    referral_commission: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     offer_asset.assert_sent_native_token_balance(&info)?;
     let ask_asset_info = ask_asset_info.map(|a| a.validate(deps.api)).transpose()?;
@@ -685,17 +686,17 @@ pub fn swap(
 
     let mut config = CONFIG.load(deps.storage)?;
     // Get config from the factory
-    // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+    let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
 
     let mut messages: Vec<CosmosMsg<CoreumMsg>> = Vec::new();
 
-    // handle_referral(
-    //     &factory_config,
-    //     referral_address,
-    //     referral_commission,
-    //     &mut offer_asset,
-    //     &mut messages,
-    // )?;
+    handle_referral(
+        &factory_config,
+        referral_address,
+        referral_commission,
+        &mut offer_asset,
+        &mut messages,
+    )?;
 
     // If the asset balance already increased
     // We should subtract the user deposit from the pool offer asset amount
@@ -773,18 +774,17 @@ pub fn swap(
     );
 
     // Compute the protocol fee
-    let protocol_fee_amount = Uint128::zero();
-    // FIXME: Uncomment when factory is ready
-    // if let Some(fee_address) = factory_config.fee_address {
-    //     if let Some(f) = calculate_protocol_fee(
-    //         &ask_pool.info,
-    //         commission_amount,
-    //         config.pair_info.fee_config.protocol_fee_rate(),
-    //     ) {
-    //         protocol_fee_amount = f.amount;
-    //         messages.push(f.into_msg(fee_address)?);
-    //     }
-    // }
+    let mut protocol_fee_amount = Uint128::zero();
+    if let Some(fee_address) = factory_config.fee_address {
+        if let Some(f) = calculate_protocol_fee(
+            &ask_pool.info,
+            commission_amount,
+            config.pool_info.fee_config.protocol_fee_rate(),
+        ) {
+            protocol_fee_amount = f.amount;
+            messages.push(f.into_msg(fee_address)?);
+        }
+    }
 
     // calculate pools with deposited / withdrawn balances
     let new_pools = pools
@@ -974,21 +974,20 @@ pub fn query_simulation(
     env: Env,
     offer_asset: Asset,
     ask_asset_info: Option<AssetInfo>,
-    _referral: bool,
-    _referral_commission: Option<Decimal>,
+    referral: bool,
+    referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let offer_asset = offer_asset.validate(deps.api)?;
+    let mut offer_asset = offer_asset.validate(deps.api)?;
     let ask_asset_info = ask_asset_info.map(|a| a.validate(deps.api)).transpose()?;
     let mut config = CONFIG.load(deps.storage)?;
     let pools = config
         .pool_info
         .query_pools_decimal(&deps.querier, &config.pool_info.contract_addr)?;
 
-    // FIXME: When factory is added
-    let referral_amount = /*if referral {
+    let referral_amount = if referral {
         let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
         take_referral(&factory_config, referral_commission, &mut offer_asset)?
-    } else */{
+    } else {
         Uint128::zero()
     };
 
@@ -1057,8 +1056,8 @@ pub fn query_reverse_simulation(
     env: Env,
     ask_asset: Asset,
     offer_asset_info: Option<AssetInfo>,
-    _referral: bool,
-    _referral_commission: Option<Decimal>,
+    referral: bool,
+    referral_commission: Option<Decimal>,
 ) -> StdResult<ReverseSimulationResponse> {
     let ask_asset = ask_asset.validate(deps.api)?;
     let offer_asset_info = offer_asset_info.map(|a| a.validate(deps.api)).transpose()?;
@@ -1096,19 +1095,16 @@ pub fn query_reverse_simulation(
     }
 
     // Get fee info from factory
-    // FIXME: Uncomment when factory is available
-    // let fee_info = query_fee_info(
-    //     &deps.querier,
-    //     &config.factory_addr,
-    //     config.pair_info.pair_type.clone(),
-    // )?;
-    // let before_commission = (Decimal256::one()
-    //     - Decimal256::new(fee_info.total_fee_rate.atomics().into()))
-    // .inv()
-    let before_commission = (Decimal256::one() - Decimal256::percent(3))
-        .inv()
-        .unwrap_or_else(Decimal256::one)
-        .checked_mul(Decimal256::with_precision(ask_asset.amount, ask_precision)?)?;
+    let fee_info = query_fee_info(
+        &deps.querier,
+        &config.factory_addr,
+        config.pool_info.pool_type.clone(),
+    )?;
+    let before_commission = (Decimal256::one()
+        - Decimal256::new(fee_info.total_fee_rate.atomics().into()))
+    .inv()
+    .unwrap_or_else(Decimal256::one)
+    .checked_mul(Decimal256::with_precision(ask_asset.amount, ask_precision)?)?;
 
     update_target_rate(deps.querier, &mut config, &env)?;
     let new_offer_pool_amount = calc_y(
@@ -1133,24 +1129,22 @@ pub fn query_reverse_simulation(
         info: offer_pool.info,
         amount: offer_amount,
     };
-    // let (offer_asset, referral_amount) = add_referral(
-    //     &deps.querier,
-    //     &config.factory_addr,
-    //     referral,
-    //     referral_commission,
-    //     offer_asset,
-    // )?;
+    let (offer_asset, referral_amount) = add_referral(
+        &deps.querier,
+        &config.factory_addr,
+        referral,
+        referral_commission,
+        offer_asset,
+    )?;
 
     Ok(ReverseSimulationResponse {
         offer_amount: offer_asset.amount,
         spread_amount: offer_amount
             .saturating_sub(before_commission.to_uint128_with_precision(offer_precision)?),
-        // FIXME: When factory is available
-        // commission_amount: fee_info
-        //     .total_fee_rate
-        commission_amount: Decimal::percent(3)
+        commission_amount: fee_info
+            .total_fee_rate
             .checked_mul_uint128(before_commission.to_uint128_with_precision(ask_precision)?)?,
-        referral_amount: Uint128::zero(),
+        referral_amount,
     })
 }
 
@@ -1277,7 +1271,7 @@ fn imbalanced_withdraw(
     // let fee_info = query_fee_info(
     //     &deps.querier,
     //     &config.factory_addr,
-    //     config.pair_info.pair_type.clone(),
+    //     config.pool_info.pair_type.clone(),
     // )?;
 
     // FIXME: Bring this back when factory is ready
@@ -1304,7 +1298,7 @@ fn imbalanced_withdraw(
     // FIXME: For some reason this query doesn't work; use a local storage workaround
     // let total_share = Uint256::from(query_supply(
     //     &deps.querier,
-    //     &config.pair_info.liquidity_token,
+    //     &config.pool_info.liquidity_token,
     // )?);
     let total_share = Uint256::from(LP_SHARE_AMOUNT.load(deps.storage)?);
     // How many tokens do we need to burn to withdraw asked assets?
