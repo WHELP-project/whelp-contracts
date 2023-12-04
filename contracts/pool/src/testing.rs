@@ -1256,8 +1256,7 @@ fn try_native_to_token() {
     let expected_spread_amount = Uint128::new(47619047u128);
 
     let expected_commission_amount = expected_ret_amount.multiply_ratio(3u128, 1000u128); // 0.3%
-    let _expected_protocol_fee_amount =
-        expected_commission_amount.multiply_ratio(166u128, 1000u128); // 0.166
+    let expected_protocol_fee_amount = expected_commission_amount.multiply_ratio(166u128, 1000u128); // 0.166
 
     let expected_return_amount = expected_ret_amount
         .checked_sub(expected_commission_amount)
@@ -1358,9 +1357,7 @@ fn try_native_to_token() {
             attr("commission_amount", expected_commission_amount.to_string()),
             attr(
                 "protocol_fee_amount",
-                // FIXME: Temporary workaround till Factory is not done
-                // expected_protocol_fee_amount.to_string()
-                0u128.to_string()
+                expected_protocol_fee_amount.to_string()
             ),
         ]
     );
@@ -1486,8 +1483,7 @@ fn try_token_to_native() {
     let expected_spread_amount = Uint128::new(47619047u128);
 
     let expected_commission_amount = expected_ret_amount.multiply_ratio(3u128, 1000u128); // 0.3%
-    let _expected_protocol_fee_amount =
-        expected_commission_amount.multiply_ratio(166u128, 1000u128);
+    let expected_protocol_fee_amount = expected_commission_amount.multiply_ratio(166u128, 1000u128);
     let expected_return_amount = expected_ret_amount
         .checked_sub(expected_commission_amount)
         .unwrap();
@@ -1561,9 +1557,7 @@ fn try_token_to_native() {
             attr("commission_amount", expected_commission_amount.to_string()),
             attr(
                 "protocol_fee_amount",
-                // FIXME: Temporary workaround till Factory is not done
-                // expected_protocol_fee_amount.to_string()
-                0u128.to_string()
+                expected_protocol_fee_amount.to_string()
             ),
         ]
     );

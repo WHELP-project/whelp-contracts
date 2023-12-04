@@ -23,11 +23,12 @@ use dex::{
     factory::{ConfigResponse as FactoryConfig, PoolType},
     fee_config::FeeConfig,
     pool::{
-        assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
-        get_share_in_assets, handle_reply, save_tmp_staking_config, ConfigResponse, ContractError,
-        CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PairInfo,
-        PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
-        INSTANTIATE_STAKE_REPLY_ID, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
+        add_referral, assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
+        get_share_in_assets, handle_referral, handle_reply, save_tmp_staking_config, take_referral,
+        ConfigResponse, ContractError, CumulativePricesResponse, Cw20HookMsg, ExecuteMsg,
+        InstantiateMsg, MigrateMsg, PairInfo, PoolResponse, QueryMsg, ReverseSimulationResponse,
+        SimulationResponse, DEFAULT_SLIPPAGE, INSTANTIATE_STAKE_REPLY_ID, LP_TOKEN_PRECISION,
+        MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
     querier::query_factory_config,
 };
@@ -283,16 +284,16 @@ pub fn receive_cw20(
 
 pub fn update_fees(
     deps: DepsMut<CoreumQueries>,
-    _info: MessageInfo,
+    info: MessageInfo,
     fee_config: FeeConfig,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
     check_if_frozen(&deps)?;
 
     // check permissions
-    // if info.sender != config.factory_addr {
-    //     return Err(ContractError::Unauthorized {});
-    // }
+    if info.sender != config.factory_addr {
+        return Err(ContractError::Unauthorized {});
+    }
 
     // update config
     config.pool_info.fee_config = fee_config;
@@ -623,12 +624,12 @@ pub fn swap(
     env: Env,
     info: MessageInfo,
     sender: Addr,
-    offer_asset: AssetValidated,
+    mut offer_asset: AssetValidated,
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
     to: Option<Addr>,
-    _referral_address: Option<Addr>,
-    _referral_commission: Option<Decimal>,
+    referral_address: Option<Addr>,
+    referral_commission: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     offer_asset.assert_sent_native_token_balance(&info)?;
     let original_offer_asset = offer_asset.clone();
@@ -641,13 +642,13 @@ pub fn swap(
 
     let mut messages: Vec<CosmosMsg<CoreumMsg>> = Vec::new();
 
-    // handle_referral(
-    //     &factory_config,
-    //     referral_address,
-    //     referral_commission,
-    //     &mut offer_asset,
-    //     &mut messages,
-    // )?;
+    handle_referral(
+        &factory_config,
+        referral_address,
+        referral_commission,
+        &mut offer_asset,
+        &mut messages,
+    )?;
 
     // If the asset balance is already increased, we should subtract the user deposit from the pool amount
     let pools = config
@@ -779,18 +780,18 @@ fn do_swap(
     };
 
     // Compute the protocol fee
-    let fee_msg = None;
-    let protocol_fee_amount = Uint128::zero();
-    // if let Some(ref fee_address) = factory_config.fee_address {
-    //     if let Some(f) = calculate_protocol_fee(
-    //         &ask_pool.info,
-    //         commission_amount,
-    //         config.pool_info.fee_config.protocol_fee_rate(),
-    //     ) {
-    //         protocol_fee_amount = f.amount;
-    //         fee_msg = Some(f.into_msg(fee_address)?);
-    //     }
-    // }
+    let mut fee_msg = None;
+    let mut protocol_fee_amount = Uint128::zero();
+    if let Some(ref fee_address) = factory_config.fee_address {
+        if let Some(f) = calculate_protocol_fee(
+            &ask_pool.info,
+            commission_amount,
+            config.pool_info.fee_config.protocol_fee_rate(),
+        ) {
+            protocol_fee_amount = f.amount;
+            fee_msg = Some(f.into_msg(fee_address)?);
+        }
+    }
 
     // Calculate new pool amounts
     let (new_pool0, new_pool1) = if pools[0].info.equal(&ask_pool.info) {
@@ -995,18 +996,18 @@ pub fn query_share(deps: Deps<CoreumQueries>, amount: Uint128) -> StdResult<Vec<
 pub fn query_simulation(
     deps: Deps<CoreumQueries>,
     offer_asset: Asset,
-    _referral: bool,
-    _referral_commission: Option<Decimal>,
+    referral: bool,
+    referral_commission: Option<Decimal>,
 ) -> StdResult<SimulationResponse> {
-    let offer_asset = offer_asset.validate(deps.api)?;
+    let mut offer_asset = offer_asset.validate(deps.api)?;
     let config = CONFIG.load(deps.storage)?;
 
-    let referral_amount = Uint128::zero() /*if referral {
+    let referral_amount = if referral {
         let factory_config = query_factory_config(&deps.querier, config.factory_addr)?;
         take_referral(&factory_config, referral_commission, &mut offer_asset)?
     } else {
         Uint128::zero()
-    }*/;
+    };
 
     let pools = config
         .pool_info
@@ -1048,8 +1049,8 @@ pub fn query_simulation(
 pub fn query_reverse_simulation(
     deps: Deps<CoreumQueries>,
     ask_asset: Asset,
-    _referral: bool,
-    _referral_commission: Option<Decimal>,
+    referral: bool,
+    referral_commission: Option<Decimal>,
 ) -> StdResult<ReverseSimulationResponse> {
     let ask_asset = ask_asset.validate(deps.api)?;
     let config = CONFIG.load(deps.storage)?;
@@ -1084,19 +1085,19 @@ pub fn query_reverse_simulation(
         info: offer_pool.info,
         amount: offer_amount,
     };
-    // let (offer_asset, referral_amount) = add_referral(
-    //     &deps.querier,
-    //     &config.factory_addr,
-    //     referral,
-    //     referral_commission,
-    //     offer_asset,
-    // )?;
+    let (offer_asset, referral_amount) = add_referral(
+        &deps.querier,
+        &config.factory_addr,
+        referral,
+        referral_commission,
+        offer_asset,
+    )?;
 
     Ok(ReverseSimulationResponse {
         offer_amount: offer_asset.amount,
         spread_amount,
         commission_amount,
-        referral_amount: Uint128::zero(),
+        referral_amount,
     })
 }
 
