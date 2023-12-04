@@ -20,16 +20,16 @@ pub enum ContractError {
     PairWasRegistered {},
 
     #[error("Duplicate of pair configs")]
-    PairConfigDuplicate {},
+    PoolConfigDuplicate {},
 
     #[error("Fee bps in pair config must be smaller than or equal to 10,000")]
-    PairConfigInvalidFeeBps {},
+    PoolConfigInvalidFeeBps {},
 
-    #[error("Pair config not found")]
-    PairConfigNotFound {},
+    #[error("Pool config not found")]
+    PoolConfigNotFound {},
 
-    #[error("Pair config disabled")]
-    PairConfigDisabled {},
+    #[error("Pool config disabled")]
+    PoolConfigDisabled {},
 
     #[error("Doubling assets in asset infos")]
     DoublingAssets {},

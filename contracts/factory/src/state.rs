@@ -7,7 +7,7 @@ use crate::error::ContractError;
 use dex::{
     asset::{Asset, AssetInfo, AssetInfoValidated},
     common::OwnershipProposal,
-    factory::{DefaultStakeConfig, DistributionFlow, PairConfig},
+    factory::{DefaultStakeConfig, DistributionFlow, PoolConfig},
 };
 
 /// This structure holds the main contract parameters.
@@ -25,21 +25,21 @@ pub struct Config {
     /// Default values for lp token staking contracts
     pub default_stake_config: DefaultStakeConfig,
     /// When this is set to `true`, only the owner can create pairs
-    pub only_owner_can_create_pairs: bool,
+    pub only_owner_can_create_pools: bool,
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
 }
 
 /// This is an intermediate structure for storing a pair's key. It is used in a submessage response.
 #[cw_serde]
-pub struct TmpPairInfo {
+pub struct TmpPoolInfo {
     pub pair_key: Vec<u8>,
     pub asset_infos: Vec<AssetInfoValidated>,
     pub distribution_flows: Vec<DistributionFlow>,
 }
 
 /// Saves a pair's key
-pub const TMP_PAIR_INFO: Item<TmpPairInfo> = Item::new("tmp_pair_info");
+pub const TMP_PAIR_INFO: Item<TmpPoolInfo> = Item::new("tmp_pair_info");
 
 /// Saves factory settings
 pub const CONFIG: Item<Config> = Item::new("config");
@@ -67,7 +67,7 @@ pub fn pair_key(asset_infos: &[AssetInfoValidated]) -> Vec<u8> {
 }
 
 /// Saves pair type configurations
-pub const PAIR_CONFIGS: Map<String, PairConfig> = Map::new("pair_configs");
+pub const PAIR_CONFIGS: Map<String, PoolConfig> = Map::new("pair_configs");
 
 /// ## Pagination settings
 /// The default limit for reading pairs from [`PAIRS`]

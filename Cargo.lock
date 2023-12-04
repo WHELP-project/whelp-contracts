@@ -711,6 +711,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "dex-factory"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "coreum-wasm-sdk 0.1.4",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw20",
+ "cw20-base",
+ "dex",
+ "dex-pool",
+ "dex-stake",
+ "itertools",
+ "thiserror",
+]
+
+[[package]]
 name = "dex-multi-hop"
 version = "0.1.0"
 dependencies = [

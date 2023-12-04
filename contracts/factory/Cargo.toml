@@ -23,6 +23,8 @@ cw20 = { workspace = true }
 cw-utils = { workspace = true }
 thiserror = { workspace = true }
 dex = { workspace = true }
+dex-stake = { workspace = true }
+itertools = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
