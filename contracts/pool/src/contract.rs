@@ -20,7 +20,7 @@ use dex::{
         AssetValidated, MINIMUM_LIQUIDITY_AMOUNT,
     },
     decimal2decimal256,
-    factory::PoolType,
+    factory::{ConfigResponse as FactoryConfig, PoolType},
     fee_config::FeeConfig,
     pool::{
         assert_max_spread, check_asset_infos, check_assets, check_cw20_in_pool,
@@ -29,6 +29,7 @@ use dex::{
         PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse, DEFAULT_SLIPPAGE,
         INSTANTIATE_STAKE_REPLY_ID, LP_TOKEN_PRECISION, MAX_ALLOWED_SLIPPAGE, TWAP_PRECISION,
     },
+    querier::query_factory_config,
 };
 
 use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
@@ -59,7 +60,7 @@ pub fn instantiate(
 
     msg.validate_fees()?;
 
-    // let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
+    let factory_addr = deps.api.addr_validate(msg.factory_addr.as_str())?;
 
     let lp_token_name = format_lp_token_name(&asset_infos, &deps.querier)?;
 
@@ -73,7 +74,7 @@ pub fn instantiate(
             pool_type: PoolType::Xyk {},
             fee_config: msg.fee_config,
         },
-        // factory_addr,
+        factory_addr,
         block_time_last: 0,
         price0_cumulative_last: Uint128::zero(),
         price1_cumulative_last: Uint128::zero(),
@@ -384,7 +385,7 @@ pub fn provide_liquidity(
         };
 
         // Get config from the factory
-        // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+        let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
         // swap half of the asset for the other first
         let SwapResult {
             return_asset,
@@ -395,7 +396,7 @@ pub fn provide_liquidity(
             deps.branch(),
             &env,
             &mut config,
-            // &factory_config,
+            &factory_config,
             &pools,
             &input_asset,
             None,
@@ -636,7 +637,7 @@ pub fn swap(
 
     let mut config = CONFIG.load(deps.storage)?;
     // Get config from the factory
-    // let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
+    let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
 
     let mut messages: Vec<CosmosMsg<CoreumMsg>> = Vec::new();
 
@@ -672,7 +673,7 @@ pub fn swap(
         deps,
         &env,
         &mut config,
-        // &factory_config,
+        &factory_config,
         &pools,
         &offer_asset,
         belief_price,
@@ -730,7 +731,7 @@ fn do_swap(
     deps: DepsMut<CoreumQueries>,
     env: &Env,
     config: &mut Config,
-    // factory_config: &FactoryConfig,
+    factory_config: &FactoryConfig,
     pools: &[AssetValidated],
     offer_asset: &AssetValidated,
     belief_price: Option<Decimal>,
