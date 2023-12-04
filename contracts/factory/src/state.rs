@@ -16,8 +16,6 @@ pub struct Config {
     /// Address allowed to change contract parameters.
     /// This is set to the dao address by default.
     pub owner: Addr,
-    /// CW20 token contract code identifier
-    pub token_code_id: u64,
     /// Contract address to send governance fees to (the protocol)
     pub fee_address: Option<Addr>,
     /// Maximum referral commission

@@ -71,7 +71,6 @@ pub fn instantiate(
 
     let config = Config {
         owner: deps.api.addr_validate(&msg.owner)?,
-        token_code_id: msg.token_code_id,
         fee_address: addr_opt_validate(deps.api, &msg.fee_address)?,
         max_referral_commission: msg.max_referral_commission,
         default_stake_config: msg.default_stake_config,
@@ -103,8 +102,6 @@ pub fn instantiate(
 
 /// Data structure used to update general contract parameters.
 pub struct UpdateConfig {
-    /// This is the CW20 token contract code identifier
-    token_code_id: Option<u64>,
     /// Contract address to send governance fees to (the Protocol)
     fee_address: Option<String>,
     /// Whether only the owner or anyone can create new pairs
@@ -118,7 +115,6 @@ pub struct UpdateConfig {
 ///
 /// ## Variants
 /// * **ExecuteMsg::UpdateConfig {
-///             token_code_id,
 ///             fee_address,
 ///         }** Updates general contract parameters.
 ///
@@ -150,7 +146,6 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateConfig {
-            token_code_id,
             fee_address,
             only_owner_can_create_pools,
             default_stake_config,
@@ -158,7 +153,6 @@ pub fn execute(
             deps,
             info,
             UpdateConfig {
-                token_code_id,
                 fee_address,
                 only_owner_can_create_pools,
                 default_stake_config,
@@ -407,10 +401,6 @@ pub fn execute_update_config(
     if let Some(fee_address) = param.fee_address {
         // Validate address format
         config.fee_address = Some(deps.api.addr_validate(&fee_address)?);
-    }
-
-    if let Some(token_code_id) = param.token_code_id {
-        config.token_code_id = token_code_id;
     }
 
     if let Some(only_owner) = param.only_owner_can_create_pools {
@@ -771,7 +761,6 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
     let resp = ConfigResponse {
         owner: config.owner,
-        token_code_id: config.token_code_id,
         pool_configs: PAIR_CONFIGS
             .range(deps.storage, None, None, Order::Ascending)
             .map(|item| Ok(item?.1))

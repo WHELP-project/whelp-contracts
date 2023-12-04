@@ -29,7 +29,6 @@ fn default_stake_config() -> DefaultStakeConfig {
         min_bond: Uint128::new(1000),
         unbonding_periods: vec![1],
         max_distributions: 6,
-        converter: None,
     }
 }
 
@@ -46,8 +45,8 @@ fn proper_initialization() {
     let owner = "owner0000".to_string();
 
     let msg = InstantiateMsg {
-        pair_configs: vec![
-            PairConfig {
+        pool_configs: vec![
+            PoolConfig {
                 code_id: 123u64,
                 pool_type: PoolType::Xyk {},
                 fee_config: FeeConfig {
@@ -56,7 +55,7 @@ fn proper_initialization() {
                 },
                 is_disabled: false,
             },
-            PairConfig {
+            PoolConfig {
                 code_id: 325u64,
                 pool_type: PoolType::Xyk {},
                 fee_config: FeeConfig {
@@ -77,10 +76,10 @@ fn proper_initialization() {
     let info = mock_info("addr0000", &[]);
 
     let res = instantiate(deps.as_mut(), env, info, msg).unwrap_err();
-    assert_eq!(res, ContractError::PairConfigDuplicate {});
+    assert_eq!(res, ContractError::PoolConfigDuplicate {});
 
     let msg = InstantiateMsg {
-        pair_configs: vec![PairConfig {
+        pool_configs: vec![PoolConfig {
             code_id: 123u64,
             pool_type: PoolType::Xyk {},
             fee_config: FeeConfig {
@@ -100,13 +99,13 @@ fn proper_initialization() {
     let info = mock_info("addr0000", &[]);
 
     let res = instantiate(deps.as_mut(), env, info, msg).unwrap_err();
-    assert_eq!(res, ContractError::PairConfigInvalidFeeBps {});
+    assert_eq!(res, ContractError::PoolConfigInvalidFeeBps {});
 
     let mut deps = mock_dependencies(&[]);
 
     let msg = InstantiateMsg {
-        pair_configs: vec![
-            PairConfig {
+        pool_configs: vec![
+            PoolConfig {
                 code_id: 325u64,
                 pool_type: PoolType::Lsd {},
                 fee_config: FeeConfig {
@@ -115,7 +114,7 @@ fn proper_initialization() {
                 },
                 is_disabled: false,
             },
-            PairConfig {
+            PoolConfig {
                 code_id: 123u64,
                 pool_type: PoolType::Xyk {},
                 fee_config: FeeConfig {
@@ -139,7 +138,7 @@ fn proper_initialization() {
 
     let query_res = query(deps.as_ref(), env, QueryMsg::Config {}).unwrap();
     let config_res: ConfigResponse = from_json(&query_res).unwrap();
-    assert_eq!(msg.pair_configs, config_res.pair_configs);
+    assert_eq!(msg.pool_configs, config_res.pool_configs);
     assert_eq!(Addr::unchecked(owner), config_res.owner);
 }
 
@@ -152,7 +151,7 @@ fn trading_starts_validation() {
     let owner = "owner";
 
     let mut msg = InstantiateMsg {
-        pair_configs: vec![],
+        pool_configs: vec![],
         fee_address: None,
         owner: owner.to_string(),
         max_referral_commission: Decimal::one(),
@@ -185,7 +184,7 @@ fn update_config() {
     let mut deps = mock_dependencies(&[]);
     let owner = "owner0000";
 
-    let pair_configs = vec![PairConfig {
+    let pool_configs = vec![PoolConfig {
         code_id: 123u64,
         pool_type: PoolType::Xyk {},
         fee_config: FeeConfig {
@@ -196,7 +195,7 @@ fn update_config() {
     }];
 
     let msg = InstantiateMsg {
-        pair_configs,
+        pool_configs,
         fee_address: None,
         owner: owner.to_string(),
         max_referral_commission: Decimal::one(),
@@ -215,7 +214,7 @@ fn update_config() {
     let info = mock_info(owner, &[]);
     let msg = ExecuteMsg::UpdateConfig {
         fee_address: Some(String::from("new_fee_addr")),
-        only_owner_can_create_pairs: Some(true),
+        only_owner_can_create_pools: Some(true),
         default_stake_config: None,
     };
 
@@ -236,7 +235,7 @@ fn update_config() {
     let info = mock_info("addr0000", &[]);
     let msg = ExecuteMsg::UpdateConfig {
         fee_address: None,
-        only_owner_can_create_pairs: None,
+        only_owner_can_create_pools: None,
         default_stake_config: None,
     };
 
@@ -250,7 +249,7 @@ fn update_owner() {
     let owner = "owner0000";
 
     let msg = InstantiateMsg {
-        pair_configs: vec![],
+        pool_configs: vec![],
         fee_address: None,
         owner: owner.to_string(),
         max_referral_commission: Decimal::one(),
@@ -326,7 +325,7 @@ fn update_owner() {
 fn update_pair_config() {
     let mut deps = mock_dependencies(&[]);
     let owner = "owner0000";
-    let pair_configs = vec![PairConfig {
+    let pool_configs = vec![PoolConfig {
         pool_type: PoolType::Xyk {},
         fee_config: FeeConfig {
             total_fee_bps: 100,
@@ -336,7 +335,7 @@ fn update_pair_config() {
     }];
 
     let msg = InstantiateMsg {
-        pair_configs: pair_configs.clone(),
+        pool_configs: pool_configs.clone(),
         fee_address: None,
         owner: owner.to_string(),
         max_referral_commission: Decimal::one(),
@@ -353,10 +352,10 @@ fn update_pair_config() {
     // It worked, let's query the state
     let query_res = query(deps.as_ref(), env, QueryMsg::Config {}).unwrap();
     let config_res: ConfigResponse = from_json(&query_res).unwrap();
-    assert_eq!(pair_configs, config_res.pair_configs);
+    assert_eq!(pool_configs, config_res.pool_configs);
 
     // Update config
-    let pair_config = PairConfig {
+    let pair_config = PoolConfig {
         pool_type: PoolType::Xyk {},
         fee_config: FeeConfig {
             total_fee_bps: 1,
@@ -368,7 +367,7 @@ fn update_pair_config() {
     // Unauthorized err
     let env = mock_env();
     let info = mock_info("wrong-addr0000", &[]);
-    let msg = ExecuteMsg::UpdatePairConfig {
+    let msg = ExecuteMsg::UpdatePoolConfig {
         config: pair_config.clone(),
     };
 
@@ -378,8 +377,8 @@ fn update_pair_config() {
     // Check validation of total and protocol fee bps
     let env = mock_env();
     let info = mock_info(owner, &[]);
-    let msg = ExecuteMsg::UpdatePairConfig {
-        config: PairConfig {
+    let msg = ExecuteMsg::UpdatePoolConfig {
+        config: PoolConfig {
             pool_type: PoolType::Xyk {},
             fee_config: FeeConfig {
                 total_fee_bps: 3,
@@ -390,10 +389,10 @@ fn update_pair_config() {
     };
 
     let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-    assert_eq!(res, ContractError::PairConfigInvalidFeeBps {});
+    assert_eq!(res, ContractError::PoolConfigInvalidFeeBps {});
 
     let info = mock_info(owner, &[]);
-    let msg = ExecuteMsg::UpdatePairConfig {
+    let msg = ExecuteMsg::UpdatePoolConfig {
         config: pair_config.clone(),
     };
 
@@ -403,10 +402,10 @@ fn update_pair_config() {
     // It worked, let's query the state
     let query_res = query(deps.as_ref(), env.clone(), QueryMsg::Config {}).unwrap();
     let config_res: ConfigResponse = from_json(&query_res).unwrap();
-    assert_eq!(vec![pair_config.clone()], config_res.pair_configs);
+    assert_eq!(vec![pair_config.clone()], config_res.pool_configs);
 
     // Add second config
-    let pair_config_custom = PairConfig {
+    let pair_config_custom = PoolConfig {
         pool_type: PoolType::Custom("test".to_string()),
         fee_config: FeeConfig {
             total_fee_bps: 10,
@@ -416,7 +415,7 @@ fn update_pair_config() {
     };
 
     let info = mock_info(owner, &[]);
-    let msg = ExecuteMsg::UpdatePairConfig {
+    let msg = ExecuteMsg::UpdatePoolConfig {
         config: pair_config_custom.clone(),
     };
 
@@ -427,7 +426,7 @@ fn update_pair_config() {
     let config_res: ConfigResponse = from_json(&query_res).unwrap();
     assert_eq!(
         vec![pair_config_custom, pair_config],
-        config_res.pair_configs
+        config_res.pool_configs
     );
 }
 
@@ -435,7 +434,7 @@ fn update_pair_config() {
 fn create_pair() {
     let mut deps = mock_dependencies(&[]);
 
-    let pair_config = PairConfig {
+    let pair_config = PoolConfig {
         pool_type: PoolType::Xyk {},
         fee_config: FeeConfig {
             total_fee_bps: 100,
@@ -445,7 +444,7 @@ fn create_pair() {
     };
 
     let msg = InstantiateMsg {
-        pair_configs: vec![pair_config.clone()],
+        pool_configs: vec![pair_config.clone()],
         fee_address: None,
         owner: "owner0000".to_string(),
         max_referral_commission: Decimal::one(),
@@ -460,8 +459,8 @@ fn create_pair() {
     let _res = instantiate(deps.as_mut(), env, info, msg.clone()).unwrap();
 
     let asset_infos = vec![
-        AssetInfo::Token("asset0000".to_string()),
-        AssetInfo::Token("asset0001".to_string()),
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
     ];
 
     let config = CONFIG.load(&deps.storage);
@@ -474,7 +473,7 @@ fn create_pair() {
         env.clone(),
         info.clone(),
         ExecuteMsg::CreatePool {
-            pool_type: PoolType::Lsd {},
+            pool_type: PoolType::Xyk {},
             asset_infos: asset_infos.clone(),
             init_params: None,
             total_fee_bps: None,
@@ -488,7 +487,7 @@ fn create_pair() {
         deps.as_mut(),
         env,
         info,
-        ExecuteMsg::CreatePair {
+        ExecuteMsg::CreatePool {
             pool_type: PoolType::Xyk {},
             asset_infos: asset_infos.clone(),
             init_params: None,
@@ -538,7 +537,7 @@ fn register() {
     let owner = "owner0000";
 
     let msg = InstantiateMsg {
-        pair_configs: vec![PairConfig {
+        pool_configs: vec![PoolConfig {
             code_id: 123u64,
             pool_type: PoolType::Xyk {},
             fee_config: FeeConfig {
@@ -559,11 +558,11 @@ fn register() {
     let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
 
     let asset_infos = vec![
-        AssetInfo::Token("asset0000".to_string()),
-        AssetInfo::Token("asset0001".to_string()),
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
     ];
 
-    let msg = ExecuteMsg::CreatePair {
+    let msg = ExecuteMsg::CreatePool {
         pool_type: PoolType::Xyk {},
         asset_infos: asset_infos.clone(),
         init_params: None,
@@ -632,12 +631,12 @@ fn register() {
 
     // Check pair was registered
     let res = reply::instantiate_pair(deps.as_mut(), mock_env(), instantiate_res).unwrap_err();
-    assert_eq!(res, ContractError::PairWasRegistered {});
+    assert_eq!(res, ContractError::PoolWasRegistered {});
 
     // Store one more item to test query pairs
     let asset_infos_2 = vec![
-        AssetInfo::Token("asset0000".to_string()),
-        AssetInfo::Token("asset0002".to_string()),
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0002".to_string()),
     ];
     let validated_asset_infos_2: Vec<_> = asset_infos_2
         .iter()
@@ -645,7 +644,7 @@ fn register() {
         .map(|a| a.validate(&deps.api).unwrap())
         .collect();
 
-    let msg = ExecuteMsg::CreatePair {
+    let msg = ExecuteMsg::CreatePool {
         pool_type: PoolType::Xyk {},
         asset_infos: asset_infos_2.clone(),
         init_params: None,
@@ -688,7 +687,7 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
         pairs_res.pairs,
         vec![
@@ -723,7 +722,7 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
         pairs_res.pairs,
         vec![PairInfo {
@@ -745,7 +744,7 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env, query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
         pairs_res.pairs,
         vec![PairInfo {
@@ -797,7 +796,7 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env, query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: PoolsResponse = from_json(&res).unwrap();
     assert_eq!(
         pairs_res.pairs,
         vec![PairInfo {
