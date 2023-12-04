@@ -391,8 +391,6 @@ pub enum UpdateAddr {
 #[cw_serde]
 #[allow(clippy::large_enum_variant)]
 pub enum MigrateMsg {
-    /// Used to instantiate from cw-placeholder
-    Init(InstantiateMsg),
     Update(),
     /// Required with <=2.1.0 migration
     AddPermissionlessPoolDeposit(Asset),
