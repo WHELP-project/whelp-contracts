@@ -42,7 +42,7 @@ fn proper_initialization() {
     )]);
 
     let msg = InstantiateMsg {
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         asset_infos: vec![
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
@@ -134,7 +134,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             AssetInfo::SmartToken("uusd".to_string()),
             AssetInfo::Cw20Token("asset0000".to_string()),
         ],
-        // factory_addr: String::from("factory"),
+        factory_addr: String::from("factory"),
         init_params: Some(
             to_json_binary(&StablePoolParams {
                 amp: 100,

@@ -98,7 +98,6 @@ impl WasmMockQuerier {
                             to_json_binary(&ConfigResponse {
                                 owner: Addr::unchecked("owner"),
                                 pool_configs: vec![],
-                                token_code_id: 0,
                                 fee_address: Some(Addr::unchecked("fee_address")),
                                 max_referral_commission: Decimal::one(),
                                 only_owner_can_create_pools: true,
