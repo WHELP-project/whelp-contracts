@@ -58,13 +58,13 @@ impl FactoryHelper {
             )
             .unwrap();
 
-        let pair_contract = Box::new(
-            ContractWrapper::new_with_empty(
+        let pair_contract = Box::<CoreumMsg, CoreumQueries>::new(
+            ContractWrapper::new(
                 dex_pool::contract::execute,
                 dex_pool::contract::instantiate,
                 dex_pool::contract::query,
             )
-            .with_reply_empty(dex_pool::contract::reply),
+            .with_reply(dex_pool::contract::reply),
         );
 
         let pair_code_id = router.store_code(pair_contract);
@@ -83,7 +83,7 @@ impl FactoryHelper {
             router.store_code(factory_contract)
         };
 
-        let staking_contract = Box::new(ContractWrapper::new_with_empty(
+        let staking_contract = Box::new(ContractWrapper::new(
             dex_stake::contract::execute,
             dex_stake::contract::instantiate,
             dex_stake::contract::query,
