@@ -1,4 +1,3 @@
-use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     from_json,
     testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
@@ -8,7 +7,7 @@ use cosmwasm_std::{
 
 use dex::pool::{PairInfo, QueryMsg};
 
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies.
 /// This uses the Coreum CustomQuerier.
