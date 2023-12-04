@@ -74,13 +74,13 @@ As an example, let's say a pool charged 30bps (`total_fee_bps` is 30) and we wan
 
 ### `create_pair`
 
-Anyone can execute this function to create an Dex pair. `CreatePair` creates both a `Pair` contract and a `LP(liquidity provider)` token contract. The account that instantiates the pair must specify the pair type they want as well as the assets for which the pool is created.
+Anyone can execute this function to create an Dex pair. `CreatePool` creates both a `Pool` contract and a `LP(liquidity provider)` token. The account that instantiates the pair must specify the pair type they want as well as the assets for which the pool is created.
 
 Custom pool types may also need extra parameters which can be packed in `init_params`.
 
 ```json
 {
-  "create_pair": {
+  "create_pool": {
     "pair_type": {
       "xyk": {}
     },
