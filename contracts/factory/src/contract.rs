@@ -1,6 +1,7 @@
 use cosmwasm_std::{
-    attr, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, Order, Reply, ReplyOn, Response, StdError, StdResult, SubMsg, WasmMsg,
+    attr, coin, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, MessageInfo, Order, Reply, ReplyOn, Response, StdError, StdResult, SubMsg,
+    WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
@@ -529,7 +530,7 @@ pub fn execute_create_pair(
                 },
                 circuit_breaker: None,
             })?,
-            funds: vec![],
+            funds: vec![coin(300_000, "utestcore")],
             label: "Dex pair".to_string(),
         }
         .into(),
