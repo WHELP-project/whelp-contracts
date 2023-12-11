@@ -17,6 +17,7 @@ library = []
 coreum-wasm-sdk = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
+coreum_wasm_sdk = {workspace = true }
 cw-storage-plus = { workspace = true }
 cw2 = { workspace = true }
 cw20 = { workspace = true }

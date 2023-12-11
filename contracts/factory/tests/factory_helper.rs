@@ -4,6 +4,7 @@ use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
 use cw20::MinterResponse;
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use dex::{
     asset::AssetInfo,
     factory::{

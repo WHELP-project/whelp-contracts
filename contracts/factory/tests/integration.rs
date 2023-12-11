@@ -1,31 +1,20 @@
 mod factory_helper;
 
 use cosmwasm_std::{attr, from_slice, Addr, Decimal, StdError, Uint128};
-use wyndex::asset::AssetInfo;
-use wyndex::factory::{
+use dex::asset::AssetInfo;
+use dex::factory::{
     ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg, MigrateMsg,
-    PairConfig, PairType, PartialDefaultStakeConfig, QueryMsg,
+    PartialDefaultStakeConfig, PoolConfig, PoolType, QueryMsg,
 };
-use wyndex::fee_config::FeeConfig;
-use wyndex::pair::PairInfo;
-use wyndex_factory::{error::ContractError, state::Config};
+use dex::fee_config::FeeConfig;
+use dex::pool::ContractError;
+use dex::pool::PairInfo;
 
 use crate::factory_helper::{instantiate_token, FactoryHelper};
 use cw_multi_test::{App, ContractWrapper, Executor};
-use cw_placeholder::msg::InstantiateMsg as PlaceholderContractInstantiateMsg;
-use wyndex::pair::ExecuteMsg as PairExecuteMsg;
+use dex::pool::ExecuteMsg as PairExecuteMsg;
 fn mock_app() -> App {
     App::default()
-}
-
-fn store_placeholder_code(app: &mut App) -> u64 {
-    let placeholder_contract = Box::new(ContractWrapper::new_with_empty(
-        cw_placeholder::contract::execute,
-        cw_placeholder::contract::instantiate,
-        cw_placeholder::contract::query,
-    ));
-
-    app.store_code(placeholder_contract)
 }
 
 fn store_factory_code(app: &mut App) -> u64 {
@@ -49,7 +38,6 @@ fn default_stake_config() -> DefaultStakeConfig {
         min_bond: Uint128::new(1000),
         unbonding_periods: vec![1],
         max_distributions: 6,
-        converter: None,
     }
 }
 
@@ -61,7 +49,7 @@ fn proper_initialization() {
 
     let factory_code_id = store_factory_code(&mut app);
 
-    let pair_configs = vec![PairConfig {
+    let pool_configs = vec![PairConfig {
         code_id: 321,
         pair_type: PairType::Xyk {},
         fee_config: FeeConfig {
@@ -72,7 +60,7 @@ fn proper_initialization() {
     }];
 
     let msg = InstantiateMsg {
-        pair_configs: pair_configs.clone(),
+        pool_configs: pool_configs.clone(),
         token_code_id: 123,
         fee_address: None,
         owner: owner.to_string(),
