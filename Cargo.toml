@@ -24,6 +24,7 @@ cw-storage-plus = "1.1"
 cw-utils = "1.0"
 derivative = "2.2"
 dex = { path = "./packages/dex", default-features = false }
+dex-factory = { path = "./contracts/factory", default-features = false }
 dex-pool = { path = "./contracts/pool", default-features = false }
 dex-stake = { path = "./contracts/stake", default-features = false }
 itertools = "0.10"

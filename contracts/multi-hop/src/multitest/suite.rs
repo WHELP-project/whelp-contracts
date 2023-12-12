@@ -1,25 +1,27 @@
 use anyhow::Result as AnyResult;
 
-use cosmwasm_std::{coin, to_binary, Addr, Coin, Decimal, Uint128};
+use bindings_test::CoreumApp;
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use cosmwasm_std::{coin, to_json_binary, Addr, Coin, Decimal, Uint128};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20BaseInstantiateMsg;
-use cw_multi_test::{App, AppResponse, BankSudo, ContractWrapper, Executor, SudoMsg};
+use cw_multi_test::{AppResponse, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
 
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, QueryMsg, SimulateSwapOperationsResponse, SwapOperation,
 };
-use ex::asset::{Asset, AssetInfo};
-use ex::factory::{
+use dex::asset::{Asset, AssetInfo};
+use dex::factory::{
     DefaultStakeConfig, ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg,
-    PairConfig, PairType, QueryMsg as FactoryQueryMsg,
+    PoolConfig, PoolType, QueryMsg as FactoryQueryMsg,
 };
-use ex::fee_config::FeeConfig;
-use ex::pair::{ExecuteMsg as PairExecuteMsg, PairInfo};
+use dex::fee_config::FeeConfig;
+use dex::pool::{ExecuteMsg as PairExecuteMsg, PairInfo};
 
 const SECONDS_PER_DAY: u64 = 60 * 60 * 24;
 
-fn store_multi_hop(app: &mut App) -> u64 {
-    let contract = Box::new(ContractWrapper::new_with_empty(
+fn store_multi_hop(app: &mut CoreumApp) -> u64 {
+    let contract: Box<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
@@ -28,34 +30,34 @@ fn store_multi_hop(app: &mut App) -> u64 {
     app.store_code(contract)
 }
 
-fn store_factory(app: &mut App) -> u64 {
+fn store_factory(app: &mut CoreumApp) -> u64 {
     let contract = Box::new(
-        ContractWrapper::new_with_empty(
+        ContractWrapper::new(
             dex_factory::contract::execute,
             dex_factory::contract::instantiate,
             dex_factory::contract::query,
         )
-        .with_reply_empty(dex_factory::contract::reply),
+        .with_reply(dex_factory::contract::reply),
     );
 
     app.store_code(contract)
 }
 
-fn store_pair(app: &mut App) -> u64 {
-    let contract = Box::new(
-        ContractWrapper::new_with_empty(
-            ex_pair::contract::execute,
-            ex_pair::contract::instantiate,
-            ex_pair::contract::query,
+fn store_pair(app: &mut CoreumApp) -> u64 {
+    let contract: Box<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(
+        ContractWrapper::new(
+            dex_pool::contract::execute,
+            dex_pool::contract::instantiate,
+            dex_pool::contract::query,
         )
-        .with_reply_empty(ex_pair::contract::reply),
+        .with_reply(dex_pool::contract::reply),
     );
 
     app.store_code(contract)
 }
 
-fn store_cw20(app: &mut App) -> u64 {
-    let contract = Box::new(ContractWrapper::new(
+fn store_cw20(app: &mut CoreumApp) -> u64 {
+    let contract = Box::new(ContractWrapper::new_with_empty(
         cw20_base::contract::execute,
         cw20_base::contract::instantiate,
         cw20_base::contract::query,
@@ -64,11 +66,11 @@ fn store_cw20(app: &mut App) -> u64 {
     app.store_code(contract)
 }
 
-fn store_staking(app: &mut App) -> u64 {
-    let contract = Box::new(ContractWrapper::new(
-        ex_stake::contract::execute,
-        ex_stake::contract::instantiate,
-        ex_stake::contract::query,
+fn store_staking(app: &mut CoreumApp) -> u64 {
+    let contract: Box<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(ContractWrapper::new(
+        dex_stake::contract::execute,
+        dex_stake::contract::instantiate,
+        dex_stake::contract::query,
     ));
 
     app.store_code(contract)
@@ -100,7 +102,6 @@ impl SuiteBuilder {
                     SECONDS_PER_DAY * 21,
                 ],
                 max_distributions: 6,
-                converter: None,
             },
         }
     }
@@ -123,7 +124,7 @@ impl SuiteBuilder {
 
     #[track_caller]
     pub fn build(self) -> Suite {
-        let mut app = App::default();
+        let mut app = CoreumApp::default();
         let owner = Addr::unchecked("owner");
 
         let cw20_code_id = store_cw20(&mut app);
@@ -135,19 +136,19 @@ impl SuiteBuilder {
                 factory_code_id,
                 owner.clone(),
                 &FactoryInstantiateMsg {
-                    pair_configs: vec![
-                        PairConfig {
+                    pool_configs: vec![
+                        PoolConfig {
                             code_id: pair_code_id,
-                            pair_type: PairType::Xyk {},
+                            pool_type: PoolType::Xyk {},
                             fee_config: FeeConfig {
                                 total_fee_bps: self.total_fee_bps,
                                 protocol_fee_bps: self.protocol_fee_bps,
                             },
                             is_disabled: false,
                         },
-                        PairConfig {
+                        PoolConfig {
                             code_id: pair_code_id,
-                            pair_type: PairType::Stable {},
+                            pool_type: PoolType::Stable {},
                             fee_config: FeeConfig {
                                 total_fee_bps: self.total_fee_bps,
                                 protocol_fee_bps: self.protocol_fee_bps,
@@ -155,7 +156,6 @@ impl SuiteBuilder {
                             is_disabled: false,
                         },
                     ],
-                    token_code_id: cw20_code_id,
                     fee_address: None,
                     owner: owner.to_string(),
                     max_referral_commission: self.max_referral_commission,
@@ -206,7 +206,7 @@ impl SuiteBuilder {
 
 pub struct Suite {
     pub owner: String,
-    pub app: App,
+    pub app: CoreumApp,
     pub factory: Addr,
     multi_hop: Addr,
     cw20_code_id: u64,
@@ -216,14 +216,14 @@ impl Suite {
     fn create_pair(
         &mut self,
         sender: &str,
-        pair_type: PairType,
+        pool_type: PoolType,
         tokens: [AssetInfo; 2],
     ) -> AnyResult<Addr> {
         self.app.execute_contract(
             Addr::unchecked(sender),
             self.factory.clone(),
-            &FactoryExecuteMsg::CreatePair {
-                pair_type,
+            &FactoryExecuteMsg::CreatePool {
+                pool_type,
                 asset_infos: tokens.to_vec(),
                 init_params: None,
                 staking_config: Default::default(),
@@ -235,7 +235,7 @@ impl Suite {
         let factory = self.factory.clone();
         let res: PairInfo = self.app.wrap().query_wasm_smart(
             Addr::unchecked(factory),
-            &FactoryQueryMsg::Pair {
+            &FactoryQueryMsg::Pool {
                 asset_infos: tokens.to_vec(),
             },
         )?;
@@ -284,7 +284,7 @@ impl Suite {
     /// Requirement: if using native token provide coins to sent as last argument
     pub fn create_pair_and_provide_liquidity(
         &mut self,
-        pair_type: PairType,
+        pool_type: PoolType,
         first_asset: (AssetInfo, u128),
         second_asset: (AssetInfo, u128),
         native_tokens: Vec<Coin>,
@@ -294,12 +294,12 @@ impl Suite {
 
         let pair = self.create_pair(
             &owner,
-            pair_type,
+            pool_type,
             [first_asset.0.clone(), second_asset.0.clone()],
         )?;
 
         match first_asset.0.clone() {
-            AssetInfo::Token(addr) => {
+            AssetInfo::Cw20Token(addr) => {
                 // Mint some initial balances for whale user
                 self.mint_cw20(&owner, &Addr::unchecked(&addr), first_asset.1, whale)
                     .unwrap();
@@ -312,7 +312,7 @@ impl Suite {
                 )
                 .unwrap();
             }
-            AssetInfo::Native(denom) => {
+            AssetInfo::SmartToken(denom) => {
                 self.app
                     .sudo(SudoMsg::Bank(BankSudo::Mint {
                         to_address: whale.to_owned(),
@@ -322,7 +322,7 @@ impl Suite {
             }
         };
         match second_asset.0.clone() {
-            AssetInfo::Token(addr) => {
+            AssetInfo::Cw20Token(addr) => {
                 // Mint some initial balances for whale user
                 self.mint_cw20(&owner, &Addr::unchecked(&addr), second_asset.1, whale)
                     .unwrap();
@@ -335,7 +335,7 @@ impl Suite {
                 )
                 .unwrap();
             }
-            AssetInfo::Native(denom) => {
+            AssetInfo::SmartToken(denom) => {
                 self.app
                     .sudo(SudoMsg::Bank(BankSudo::Mint {
                         to_address: whale.to_owned(),
@@ -371,8 +371,8 @@ impl Suite {
                 self.cw20_code_id,
                 Addr::unchecked(owner),
                 &Cw20BaseInstantiateMsg {
-                    name: token.to_owned(),
-                    symbol: token.to_owned(),
+                    name: "Cra".to_owned(),
+                    symbol: "CRA".to_owned(),
                     decimals: 6,
                     initial_balances: vec![],
                     mint: Some(MinterResponse {
@@ -463,7 +463,7 @@ impl Suite {
             &Cw20ExecuteMsg::Send {
                 contract: self.multi_hop.to_string(),
                 amount: amount.into(),
-                msg: to_binary(&ExecuteMsg::ExecuteSwapOperations {
+                msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperations {
                     operations,
                     minimum_receive: None,
                     receiver: None,

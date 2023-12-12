@@ -2,13 +2,13 @@ use super::suite::SuiteBuilder;
 
 use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::{assert_approx_eq, coin, Decimal, Fraction, Uint128};
-use ex::pair::{add_referral, take_referral};
-use ex::querier::query_factory_config;
+use dex::pool::{add_referral, take_referral};
+use dex::querier::query_factory_config;
 
 use crate::error::ContractError;
 use crate::msg::{SwapOperation, MAX_SWAP_OPERATIONS};
-use ex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
-use ex::factory::PairType;
+use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
+use dex::factory::PoolType;
 
 #[test]
 fn must_provide_operations() {
@@ -37,14 +37,14 @@ fn single_swap() {
 
     let owner = suite.owner.clone();
 
-    let token = suite.instantiate_token(&owner, "");
+    let token = suite.instantiate_token(&owner, "cw20token");
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token.to_string()), 100_000_000u128),
-            (AssetInfo::Native(ujuno.to_owned()), 100_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token.to_string()), 100_000_000u128),
+            (AssetInfo::SmartToken(ujuno.to_owned()), 100_000_000u128),
             vec![coin(100_000_000, ujuno)],
         )
         .unwrap();
@@ -60,8 +60,8 @@ fn single_swap() {
             &token,
             100_000u128,
             vec![SwapOperation::DexSwap {
-                offer_asset_info: AssetInfo::Token(token.to_string()),
-                ask_asset_info: AssetInfo::Native(ujuno.to_string()),
+                offer_asset_info: AssetInfo::Cw20Token(token.to_string()),
+                ask_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
             }],
         )
         .unwrap();
@@ -81,31 +81,31 @@ fn multiple_swaps() {
 
     let owner = suite.owner.clone();
 
-    let token_a = suite.instantiate_token(&owner, "");
+    let token_a = suite.instantiate_token(&owner, "cw20token");
     let token_b = suite.instantiate_token(&owner, "ueco");
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_a.to_string()), 1_000_000_000u128),
-            (AssetInfo::Native(ujuno.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token_a.to_string()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(ujuno.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, ujuno)],
         )
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_a.to_string()), 1_000_000_000u128),
-            (AssetInfo::Native(uluna.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token_a.to_string()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(uluna.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, uluna)],
         )
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_b.to_string()), 1_000_000_000u128),
-            (AssetInfo::Native(uluna.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token_b.to_string()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(uluna.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, uluna)],
         )
         .unwrap();
@@ -116,16 +116,16 @@ fn multiple_swaps() {
             coin(100_000u128, "ujuno"),
             vec![
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Native(ujuno.to_string()),
-                    ask_asset_info: AssetInfo::Token(token_a.to_string()),
+                    offer_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
+                    ask_asset_info: AssetInfo::Cw20Token(token_a.to_string()),
                 },
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Token(token_a.to_string()),
-                    ask_asset_info: AssetInfo::Native(uluna.to_string()),
+                    offer_asset_info: AssetInfo::Cw20Token(token_a.to_string()),
+                    ask_asset_info: AssetInfo::SmartToken(uluna.to_string()),
                 },
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Native(uluna.to_string()),
-                    ask_asset_info: AssetInfo::Token(token_b.to_string()),
+                    offer_asset_info: AssetInfo::SmartToken(uluna.to_string()),
+                    ask_asset_info: AssetInfo::Cw20Token(token_b.to_string()),
                 },
             ],
         )
@@ -150,17 +150,29 @@ fn multi_hop_does_not_enforce_spread_assetion() {
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_a.to_string()), 100_000_000_000u128),
-            (AssetInfo::Token(token_b.to_string()), 100_000_000_000u128),
+            PoolType::Xyk {},
+            (
+                AssetInfo::Cw20Token(token_a.to_string()),
+                100_000_000_000u128,
+            ),
+            (
+                AssetInfo::Cw20Token(token_b.to_string()),
+                100_000_000_000u128,
+            ),
             vec![],
         )
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Stable {},
-            (AssetInfo::Token(token_b.to_string()), 1_000_000_000_000u128),
-            (AssetInfo::Token(token_c.to_string()), 1_000_000_000_000u128),
+            PoolType::Stable {},
+            (
+                AssetInfo::Cw20Token(token_b.to_string()),
+                1_000_000_000_000u128,
+            ),
+            (
+                AssetInfo::Cw20Token(token_c.to_string()),
+                1_000_000_000_000u128,
+            ),
             vec![],
         )
         .unwrap();
@@ -178,12 +190,12 @@ fn multi_hop_does_not_enforce_spread_assetion() {
             50_000_000_000u128,
             vec![
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Token(token_a.to_string()),
-                    ask_asset_info: AssetInfo::Token(token_b.to_string()),
+                    offer_asset_info: AssetInfo::Cw20Token(token_a.to_string()),
+                    ask_asset_info: AssetInfo::Cw20Token(token_b.to_string()),
                 },
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Token(token_b.to_string()),
-                    ask_asset_info: AssetInfo::Token(token_c.to_string()),
+                    offer_asset_info: AssetInfo::Cw20Token(token_b.to_string()),
+                    ask_asset_info: AssetInfo::Cw20Token(token_c.to_string()),
                 },
             ],
         )
@@ -196,13 +208,13 @@ fn multi_hop_does_not_enforce_spread_assetion() {
             &token_a,
             50_000_000_000u128,
             vec![SwapOperation::DexSwap {
-                offer_asset_info: AssetInfo::Token(token_a.to_string()),
-                ask_asset_info: AssetInfo::Token(token_b.to_string()),
+                offer_asset_info: AssetInfo::Cw20Token(token_a.to_string()),
+                ask_asset_info: AssetInfo::Cw20Token(token_b.to_string()),
             }],
         )
         .unwrap_err();
     assert_eq!(
-        ex::pair::ContractError::MaxSpreadAssertion {},
+        dex::pool::ContractError::MaxSpreadAssertion {},
         err.downcast().unwrap()
     )
 }
@@ -221,17 +233,17 @@ fn query_buy_with_routes() {
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Native(ujuno.to_owned()), 1_000_000_000u128),
-            (AssetInfo::Token(token.to_string()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::SmartToken(ujuno.to_owned()), 1_000_000_000u128),
+            (AssetInfo::Cw20Token(token.to_string()), 1_000_000_000u128),
             vec![coin(1_000_000_000, ujuno)],
         )
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Native(uluna.to_owned()), 1_000_000_000u128),
-            (AssetInfo::Token(token.to_string()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::SmartToken(uluna.to_owned()), 1_000_000_000u128),
+            (AssetInfo::Cw20Token(token.to_string()), 1_000_000_000u128),
             vec![coin(1_000_000_000, uluna)],
         )
         .unwrap();
@@ -241,12 +253,12 @@ fn query_buy_with_routes() {
             1_000_000u128,
             vec![
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Native("ujuno".to_owned()),
-                    ask_asset_info: AssetInfo::Token(token.to_string()),
+                    offer_asset_info: AssetInfo::SmartToken("ujuno".to_owned()),
+                    ask_asset_info: AssetInfo::Cw20Token(token.to_string()),
                 },
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Token(token.to_string()),
-                    ask_asset_info: AssetInfo::Native("uluna".to_owned()),
+                    offer_asset_info: AssetInfo::Cw20Token(token.to_string()),
+                    ask_asset_info: AssetInfo::SmartToken("uluna".to_owned()),
                 },
             ],
         )
@@ -266,12 +278,12 @@ fn query_buy_with_routes() {
             998_002u128,
             vec![
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Native("ujuno".to_owned()),
-                    ask_asset_info: AssetInfo::Token(token.to_string()),
+                    offer_asset_info: AssetInfo::SmartToken("ujuno".to_owned()),
+                    ask_asset_info: AssetInfo::Cw20Token(token.to_string()),
                 },
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Token(token.to_string()),
-                    ask_asset_info: AssetInfo::Native("uluna".to_owned()),
+                    offer_asset_info: AssetInfo::Cw20Token(token.to_string()),
+                    ask_asset_info: AssetInfo::SmartToken("uluna".to_owned()),
                 },
             ],
         )
@@ -300,14 +312,14 @@ fn simulation_with_fee() {
 
     let token = suite.instantiate_token(&owner, "TOKA");
 
-    let token_info = AssetInfo::Token(token.to_string());
-    let ujuno_info = AssetInfo::Native(ujuno.to_owned());
-    let uluna_info = AssetInfo::Native(uluna.to_owned());
+    let token_info = AssetInfo::Cw20Token(token.to_string());
+    let ujuno_info = AssetInfo::SmartToken(ujuno.to_owned());
+    let uluna_info = AssetInfo::SmartToken(uluna.to_owned());
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
+            PoolType::Xyk {},
             (ujuno_info.clone(), 1_000_000_000u128),
             (token_info.clone(), 1_000_000_000u128),
             vec![coin(1_000_000_000, ujuno)],
@@ -315,7 +327,7 @@ fn simulation_with_fee() {
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
+            PoolType::Xyk {},
             (uluna_info.clone(), 1_000_000_000u128),
             (token_info.clone(), 1_000_000_000u128),
             vec![coin(1_000_000_000, uluna)],
@@ -461,11 +473,19 @@ fn assert_minimum_receive_native_tokens() {
 
     // that works
     suite
-        .assert_minimum_receive("user", AssetInfo::Native(ujuno.to_owned()), 1_000_000u128)
+        .assert_minimum_receive(
+            "user",
+            AssetInfo::SmartToken(ujuno.to_owned()),
+            1_000_000u128,
+        )
         .unwrap();
 
     let err = suite
-        .assert_minimum_receive("user", AssetInfo::Native(ujuno.to_owned()), 1_000_001u128)
+        .assert_minimum_receive(
+            "user",
+            AssetInfo::SmartToken(ujuno.to_owned()),
+            1_000_001u128,
+        )
         .unwrap_err();
     assert_eq!(
         ContractError::AssertionMinimumReceive {
@@ -477,7 +497,7 @@ fn assert_minimum_receive_native_tokens() {
 }
 
 #[test]
-fn assert_minimum_receive_cw20_tokens() {
+fn assert_minimum_receive_cw20tokens() {
     let mut suite = SuiteBuilder::new().build();
 
     let token = suite.instantiate_token("owner", "TOKA");
@@ -487,11 +507,19 @@ fn assert_minimum_receive_cw20_tokens() {
 
     // that works
     suite
-        .assert_minimum_receive("user", AssetInfo::Token(token.to_string()), 1_000_000u128)
+        .assert_minimum_receive(
+            "user",
+            AssetInfo::Cw20Token(token.to_string()),
+            1_000_000u128,
+        )
         .unwrap();
 
     let err = suite
-        .assert_minimum_receive("user", AssetInfo::Token(token.to_string()), 1_000_001u128)
+        .assert_minimum_receive(
+            "user",
+            AssetInfo::Cw20Token(token.to_string()),
+            1_000_001u128,
+        )
         .unwrap_err();
     assert_eq!(
         ContractError::AssertionMinimumReceive {
@@ -515,9 +543,9 @@ fn maximum_receive_swap_operations() {
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Native(ujuno.to_owned()), 1_000_000_000u128),
-            (AssetInfo::Native(uluna.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::SmartToken(ujuno.to_owned()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(uluna.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, ujuno), coin(1_000_000_000, uluna)],
         )
         .unwrap();
@@ -528,8 +556,8 @@ fn maximum_receive_swap_operations() {
             coin(100_000u128, "ujuno"),
             vec![
                 SwapOperation::DexSwap {
-                    offer_asset_info: AssetInfo::Native(ujuno.to_string()),
-                    ask_asset_info: AssetInfo::Native(uluna.to_owned()),
+                    offer_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
+                    ask_asset_info: AssetInfo::SmartToken(uluna.to_owned()),
                 };
                 MAX_SWAP_OPERATIONS + 1
             ],
@@ -552,7 +580,8 @@ fn take_add_referral() {
     ];
 
     for offer_amount in test_amounts {
-        let offer_asset = AssetInfoValidated::Native("test".to_string()).with_balance(offer_amount);
+        let offer_asset =
+            AssetInfoValidated::SmartToken("test".to_string()).with_balance(offer_amount);
 
         // add referral on top
         let (mut with_referral, _) = add_referral(
@@ -590,14 +619,14 @@ fn referral_single() {
 
     let owner = suite.owner.clone();
 
-    let token = suite.instantiate_token(&owner, "");
+    let token = suite.instantiate_token(&owner, "cw20token");
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token.to_string()), 100_000_000u128),
-            (AssetInfo::Native(ujuno.to_owned()), 100_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token.to_string()), 100_000_000u128),
+            (AssetInfo::SmartToken(ujuno.to_owned()), 100_000_000u128),
             vec![coin(100_000_000, ujuno)],
         )
         .unwrap();
@@ -613,8 +642,8 @@ fn referral_single() {
             &token,
             101_010u128,
             vec![SwapOperation::DexSwap {
-                offer_asset_info: AssetInfo::Token(token.to_string()),
-                ask_asset_info: AssetInfo::Native(ujuno.to_string()),
+                offer_asset_info: AssetInfo::Cw20Token(token.to_string()),
+                ask_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
             }],
             referral.to_string(),
             Decimal::percent(1),
@@ -642,47 +671,47 @@ fn referral_multiple() {
 
     let owner = suite.owner.clone();
 
-    let token_a = suite.instantiate_token(&owner, "");
+    let token_a = suite.instantiate_token(&owner, "cw20token");
     let token_b = suite.instantiate_token(&owner, "ueco");
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_a.to_string()), 1_000_000_000u128),
-            (AssetInfo::Native(ujuno.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token_a.to_string()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(ujuno.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, ujuno)],
         )
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_a.to_string()), 1_000_000_000u128),
-            (AssetInfo::Native(uluna.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token_a.to_string()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(uluna.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, uluna)],
         )
         .unwrap();
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token_b.to_string()), 1_000_000_000u128),
-            (AssetInfo::Native(uluna.to_owned()), 1_000_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token_b.to_string()), 1_000_000_000u128),
+            (AssetInfo::SmartToken(uluna.to_owned()), 1_000_000_000u128),
             vec![coin(1_000_000_000, uluna)],
         )
         .unwrap();
 
     let operations = vec![
         SwapOperation::DexSwap {
-            offer_asset_info: AssetInfo::Native(ujuno.to_string()),
-            ask_asset_info: AssetInfo::Token(token_a.to_string()),
+            offer_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
+            ask_asset_info: AssetInfo::Cw20Token(token_a.to_string()),
         },
         SwapOperation::DexSwap {
-            offer_asset_info: AssetInfo::Token(token_a.to_string()),
-            ask_asset_info: AssetInfo::Native(uluna.to_string()),
+            offer_asset_info: AssetInfo::Cw20Token(token_a.to_string()),
+            ask_asset_info: AssetInfo::SmartToken(uluna.to_string()),
         },
         SwapOperation::DexSwap {
-            offer_asset_info: AssetInfo::Native(uluna.to_string()),
-            ask_asset_info: AssetInfo::Token(token_b.to_string()),
+            offer_asset_info: AssetInfo::SmartToken(uluna.to_string()),
+            ask_asset_info: AssetInfo::Cw20Token(token_b.to_string()),
         },
     ];
 
@@ -729,14 +758,14 @@ fn invalid_referral_commission() {
 
     let owner = suite.owner.clone();
 
-    let token = suite.instantiate_token(&owner, "");
+    let token = suite.instantiate_token(&owner, "cw20token");
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token.to_string()), 100_000_000u128),
-            (AssetInfo::Native(ujuno.to_owned()), 100_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token.to_string()), 100_000_000u128),
+            (AssetInfo::SmartToken(ujuno.to_owned()), 100_000_000u128),
             vec![coin(100_000_000, ujuno)],
         )
         .unwrap();
@@ -753,8 +782,8 @@ fn invalid_referral_commission() {
             &token,
             100_000,
             vec![SwapOperation::DexSwap {
-                offer_asset_info: AssetInfo::Token(token.to_string()),
-                ask_asset_info: AssetInfo::Native(ujuno.to_string()),
+                offer_asset_info: AssetInfo::Cw20Token(token.to_string()),
+                ask_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
             }],
             referral.to_string(),
             Decimal::percent(2),
@@ -779,14 +808,14 @@ fn referral_commission_zero() {
 
     let owner = suite.owner.clone();
 
-    let token = suite.instantiate_token(&owner, "");
+    let token = suite.instantiate_token(&owner, "cw20token");
 
     // create LP for just instantiated tokens
     suite
         .create_pair_and_provide_liquidity(
-            PairType::Xyk {},
-            (AssetInfo::Token(token.to_string()), 100_000_000u128),
-            (AssetInfo::Native(ujuno.to_owned()), 100_000_000u128),
+            PoolType::Xyk {},
+            (AssetInfo::Cw20Token(token.to_string()), 100_000_000u128),
+            (AssetInfo::SmartToken(ujuno.to_owned()), 100_000_000u128),
             vec![coin(100_000_000, ujuno)],
         )
         .unwrap();
@@ -801,8 +830,8 @@ fn referral_commission_zero() {
             &token,
             1000,
             vec![SwapOperation::DexSwap {
-                offer_asset_info: AssetInfo::Token(token.to_string()),
-                ask_asset_info: AssetInfo::Native(ujuno.to_string()),
+                offer_asset_info: AssetInfo::Cw20Token(token.to_string()),
+                ask_asset_info: AssetInfo::SmartToken(ujuno.to_string()),
             }],
             referral.to_string(),
             Decimal::from_ratio(1u128, 10_000u128),

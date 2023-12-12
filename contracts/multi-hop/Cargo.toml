@@ -26,8 +26,10 @@ dex = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+bindings-test = { workspace = true }
 cw-multi-test = { workspace = true }
 cw20-base = { workspace = true }
 # dex-factory = { workspace = true }
+dex-factory = { workspace = true }
 dex-pool = { workspace = true }
 dex-stake = { workspace = true }
