@@ -1,6 +1,6 @@
 use anyhow::Result as AnyResult;
 
-use bindings_test::{mock_coreum_deps, CoreumApp};
+use bindings_test::{CoreumApp};
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{coin, to_json_binary, Addr, Coin, Decimal, Uint128};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -371,8 +371,8 @@ impl Suite {
                 self.cw20_code_id,
                 Addr::unchecked(owner),
                 &Cw20BaseInstantiateMsg {
-                    name: token.to_owned(),
-                    symbol: token.to_owned(),
+                    name: "Cra".to_owned(),
+                    symbol: "CRA".to_owned(),
                     decimals: 6,
                     initial_balances: vec![],
                     mint: Some(MinterResponse {

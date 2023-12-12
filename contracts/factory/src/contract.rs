@@ -1,6 +1,6 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    attr, coin, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps,
+    attr, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps,
     DepsMut, Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
 };
 use cw2::set_contract_version;
@@ -533,7 +533,7 @@ pub fn execute_create_pair(
                 },
                 circuit_breaker: None,
             })?,
-            funds: vec![coin(300_000, "utestcore")],
+            funds: vec![],
             label: "Dex pair".to_string(),
         }
         .into(),

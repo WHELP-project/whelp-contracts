@@ -110,7 +110,7 @@ pub fn instantiate(
                     admin: Some(info.sender.to_string()),
                     unbonder: None, // TODO: allow specifying unbonder
                 })?,
-                funds: vec![coin(150_000, "utestcore")],
+                funds: vec![],
                 admin: Some(info.sender.to_string()),
                 label: String::from("Dex-Stake"),
             },
