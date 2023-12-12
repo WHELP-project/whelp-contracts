@@ -21,7 +21,7 @@ use dex::pool::{ExecuteMsg as PairExecuteMsg, PairInfo};
 const SECONDS_PER_DAY: u64 = 60 * 60 * 24;
 
 fn store_multi_hop(app: &mut CoreumApp) -> u64 {
-    let contract: Box::<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(ContractWrapper::new(
+    let contract: Box<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
@@ -44,7 +44,7 @@ fn store_factory(app: &mut CoreumApp) -> u64 {
 }
 
 fn store_pair(app: &mut CoreumApp) -> u64 {
-    let contract: Box::<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(
+    let contract: Box<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(
         ContractWrapper::new(
             dex_pool::contract::execute,
             dex_pool::contract::instantiate,
@@ -57,7 +57,7 @@ fn store_pair(app: &mut CoreumApp) -> u64 {
 }
 
 fn store_cw20(app: &mut CoreumApp) -> u64 {
-    let contract = Box::new(ContractWrapper::new(
+    let contract = Box::new(ContractWrapper::new_with_empty(
         cw20_base::contract::execute,
         cw20_base::contract::instantiate,
         cw20_base::contract::query,
@@ -67,7 +67,7 @@ fn store_cw20(app: &mut CoreumApp) -> u64 {
 }
 
 fn store_staking(app: &mut CoreumApp) -> u64 {
-    let contract: Box::<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(ContractWrapper::new(
+    let contract: Box<dyn Contract<CoreumMsg, CoreumQueries>> = Box::new(ContractWrapper::new(
         dex_stake::contract::execute,
         dex_stake::contract::instantiate,
         dex_stake::contract::query,
