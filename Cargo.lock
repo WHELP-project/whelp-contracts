@@ -470,6 +470,7 @@ name = "dex-multi-hop"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bindings-test",
  "coreum-wasm-sdk",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -480,6 +481,7 @@ dependencies = [
  "cw20",
  "cw20-base",
  "dex",
+ "dex-factory",
  "dex-pool",
  "dex-stake",
  "thiserror",

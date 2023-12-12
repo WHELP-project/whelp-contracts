@@ -10,6 +10,7 @@ repository = "https://github.com/WHELP-project/whelp-contracts"
 
 [workspace.dependencies]
 anyhow = "1"
+bindings-test = { path = "./packages/bindings-test" }
 cw20-base = { version = "1.1", package = "cw20-base", features = ["library"] }
 coreum-wasm-sdk = "0.1.1"
 cosmwasm-schema = "1.4"
@@ -23,6 +24,7 @@ cw-storage-plus = "1.1"
 cw-utils = "1.0"
 derivative = "2.2"
 dex = { path = "./packages/dex", default-features = false }
+dex-factory = { path = "./contracts/factory", default-features = false }
 dex-pool = { path = "./contracts/pool", default-features = false }
 dex-stake = { path = "./contracts/stake", default-features = false }
 itertools = "0.10"
