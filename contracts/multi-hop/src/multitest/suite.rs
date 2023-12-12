@@ -1,6 +1,6 @@
 use anyhow::Result as AnyResult;
 
-use bindings_test::{CoreumApp};
+use bindings_test::CoreumApp;
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{coin, to_json_binary, Addr, Coin, Decimal, Uint128};
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
