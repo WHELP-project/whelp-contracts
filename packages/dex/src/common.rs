@@ -1,7 +1,7 @@
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{attr, Addr, Api, DepsMut, Env, MessageInfo, StdError, StdResult};
 use cw_storage_plus::Item;
-use coreum_wasm_sdk::core::{CoreumQueries, CoreumMsg};
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 
