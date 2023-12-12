@@ -1,3 +1,4 @@
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_std::{
     from_json,
     testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
@@ -7,13 +8,13 @@ use cosmwasm_std::{
 
 use dex::pool::{PairInfo, QueryMsg};
 
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies.
-/// This uses the Coreum CustomQuerier.
+/// This uses the Dex CustomQuerier.
 pub fn mock_dependencies(
     contract_balance: &[Coin],
-) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier, CoreumQueries> {
     let custom_querier: WasmMockQuerier =
         WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
 
@@ -21,7 +22,7 @@ pub fn mock_dependencies(
         storage: MockStorage::default(),
         api: MockApi::default(),
         querier: custom_querier,
-        custom_query_type: Default::default(),
+        custom_query_type: PhantomData,
     }
 }
 
