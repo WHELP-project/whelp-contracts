@@ -1,6 +1,9 @@
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{attr, Addr, Api, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
+use cosmwasm_std::{attr, Addr, Api, DepsMut, Env, MessageInfo, StdError, StdResult};
 use cw_storage_plus::Item;
+
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
 
 const MAX_PROPOSAL_TTL: u64 = 1209600;
 
@@ -24,7 +27,7 @@ pub struct OwnershipProposal {
 /// ## Executor
 /// Only the current contract owner can execute this.
 pub fn propose_new_owner(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     env: Env,
     new_owner: String,
@@ -71,7 +74,7 @@ pub fn propose_new_owner(
 /// ## Executor
 /// Only the current owner can execute this.
 pub fn drop_ownership_proposal(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     owner: Addr,
     proposal: Item<OwnershipProposal>,
@@ -93,11 +96,11 @@ pub fn drop_ownership_proposal(
 /// ## Executor
 /// Only the newly proposed owner can execute this.
 pub fn claim_ownership(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     env: Env,
     proposal: Item<OwnershipProposal>,
-    cb: fn(DepsMut, Addr) -> StdResult<()>,
+    cb: fn(DepsMut<CoreumQueries>, Addr) -> StdResult<()>,
 ) -> StdResult<Response> {
     let p = proposal
         .load(deps.storage)
