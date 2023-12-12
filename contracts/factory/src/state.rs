@@ -1,7 +1,7 @@
+use coreum_wasm_sdk::core::CoreumQueries;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, Decimal, Deps, Order, StdResult};
 use cw_storage_plus::{Bound, Item, Map};
-use itertools::Itertools;
 
 use crate::error::ContractError;
 use dex::{
@@ -9,6 +9,8 @@ use dex::{
     common::OwnershipProposal,
     factory::{DefaultStakeConfig, DistributionFlow, PoolConfig},
 };
+
+use itertools::Itertools;
 
 /// This structure holds the main contract parameters.
 #[cw_serde]
@@ -78,7 +80,7 @@ const DEFAULT_LIMIT: u32 = 10;
 ///
 /// `limit` is the number of items to retrieve.
 pub fn read_pairs(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     start_after: Option<Vec<AssetInfo>>,
     limit: Option<u32>,
 ) -> StdResult<Vec<Addr>> {

@@ -1,3 +1,4 @@
+use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, coin, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps,
     DepsMut, Env, MessageInfo, Order, Reply, ReplyOn, Response, StdError, StdResult, SubMsg,
@@ -34,6 +35,9 @@ use crate::{
 use itertools::Itertools;
 use std::collections::HashSet;
 
+pub type Response = cosmwasm_std::Response<CoreumMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
+
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "dex-factory";
 /// Contract version that is used for migration.
@@ -50,7 +54,7 @@ const MAX_TRADING_STARTS_DELAY: u64 = 60 * SECONDS_PER_DAY;
 /// * **msg**  is message which contains the parameters used for creating the contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -140,7 +144,7 @@ pub struct UpdateConfig {
 /// * **ExecuteMsg::MarkAsMigrated {}** Mark pairs as migrated.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -253,7 +257,7 @@ pub fn execute(
 }
 
 fn receive_cw20_message(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     msg: Cw20ReceiveMsg,
@@ -315,7 +319,7 @@ fn receive_cw20_message(
 }
 
 fn execute_update_pair_fees(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     asset_infos: Vec<AssetInfo>,
     fee_config: FeeConfig,
@@ -353,7 +357,7 @@ fn execute_update_pair_fees(
 /// ## Executor
 /// Only the owner can execute this.
 fn execute_create_distribution_flow(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     asset_infos: Vec<AssetInfo>,
@@ -388,7 +392,7 @@ fn execute_create_distribution_flow(
 /// ## Executor
 /// Only the owner can execute this.
 pub fn execute_update_config(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     param: UpdateConfig,
 ) -> Result<Response, ContractError> {
@@ -424,7 +428,7 @@ pub fn execute_update_config(
 /// ## Executor
 /// Only the owner can execute this.
 pub fn execute_update_pair_config(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     pair_config: PoolConfig,
 ) -> Result<Response, ContractError> {
@@ -462,7 +466,7 @@ pub fn execute_update_pair_config(
 /// * **distribution_flows** is a vector of distribution flows to be created for the pair's staking contract.
 #[allow(clippy::too_many_arguments)]
 pub fn execute_create_pair(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     env: Env,
     pool_type: PoolType,
@@ -550,7 +554,7 @@ pub fn execute_create_pair(
 ///
 /// * **pairs** is a vector of pairs which should be marked as transferred.
 fn execute_mark_pairs_as_migrated(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     pairs: Vec<String>,
 ) -> Result<Response, ContractError> {
@@ -574,7 +578,11 @@ fn execute_mark_pairs_as_migrated(
 
 /// The entry point to the contract for processing replies from submessages.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(
+    deps: DepsMut<CoreumQueries>,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     // parse the reply
     let res = cw_utils::parse_reply_instantiate_data(msg).map_err(|_| {
         StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
@@ -592,7 +600,7 @@ pub mod reply {
     use super::*;
 
     pub fn instantiate_pair(
-        deps: DepsMut,
+        deps: DepsMut<CoreumQueries>,
         env: Env,
         res: MsgInstantiateContractResponse,
     ) -> Result<Response, ContractError> {
@@ -659,7 +667,7 @@ pub mod reply {
 /// ## Executor
 /// Only the owner can execute this.
 pub fn deregister_pool_and_staking(
-    deps: DepsMut,
+    deps: DepsMut<CoreumQueries>,
     info: MessageInfo,
     asset_infos: Vec<AssetInfo>,
 ) -> Result<Response, ContractError> {
@@ -722,7 +730,7 @@ pub fn deregister_pool_and_staking(
 ///
 /// * **QueryMsg::PoolsToMigrate {}** Returns a vector that contains pair addresses that are not migrated.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps<CoreumQueries>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::Pool { asset_infos } => to_json_binary(&query_pair(deps, asset_infos)?),
@@ -741,7 +749,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 /// Returns a vector that contains blacklisted pair types
-pub fn query_blacklisted_pool_types(deps: Deps) -> StdResult<Vec<PoolType>> {
+pub fn query_blacklisted_pool_types(deps: Deps<CoreumQueries>) -> StdResult<Vec<PoolType>> {
     PAIR_CONFIGS
         .range(deps.storage, None, None, Order::Ascending)
         .filter_map(|result| match result {
@@ -758,7 +766,7 @@ pub fn query_blacklisted_pool_types(deps: Deps) -> StdResult<Vec<PoolType>> {
 }
 
 /// Returns general contract parameters using a custom [`ConfigResponse`] structure.
-pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<ConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
     let resp = ConfigResponse {
         owner: config.owner,
@@ -777,7 +785,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 
 /// Returns a pair's data using the assets in `asset_infos` as input (those being the assets that are traded in the pair).
 /// * **asset_infos** is a vector with assets traded in the pair.
-pub fn query_pair(deps: Deps, asset_infos: Vec<AssetInfo>) -> StdResult<PairInfo> {
+pub fn query_pair(deps: Deps<CoreumQueries>, asset_infos: Vec<AssetInfo>) -> StdResult<PairInfo> {
     let asset_infos = asset_infos
         .into_iter()
         .map(|a| a.validate(deps.api))
@@ -792,7 +800,7 @@ pub fn query_pair(deps: Deps, asset_infos: Vec<AssetInfo>) -> StdResult<PairInfo
 ///
 /// * **limit** sets the number of pairs to be retrieved.
 pub fn query_pairs(
-    deps: Deps,
+    deps: Deps<CoreumQueries>,
     start_after: Option<Vec<AssetInfo>>,
     limit: Option<u32>,
 ) -> StdResult<PoolsResponse> {
@@ -806,7 +814,10 @@ pub fn query_pairs(
 
 /// Returns the fee setup for a specific pair type using a [`FeeInfoResponse`] struct.
 /// * **pool_type** is a struct that represents the fee information (total and protocol fees) for a specific pair type.
-pub fn query_fee_info(deps: Deps, pool_type: PoolType) -> StdResult<FeeInfoResponse> {
+pub fn query_fee_info(
+    deps: Deps<CoreumQueries>,
+    pool_type: PoolType,
+) -> StdResult<FeeInfoResponse> {
     let config = CONFIG.load(deps.storage)?;
     let pair_config = PAIR_CONFIGS.load(deps.storage, pool_type.to_string())?;
 
@@ -819,7 +830,11 @@ pub fn query_fee_info(deps: Deps, pool_type: PoolType) -> StdResult<FeeInfoRespo
 
 /// Manages the contract migration.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut<CoreumQueries>,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response, ContractError> {
     match msg {
         MigrateMsg::Update() => {
             ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;

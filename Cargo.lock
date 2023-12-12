@@ -450,6 +450,8 @@ name = "dex-factory"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bindings-test",
+ "coreum-wasm-sdk",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
