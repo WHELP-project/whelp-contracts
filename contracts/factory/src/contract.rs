@@ -1,8 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, coin, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps,
-    DepsMut, Env, MessageInfo, Order, Reply, ReplyOn, Response, StdError, StdResult, SubMsg,
-    WasmMsg,
+    DepsMut, Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
