@@ -59,7 +59,7 @@ impl FactoryHelper {
             )
             .unwrap();
 
-        let pair_contract = Box::<CoreumMsg, CoreumQueries>::new(
+        let pair_contract = Box::new(
             ContractWrapper::new(
                 dex_pool::contract::execute,
                 dex_pool::contract::instantiate,
