@@ -1,10 +1,10 @@
 use anyhow::Result as AnyResult;
 
+use bindings_test::CoreumApp;
 use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
 use cw20::MinterResponse;
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use dex::{
     asset::AssetInfo,
     factory::{
@@ -23,11 +23,11 @@ pub struct FactoryHelper {
 
 impl FactoryHelper {
     #[allow(dead_code)]
-    pub fn init(router: &mut App, owner: &Addr) -> Self {
+    pub fn init(router: &mut CoreumApp, owner: &Addr) -> Self {
         Self::instantiate(router, owner, None)
     }
 
-    pub fn instantiate(router: &mut App, owner: &Addr, factory_code_id: Option<u64>) -> Self {
+    pub fn instantiate(router: &mut CoreumApp, owner: &Addr, factory_code_id: Option<u64>) -> Self {
         let astro_token_contract = Box::new(ContractWrapper::new_with_empty(
             cw20_base::contract::execute,
             cw20_base::contract::instantiate,
@@ -59,7 +59,7 @@ impl FactoryHelper {
             )
             .unwrap();
 
-        let pair_contract = Box::new(
+        let pool_contract = Box::new(
             ContractWrapper::new(
                 dex_pool::contract::execute,
                 dex_pool::contract::instantiate,
@@ -68,18 +68,18 @@ impl FactoryHelper {
             .with_reply(dex_pool::contract::reply),
         );
 
-        let pair_code_id = router.store_code(pair_contract);
+        let pool_code_id = router.store_code(pool_contract);
 
         let factory_code_id = if let Some(factory_code_id) = factory_code_id {
             factory_code_id
         } else {
             let factory_contract = Box::new(
-                ContractWrapper::new_with_empty(
+                ContractWrapper::new(
                     dex_factory::contract::execute,
                     dex_factory::contract::instantiate,
                     dex_factory::contract::query,
                 )
-                .with_reply_empty(dex_factory::contract::reply),
+                .with_reply(dex_factory::contract::reply),
             );
             router.store_code(factory_contract)
         };
@@ -94,7 +94,7 @@ impl FactoryHelper {
 
         let msg = dex::factory::InstantiateMsg {
             pool_configs: vec![PoolConfig {
-                code_id: pair_code_id,
+                code_id: pool_code_id,
                 pool_type: PoolType::Xyk {},
                 fee_config: FeeConfig {
                     total_fee_bps: 100,
