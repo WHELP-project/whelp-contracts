@@ -19,6 +19,7 @@ pub struct FactoryHelper {
     pub owner: Addr,
     pub astro_token: Addr,
     pub factory: Addr,
+    pub cw20_token_code_id: u64,
 }
 
 impl FactoryHelper {
@@ -130,6 +131,7 @@ impl FactoryHelper {
             owner: owner.clone(),
             astro_token,
             factory,
+            cw20_token_code_id,
         }
     }
 
@@ -152,7 +154,7 @@ impl FactoryHelper {
 
     pub fn create_pair(
         &mut self,
-        router: &mut App,
+        router: &mut CoreumApp,
         sender: &Addr,
         pool_type: PoolType,
         tokens: [&str; 2],
@@ -178,7 +180,7 @@ impl FactoryHelper {
     #[allow(dead_code)]
     pub fn deregister_pool_and_staking(
         &mut self,
-        router: &mut App,
+        router: &mut CoreumApp,
         sender: &Addr,
         asset_infos: Vec<AssetInfo>,
     ) -> AnyResult<AppResponse> {
@@ -189,7 +191,7 @@ impl FactoryHelper {
 
     pub fn create_pair_with_addr(
         &mut self,
-        router: &mut App,
+        router: &mut CoreumApp,
         sender: &Addr,
         pair_type: PoolType,
         tokens: [&str; 2],
@@ -212,7 +214,7 @@ impl FactoryHelper {
     #[allow(dead_code)]
     pub fn update_pair_fees(
         &mut self,
-        router: &mut App,
+        router: &mut CoreumApp,
         sender: &Addr,
         asset_infos: Vec<AssetInfo>,
         fee_config: FeeConfig,
@@ -227,7 +229,7 @@ impl FactoryHelper {
 }
 
 pub fn instantiate_token(
-    app: &mut App,
+    app: &mut CoreumApp,
     token_code_id: u64,
     owner: &Addr,
     token_name: &str,
