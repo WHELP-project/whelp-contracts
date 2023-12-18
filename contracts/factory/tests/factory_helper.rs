@@ -135,7 +135,7 @@ impl FactoryHelper {
 
     pub fn update_config(
         &mut self,
-        router: &mut App,
+        router: &mut CoreumApp,
         sender: &Addr,
         fee_address: Option<String>,
         only_owner_can_create_pools: Option<bool>,

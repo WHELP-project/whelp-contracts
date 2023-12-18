@@ -10,6 +10,7 @@ use dex::factory::{
 use dex::fee_config::FeeConfig;
 use dex::pool::ContractError;
 use dex::pool::PairInfo;
+use dex_factory::state::Config;
 
 use crate::factory_helper::{instantiate_token, FactoryHelper};
 use cw_multi_test::{App, ContractWrapper, Executor};
@@ -87,71 +88,67 @@ fn proper_initialization() {
     assert_eq!(owner, config_res.owner);
 }
 
-// #[test]
-// fn update_config() {
-//     let mut app = mock_app();
-//     let owner = Addr::unchecked("owner");
-//     let mut helper = FactoryHelper::init(&mut app, &owner);
+#[test]
+fn update_config() {
+    let mut app = mock_app();
+    let owner = Addr::unchecked("owner");
+    let mut helper = FactoryHelper::init(&mut app, &owner);
 
-//     // Update config
-//     helper
-//         .update_config(
-//             &mut app,
-//             &owner,
-//             Some(200u64),
-//             Some("fee".to_string()),
-//             Some(false),
-//             Some(PartialDefaultStakeConfig {
-//                 staking_code_id: Some(12345),
-//                 tokens_per_power: None,
-//                 min_bond: Some(10000u128.into()),
-//                 unbonding_periods: None,
-//                 max_distributions: Some(u32::MAX),
-//             }),
-//         )
-//         .unwrap();
+    // Update config
+    helper
+        .update_config(
+            &mut app,
+            &owner,
+            Some("fee".to_string()),
+            Some(false),
+            Some(PartialDefaultStakeConfig {
+                staking_code_id: Some(12345),
+                tokens_per_power: None,
+                min_bond: Some(10000u128.into()),
+                unbonding_periods: None,
+                max_distributions: Some(u32::MAX),
+            }),
+        )
+        .unwrap();
 
-//     let config_res: ConfigResponse = app
-//         .wrap()
-//         .query_wasm_smart(&helper.factory, &QueryMsg::Config {})
-//         .unwrap();
+    let config_res: ConfigResponse = app
+        .wrap()
+        .query_wasm_smart(&helper.factory, &QueryMsg::Config {})
+        .unwrap();
 
-//     assert_eq!(200u64, config_res.token_code_id);
-//     assert_eq!("fee", config_res.fee_address.unwrap().to_string());
+    assert_eq!("fee", config_res.fee_address.unwrap().to_string());
 
-//     // query config raw to get default stake config
-//     let raw_config: Config = from_slice(
-//         &app.wrap()
-//             .query_wasm_raw(&helper.factory, "config".as_bytes())
-//             .unwrap()
-//             .unwrap(),
-//     )
-//     .unwrap();
-//     assert_eq!(
-//         DefaultStakeConfig {
-//             staking_code_id: 12345,
-//             tokens_per_power: Uint128::new(1000), // same as before
-//             min_bond: Uint128::new(10_000),
-//             unbonding_periods: vec![1, 2, 3], // same as before
-//             max_distributions: u32::MAX,
-//             converter: None,
-//         },
-//         raw_config.default_stake_config
-//     );
+    // query config raw to get default stake config
+    let raw_config: Config = from_slice(
+        &app.wrap()
+            .query_wasm_raw(&helper.factory, "config".as_bytes())
+            .unwrap()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        DefaultStakeConfig {
+            staking_code_id: 12345,
+            tokens_per_power: Uint128::new(1000), // same as before
+            min_bond: Uint128::new(10_000),
+            unbonding_periods: vec![1, 2, 3], // same as before
+            max_distributions: u32::MAX,
+        },
+        raw_config.default_stake_config
+    );
 
-//     // Unauthorized err
-//     let res = helper
-//         .update_config(
-//             &mut app,
-//             &Addr::unchecked("not_owner"),
-//             None,
-//             None,
-//             None,
-//             None,
-//         )
-//         .unwrap_err();
-//     assert_eq!(res.root_cause().to_string(), "Unauthorized");
-// }
+    // Unauthorized err
+    let res = helper
+        .update_config(
+            &mut app,
+            &Addr::unchecked("not_owner"),
+            None,
+            None,
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(res.root_cause().to_string(), "Unauthorized");
+}
 
 // #[test]
 // fn test_create_then_deregister_pair() {
