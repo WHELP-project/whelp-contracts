@@ -119,7 +119,7 @@ fn update_config() {
 
     // query config raw to get default stake config
     let raw_config: Config = from_json(
-        &app.wrap()
+        app.wrap()
             .query_wasm_raw(&helper.factory, "config".as_bytes())
             .unwrap()
             .unwrap(),
