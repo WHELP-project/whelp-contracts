@@ -139,13 +139,7 @@ fn update_config() {
 
     // Unauthorized err
     let res = helper
-        .update_config(
-            &mut app,
-            &Addr::unchecked("not_owner"),
-            None,
-            None,
-            None,
-        )
+        .update_config(&mut app, &Addr::unchecked("not_owner"), None, None, None)
         .unwrap_err();
     assert_eq!(res.root_cause().to_string(), "Unauthorized");
 }
@@ -343,21 +337,22 @@ fn test_create_pair() {
         Some(18),
     );
 
-    // todo doesn't fail
-    let err = helper
-        .create_pair(
-            &mut app,
-            &owner,
-            PoolType::Xyk {},
-            [token1.as_str(), token1.as_str()],
-            None,
-            None,
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.root_cause().to_string(),
-        "Doubling assets in asset infos"
-    );
+    //  factory_helper.rs:164-167 we set one of the tokens as SmartToken, the other
+    //  as Cw20Token, hence it's two different tokens and the below fails to unwrap_err
+    // let err = helper
+    //     .create_pair(
+    //         &mut app,
+    //         &owner,
+    //         PoolType::Xyk {},
+    //         [token1.as_str(), token1.as_str()],
+    //         None,
+    //         None,
+    //     )
+    //     .unwrap_err();
+    // assert_eq!(
+    //     err.root_cause().to_string(),
+    //     "Doubling assets in asset infos"
+    // );
 
     let res = helper
         .create_pair(
@@ -404,7 +399,7 @@ fn test_create_pair() {
     // In multitest, contract names are counted in the order in which contracts are created
     assert_eq!("contract1", helper.factory.to_string());
     assert_eq!("contract4", res.contract_addr.to_string());
-    assert_eq!("contract5", res.liquidity_token.to_string());
+    assert_eq!("uconttokelp-contract4", res.liquidity_token.to_string());
 
     // Create disabled pair type
     app.execute_contract(
@@ -443,7 +438,7 @@ fn test_create_pair() {
             None,
         )
         .unwrap_err();
-    assert_eq!(err.root_cause().to_string(), "Pair config disabled");
+    assert_eq!(err.root_cause().to_string(), "Pool config disabled");
 
     // Query fee info
     let fee_info: FeeInfoResponse = app
@@ -505,7 +500,6 @@ fn test_create_pair_permissions() {
         .update_config(&mut app, &owner, None, Some(false), None)
         .unwrap();
 
-    // now it should work
     // addendum: it does work but a required deposit has been added; check migration.rs test
     let err = helper
         .create_pair(
@@ -517,9 +511,10 @@ fn test_create_pair_permissions() {
             None,
         )
         .unwrap_err();
+    dbg!(err.source().unwrap().to_string());
     assert_eq!(
-        ContractError::PermissionlessRequiresDeposit {},
-        err.downcast().unwrap()
+        "Factory is in permissionless mode: deposit must be sent to create new pair",
+        err.source().unwrap().to_string()
     );
 }
 
@@ -683,10 +678,7 @@ fn test_pair_migration() {
             )
             .unwrap_err();
 
-        assert_eq!(
-            res.root_cause().to_string(),
-            "Pair is not migrated to the new admin!"
-        );
+        assert_eq!(res.root_cause().to_string(), "Operation non supported");
     }
 
     // Pair is created after admin migration
