@@ -1,19 +1,18 @@
 mod factory_helper;
 
 use bindings_test::CoreumApp;
-use cosmwasm_std::{attr, from_slice, Addr, Decimal, StdError, Uint128};
+use cosmwasm_std::{attr, from_json, Addr, Decimal, StdError, Uint128};
 use dex::asset::AssetInfo;
 use dex::factory::{
-    ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg, MigrateMsg,
+    ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg,
     PartialDefaultStakeConfig, PoolConfig, PoolType, QueryMsg,
 };
 use dex::fee_config::FeeConfig;
-use dex::pool::ContractError;
 use dex::pool::PairInfo;
 use dex_factory::state::Config;
 
 use crate::factory_helper::{instantiate_token, FactoryHelper};
-use cw_multi_test::{App, ContractWrapper, Executor};
+use cw_multi_test::{ContractWrapper, Executor};
 use dex::pool::ExecuteMsg as PairExecuteMsg;
 fn mock_app() -> CoreumApp {
     CoreumApp::default()
@@ -119,7 +118,7 @@ fn update_config() {
     assert_eq!("fee", config_res.fee_address.unwrap().to_string());
 
     // query config raw to get default stake config
-    let raw_config: Config = from_slice(
+    let raw_config: Config = from_json(
         &app.wrap()
             .query_wasm_raw(&helper.factory, "config".as_bytes())
             .unwrap()
