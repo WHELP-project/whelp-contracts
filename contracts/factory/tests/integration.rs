@@ -197,7 +197,7 @@ fn test_create_then_deregister_pair() {
     // In multitest, contract names are counted in the order in which contracts are created
     assert_eq!("contract1", helper.factory.to_string());
     assert_eq!("contract4", res.contract_addr.to_string());
-    assert_eq!("uconttokelp-contract4", res.liquidity_token.to_string());
+    assert_eq!("ucontcontlp-contract4", res.liquidity_token.to_string());
     // Deregsiter the pair, which removes the Pair addr and the staking contract addr from Storage
     helper
         .deregister_pool_and_staking(
@@ -338,20 +338,20 @@ fn test_create_pair() {
 
     //  factory_helper.rs:164-167 we set one of the tokens as SmartToken, the other
     //  as Cw20Token, hence it's two different tokens and the below fails to unwrap_err
-    // let err = helper
-    //     .create_pair(
-    //         &mut app,
-    //         &owner,
-    //         PoolType::Xyk {},
-    //         [token1.as_str(), token1.as_str()],
-    //         None,
-    //         None,
-    //     )
-    //     .unwrap_err();
-    // assert_eq!(
-    //     err.root_cause().to_string(),
-    //     "Doubling assets in asset infos"
-    // );
+    let err = helper
+        .create_pair(
+            &mut app,
+            &owner,
+            PoolType::Xyk {},
+            [token1.as_str(), token1.as_str()],
+            None,
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(
+        err.root_cause().to_string(),
+        "Doubling assets in asset infos"
+    );
 
     let res = helper
         .create_pair(
@@ -398,7 +398,7 @@ fn test_create_pair() {
     // In multitest, contract names are counted in the order in which contracts are created
     assert_eq!("contract1", helper.factory.to_string());
     assert_eq!("contract4", res.contract_addr.to_string());
-    assert_eq!("uconttokelp-contract4", res.liquidity_token.to_string());
+    assert_eq!("ucontcontlp-contract4", res.liquidity_token.to_string());
 
     // Create disabled pair type
     app.execute_contract(

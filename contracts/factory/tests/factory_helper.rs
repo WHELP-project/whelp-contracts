@@ -163,7 +163,7 @@ impl FactoryHelper {
     ) -> AnyResult<AppResponse> {
         let asset_infos = vec![
             AssetInfo::SmartToken(tokens[0].to_owned()),
-            AssetInfo::Cw20Token(tokens[1].to_owned()),
+            AssetInfo::SmartToken(tokens[1].to_owned()),
         ];
 
         let msg = dex::factory::ExecuteMsg::CreatePool {
