@@ -14,6 +14,7 @@ use dex_factory::state::Config;
 use crate::factory_helper::{instantiate_token, FactoryHelper};
 use cw_multi_test::{ContractWrapper, Executor};
 use dex::pool::ExecuteMsg as PairExecuteMsg;
+
 fn mock_app() -> CoreumApp {
     CoreumApp::default()
 }
@@ -510,7 +511,7 @@ fn test_create_pair_permissions() {
             None,
         )
         .unwrap_err();
-    dbg!(err.source().unwrap().to_string());
+
     assert_eq!(
         "Factory is in permissionless mode: deposit must be sent to create new pair",
         err.source().unwrap().to_string()
