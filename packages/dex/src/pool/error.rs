@@ -117,6 +117,9 @@ pub enum ContractError {
 
     #[error("Spot price parameters incorrect - iterations must be bigger then 0 and less or equal then 100")]
     SpotPriceInvalidIterations {},
+
+    #[error("Deposit required for permissionless pool creation")]
+    PermissionlessRequiresDeposit {},
 }
 
 impl From<ContractError> for StdError {
