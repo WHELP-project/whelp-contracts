@@ -1,5 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
-use cosmwasm_std::{entry_point, Binary, DepsMut, Env, MessageInfo, Deps, StdResult, to_json_binary};
+use cosmwasm_std::{
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, StdResult,
+};
 use cw_storage_plus::Item;
 
 use crate::{
@@ -29,7 +31,9 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let config = Config { owner: deps.api.addr_validate(&msg.owner)?};
+    let config = Config {
+        owner: deps.api.addr_validate(&msg.owner)?,
+    };
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
@@ -69,4 +73,3 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
 
     Ok(resp)
 }
-
