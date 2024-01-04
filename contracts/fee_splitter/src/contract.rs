@@ -17,9 +17,9 @@ pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 /// Contract name that is used for migration.
-const CONTRACT_NAME: &str = "fee_splitter";
+const _CONTRACT_NAME: &str = "fee_splitter";
 /// Contract version that is used for migration.
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const _CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
 ///
@@ -41,15 +41,15 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut<CoreumQueries>,
-    env: Env,
-    info: MessageInfo,
+    _deps: DepsMut<CoreumQueries>,
+    _env: Env,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::SendTokens {
-            native_denoms,
-            cw20_addresses,
+            native_denoms: _,
+            cw20_addresses: _,
         } => execute_send_tokens(),
     }
 }
