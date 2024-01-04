@@ -31,7 +31,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-     let is_weights_valid = msg
+    let is_weights_valid = msg
         .addresses
         .iter()
         .map(|&(_, weight)| weight)
@@ -39,7 +39,7 @@ pub fn instantiate(
         .le(&Decimal::from_ratio(1u32, 1u32));
 
     if !is_weights_valid {
-        return Err(ContractError::InvalidWeights {})
+        return Err(ContractError::InvalidWeights {});
     }
 
     let config = Config {
@@ -86,7 +86,6 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
 
     Ok(resp)
 }
-
 
 #[cfg(test)]
 mod tests {
