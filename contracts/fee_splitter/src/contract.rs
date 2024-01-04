@@ -1,6 +1,6 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, StdResult,
+    entry_point, to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, StdResult,
 };
 use cw_storage_plus::Item;
 
@@ -31,8 +31,20 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+     let is_weights_valid = msg
+        .addresses
+        .iter()
+        .map(|&(_, weight)| weight)
+        .fold(Decimal::zero(), |acc, x| acc + x)
+        .le(&Decimal::from_ratio(1u32, 1u32));
+
+    if !is_weights_valid {
+        return Err(ContractError::InvalidWeights {})
+    }
+
     let config = Config {
         owner: deps.api.addr_validate(&msg.owner)?,
+        addresses: Vec::new(),
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -69,6 +81,7 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
     let config = CONFIG.load(deps.storage)?;
     let resp = Config {
         owner: config.owner,
+        addresses: config.addresses,
     };
 
     Ok(resp)

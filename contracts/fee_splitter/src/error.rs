@@ -6,4 +6,7 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("Provided weights exceed maximum allowed value")]
+    InvalidWeights {},
 }
