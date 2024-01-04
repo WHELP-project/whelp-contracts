@@ -86,3 +86,12 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
 
     Ok(resp)
 }
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn instantiate_with_invalid_weights_should_throw_error() {
+        unimplemented!()
+    }
+}
