@@ -44,8 +44,9 @@ pub fn instantiate(
 
     let config = Config {
         owner: deps.api.addr_validate(&msg.owner)?,
-        addresses: Vec::new(),
+        addresses: msg.addresses,
     };
+
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
@@ -53,20 +54,20 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut<CoreumQueries>,
-    _env: Env,
-    _info: MessageInfo,
+    deps: DepsMut<CoreumQueries>,
+    env: Env,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::SendTokens {
             native_denoms: _,
             cw20_addresses: _,
-        } => execute_send_tokens(),
+        } => execute_send_tokens(deps, env, info, msg),
     }
 }
 
-fn execute_send_tokens() -> Result<Response, ContractError> {
+fn execute_send_tokens(deps: DepsMut<CoreumQueries>, env: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response, ContractError> {
     todo!()
 }
 
