@@ -3,8 +3,6 @@ use cosmwasm_std::Decimal;
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    // The sender of the message
-    pub owner: String,
     // List of addresses and their weights.
     // Weights must sum up to 1.0
     pub addresses: Vec<(String, Decimal)>,

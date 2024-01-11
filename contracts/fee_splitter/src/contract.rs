@@ -1,8 +1,10 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, StdResult,
+    entry_point, to_json_binary, BankMsg, Binary, Decimal, Deps, DepsMut, Env, MessageInfo,
+    StdError, StdResult,
 };
 use cw_storage_plus::Item;
+use dex::querier::query_balance;
 
 use crate::{
     error::ContractError,
@@ -17,7 +19,7 @@ pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 /// Contract name that is used for migration.
-const _CONTRACT_NAME: &str = "fee_splitter";
+const _CONTRACT_NAME: &str = "fee-splitter";
 /// Contract version that is used for migration.
 const _CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -43,7 +45,6 @@ pub fn instantiate(
     }
 
     let config = Config {
-        owner: deps.api.addr_validate(&msg.owner)?,
         addresses: msg.addresses,
     };
 
@@ -54,24 +55,44 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut<CoreumQueries>,
+    deps: Deps<CoreumQueries>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::SendTokens {
-            native_denoms: _,
-            cw20_addresses: _,
-        } => execute_send_tokens(deps, env, info, msg),
+            native_denoms,
+            cw20_addresses,
+        } => execute_send_tokens(deps, env, info, msg, native_denoms, cw20_addresses),
     }
 }
 
-fn execute_send_tokens(deps: DepsMut<CoreumQueries>, env: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response, ContractError> {
-    // get the amount of tokens that the contract has
-    
-    
-    // iterate over the saved addresses and send the appropriate amount of tokens to each
+fn execute_send_tokens(
+    deps: Deps<CoreumQueries>,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+    native_denoms: Vec<String>,
+    cw20_addresses: Option<Vec<String>>,
+) -> Result<Response, ContractError> {
+    // iterate over native_denoms and send to recipients
+    native_denoms.iter().for_each(|denom| {
+        if let Some(amount) = query_balance(deps.querier, env.contract.address, denom) {
+            let config = query_config(deps)?;
+            config.addresses.iter().for_each(|(address, decimal)| {
+                send_amount = amount * decimal;
+                let msg = BankMsg::Send {
+                    to_address: address,
+                    amount,
+                };
+            })
+        }
+    });
+
+    // iterate over cw20 address and send to recipients
+
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

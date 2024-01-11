@@ -9,4 +9,7 @@ pub enum ContractError {
 
     #[error("Provided weights exceed maximum allowed value")]
     InvalidWeights {},
+
+    #[error("Unauthorized")]
+    Unauthorized {},
 }
