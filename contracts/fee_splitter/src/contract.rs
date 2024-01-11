@@ -68,7 +68,10 @@ pub fn execute(
 }
 
 fn execute_send_tokens(deps: DepsMut<CoreumQueries>, env: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response, ContractError> {
-    todo!()
+    // get the amount of tokens that the contract has
+    
+    
+    // iterate over the saved addresses and send the appropriate amount of tokens to each
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
