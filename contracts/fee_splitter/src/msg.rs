@@ -19,7 +19,7 @@ pub enum ExecuteMsg {
         native_denoms: Vec<String>,
         // Provide addresses of cw20 contracts to check
         // If None, contract will query adresses from Config
-        cw20_addresses: Option<Vec<String>>,
+        cw20_addresses: Vec<String>,
     },
 }
 

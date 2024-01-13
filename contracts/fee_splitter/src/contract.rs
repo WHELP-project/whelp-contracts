@@ -1,10 +1,10 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    entry_point, to_json_binary, BankMsg, Binary, Decimal, Deps, DepsMut, Env, MessageInfo,
+    entry_point, to_json_binary, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
     StdError, StdResult,
 };
 use cw_storage_plus::Item;
-use dex::querier::query_balance;
+use dex::querier::{query_balance, query_token_balance};
 
 use crate::{
     error::ContractError,
@@ -74,25 +74,43 @@ fn execute_send_tokens(
     info: MessageInfo,
     msg: ExecuteMsg,
     native_denoms: Vec<String>,
-    cw20_addresses: Option<Vec<String>>,
+    cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    // iterate over native_denoms and send to recipients
+    let mut response = Response::new();
+    let config = query_config(deps)?;
+
     native_denoms.iter().for_each(|denom| {
-        if let Some(amount) = query_balance(deps.querier, env.contract.address, denom) {
-            let config = query_config(deps)?;
+        if let Ok(amount) = query_balance(&deps.querier, env.contract.address, denom) {
             config.addresses.iter().for_each(|(address, decimal)| {
-                send_amount = amount * decimal;
+                let send_amount = amount * (*decimal);
                 let msg = BankMsg::Send {
-                    to_address: address,
-                    amount,
+                    to_address: *address,
+                    amount: vec![Coin {
+                        denom: denom.to_string(),
+                        amount: send_amount,
+                    }],
                 };
-            })
+                response.add_message(msg);
+            });
         }
     });
 
-    // iterate over cw20 address and send to recipients
-
-    Ok(Response::new())
+    cw20_addresses.iter().for_each(|denom| {
+        if let Ok(amount) = query_token_balance(&deps.querier, env.contract.address, denom) {
+            config.addresses.iter().for_each(|(address, decimal)| {
+                let send_amount = amount * (*decimal);
+                let msg = BankMsg::Send {
+                    to_address: *address,
+                    amount: vec![Coin {
+                        denom: denom.to_string(),
+                        amount: send_amount,
+                    }],
+                };
+                response.add_message(msg);
+            });
+        }
+    });
+    Ok(response)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
