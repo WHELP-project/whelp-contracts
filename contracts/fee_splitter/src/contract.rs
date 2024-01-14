@@ -98,8 +98,8 @@ fn execute_send_tokens(
         if let Ok(amount) = query_token_balance(&deps.querier, env.clone().contract.address, denom)
         {
             // config.addresses.iter().for_each(|(address, decimal)| {
-            for (address, decimal) in config.addresses.iter() {
-                let send_amount = amount * (*decimal);
+            for (address, decimal) in config.clone().addresses.into_iter() {
+                let send_amount = amount * decimal;
                 let msg = CosmosMsg::Bank(BankMsg::Send {
                     to_address: address.clone().to_string(),
                     amount: vec![Coin {
