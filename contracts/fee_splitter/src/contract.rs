@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    entry_point, to_json_binary, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
-    StdError, StdResult,
+    attr, entry_point, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    Env, MessageInfo, StdResult,
 };
 use cw_storage_plus::Item;
 use dex::querier::{query_balance, query_token_balance};
@@ -57,60 +57,64 @@ pub fn instantiate(
 pub fn execute(
     deps: Deps<CoreumQueries>,
     env: Env,
-    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
+    match msg.clone() {
         ExecuteMsg::SendTokens {
             native_denoms,
             cw20_addresses,
-        } => execute_send_tokens(deps, env, info, msg, native_denoms, cw20_addresses),
+        } => execute_send_tokens(deps, env, native_denoms, cw20_addresses),
     }
 }
 
 fn execute_send_tokens(
     deps: Deps<CoreumQueries>,
     env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    let mut response = Response::new();
+    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
     let config = query_config(deps)?;
 
     native_denoms.iter().for_each(|denom| {
-        if let Ok(amount) = query_balance(&deps.querier, env.contract.address, denom) {
-            config.addresses.iter().for_each(|(address, decimal)| {
+        if let Ok(amount) = query_balance(&deps.querier, env.clone().contract.address, denom) {
+            for (address, decimal) in config.addresses.iter() {
                 let send_amount = amount * (*decimal);
-                let msg = BankMsg::Send {
-                    to_address: *address,
+                let msg = CosmosMsg::Bank(BankMsg::Send {
+                    to_address: address.clone().to_string(),
                     amount: vec![Coin {
                         denom: denom.to_string(),
                         amount: send_amount,
                     }],
-                };
-                response.add_message(msg);
-            });
+                });
+                messages.push(msg);
+            }
         }
     });
 
+    // todo - dry up and down
+
     cw20_addresses.iter().for_each(|denom| {
-        if let Ok(amount) = query_token_balance(&deps.querier, env.contract.address, denom) {
-            config.addresses.iter().for_each(|(address, decimal)| {
+        if let Ok(amount) = query_token_balance(&deps.querier, env.clone().contract.address, denom)
+        {
+            // config.addresses.iter().for_each(|(address, decimal)| {
+            for (address, decimal) in config.addresses.iter() {
                 let send_amount = amount * (*decimal);
-                let msg = BankMsg::Send {
-                    to_address: *address,
+                let msg = CosmosMsg::Bank(BankMsg::Send {
+                    to_address: address.clone().to_string(),
                     amount: vec![Coin {
                         denom: denom.to_string(),
                         amount: send_amount,
                     }],
-                };
-                response.add_message(msg);
-            });
+                });
+                messages.push(msg);
+            }
         }
     });
-    Ok(response)
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attributes(vec![attr("action", "withdraw")]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -123,7 +127,6 @@ pub fn query(deps: Deps<CoreumQueries>, _env: Env, msg: QueryMsg) -> StdResult<B
 pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
     let config = CONFIG.load(deps.storage)?;
     let resp = Config {
-        owner: config.owner,
         addresses: config.addresses,
     };
 
