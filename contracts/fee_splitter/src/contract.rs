@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, entry_point, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, StdResult, 
+    Env, MessageInfo, StdResult,
 };
 use cw_storage_plus::Item;
 use dex::querier::{query_balance, query_token_balance};
