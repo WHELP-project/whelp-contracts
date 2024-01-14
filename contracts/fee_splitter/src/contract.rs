@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, entry_point, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, StdResult,
+    Env, MessageInfo, StdResult, Uint128,
 };
 use cw_storage_plus::Item;
 use dex::querier::{query_balance, query_token_balance};
@@ -78,8 +78,8 @@ fn execute_send_tokens(
 
     native_denoms.iter().for_each(|denom| {
         if let Ok(amount) = query_balance(&deps.querier, env.clone().contract.address, denom) {
-            for (address, decimal) in config.addresses.iter() {
-                let send_amount = amount * (*decimal);
+            for (address, decimal) in config.clone().addresses.into_iter() {
+                let send_amount = amount * decimal;
                 let msg = CosmosMsg::Bank(BankMsg::Send {
                     to_address: address.clone().to_string(),
                     amount: vec![Coin {
