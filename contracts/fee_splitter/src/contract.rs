@@ -50,7 +50,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new())
+    Ok(Response::new().add_attribute("initialized", "contract"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

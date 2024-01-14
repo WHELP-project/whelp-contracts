@@ -29,10 +29,3 @@ pub enum QueryMsg {
     #[returns(crate::state::Config)]
     Config {},
 }
-
-/// Remove old configuration and replace it with new one
-#[cw_serde]
-pub struct MigrateMsg {
-    pub new_addresses: Vec<(String, Decimal)>,
-    pub new_cw20_contracts: Vec<String>,
-}
