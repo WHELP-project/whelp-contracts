@@ -481,7 +481,7 @@ fn provide_liquidity() {
         }],
     );
     let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-    let transfer_from_msg = res.messages.get(0).expect("no message");
+    let transfer_from_msg = res.messages.first().expect("no message");
     let mint_min_liquidity_msg = res.messages.get(1).expect("no message");
     let mint_receiver_msg = res.messages.get(2).expect("no message");
     assert_eq!(
@@ -585,7 +585,7 @@ fn provide_liquidity() {
 
     // Only accept 100, then 50 share will be generated with 100 * (100 / 200)
     let res: Response = execute(deps.as_mut(), env, info, msg).unwrap();
-    let transfer_from_msg = res.messages.get(0).expect("no message");
+    let transfer_from_msg = res.messages.first().expect("no message");
     let mint_msg = res.messages.get(1).expect("no message");
     assert_eq!(
         transfer_from_msg,
@@ -956,7 +956,7 @@ fn withdraw_liquidity() {
 
     let log_withdrawn_share = res.attributes.get(2).expect("no log");
     let log_refund_assets = res.attributes.get(3).expect("no log");
-    let msg_refund_0 = res.messages.get(0).expect("no message");
+    let msg_refund_0 = res.messages.first().expect("no message");
     let msg_refund_1 = res.messages.get(1).expect("no message");
     let msg_burn_liquidity = res.messages.get(2).expect("no message");
     assert_eq!(
@@ -1246,7 +1246,7 @@ fn try_native_to_token() {
     );
 
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
-    let msg_transfer = res.messages.get(0).expect("no message");
+    let msg_transfer = res.messages.first().expect("no message");
 
     // Current price is 1.5, so expected return without spread is 1000
     // 952380952 = 20000000000 - (30000000000 * 20000000000) / (30000000000 + 1500000000)
@@ -1473,7 +1473,7 @@ fn try_token_to_native() {
     let info = mock_info("asset0000", &[]);
 
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
-    let msg_transfer = res.messages.get(0).expect("no message");
+    let msg_transfer = res.messages.first().expect("no message");
 
     // Current price is 1.5, so expected return without spread is 1000
     // 952380952,3809524 = 20000000000 - (30000000000 * 20000000000) / (30000000000 + 1500000000)

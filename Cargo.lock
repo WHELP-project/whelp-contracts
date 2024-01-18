@@ -683,6 +683,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6999dc1837253364c2ebb0704ba97994bd874e8f195d665c50b7548f6ea92764"
 
 [[package]]
+name = "fee-splitter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bindings-test",
+ "coreum-wasm-sdk",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw20",
+ "cw20-base",
+ "dex",
+ "dex-pool",
+ "dex-stake",
+ "itertools",
+ "thiserror",
+]
+
+[[package]]
 name = "ff"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
