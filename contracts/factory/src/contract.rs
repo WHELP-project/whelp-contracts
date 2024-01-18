@@ -698,8 +698,8 @@ pub fn deregister_pool_and_staking(
                         Ok(pairs
                             .unwrap_or_default()
                             .iter()
+                            .filter(|&pair| pair != pair_addr)
                             .cloned()
-                            .filter(|pair| pair != pair_addr)
                             .collect::<Vec<_>>())
                     },
                 )?;

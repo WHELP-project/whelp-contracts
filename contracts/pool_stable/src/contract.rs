@@ -81,7 +81,7 @@ pub fn instantiate(
 
     msg.validate_fees()?;
 
-    let params: StablePoolParams = from_json(&msg.init_params.unwrap())?;
+    let params: StablePoolParams = from_json(msg.init_params.unwrap())?;
 
     if params.amp == 0 || params.amp > MAX_AMP {
         return Err(ContractError::IncorrectAmp { max_amp: MAX_AMP });

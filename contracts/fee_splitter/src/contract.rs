@@ -1,11 +1,10 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    attr, coin, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps,
-    DepsMut, Env, MessageInfo, StdResult, WasmMsg,
+    coin, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, MessageInfo, StdError, StdResult, WasmMsg,
 };
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_storage_plus::Item;
-use dex::querier::{query_balance, query_token_balance};
 
 use crate::{
     error::ContractError,
@@ -111,7 +110,7 @@ fn execute_send_tokens(
             messages.push(native_message);
         }
 
-        let cw20_messages = cw20_addresses
+        cw20_addresses
             .iter()
             // filter out if balance is zero in order to avoid empty transfer error
             .filter_map(|token| {
@@ -132,7 +131,7 @@ fn execute_send_tokens(
                     Err(_) => None,
                 }
             })
-            .map(|(token, balance)| {
+            .try_for_each(|(token, balance)| {
                 let msg = CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: token.to_string(),
                     msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
@@ -142,9 +141,8 @@ fn execute_send_tokens(
                     funds: vec![],
                 });
                 messages.push(msg);
-                Ok(())
-            })
-            .collect::<StdResult<()>>()?;
+                Ok::<(), StdError>(())
+            })?;
     }
     Ok(Response::new().add_messages(messages))
 }
