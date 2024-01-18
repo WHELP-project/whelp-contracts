@@ -3,7 +3,10 @@ use cosmwasm_std::{
     Decimal,
 };
 
-use crate::{contract::{instantiate, CONFIG}, msg::InstantiateMsg};
+use crate::{
+    contract::{instantiate, CONFIG},
+    msg::InstantiateMsg,
+};
 
 #[test]
 fn proper_initialization() {

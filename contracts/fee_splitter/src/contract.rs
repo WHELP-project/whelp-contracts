@@ -1,8 +1,9 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    attr, entry_point, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, StdResult,
+    attr, coin, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, MessageInfo, StdResult, WasmMsg,
 };
+use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_storage_plus::Item;
 use dex::querier::{query_balance, query_token_balance};
 
@@ -73,48 +74,79 @@ fn execute_send_tokens(
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
     let config = query_config(deps)?;
 
-    native_denoms.iter().for_each(|denom| {
-        if let Ok(amount) = query_balance(&deps.querier, env.clone().contract.address, denom) {
-            for (address, decimal) in config.clone().addresses.into_iter() {
-                let send_amount = amount * decimal;
-                let msg = CosmosMsg::Bank(BankMsg::Send {
-                    to_address: address.clone().to_string(),
-                    amount: vec![Coin {
-                        denom: denom.to_string(),
-                        amount: send_amount,
-                    }],
+    let contract_address = env.contract.address.to_string();
+    // gather balances of native tokens, either from function parameter or all
+    let native_balances = native_denoms
+        .into_iter()
+        .map(|denom| deps.querier.query_balance(&env.contract.address, denom))
+        .collect::<StdResult<Vec<Coin>>>()?;
+
+    // gather addresses of cw20 token contract, either from arguments or configuration
+    let cw20_addresses = cw20_addresses
+        .into_iter()
+        .map(|address| deps.api.addr_validate(&address))
+        .collect::<StdResult<Vec<Addr>>>()?;
+
+    let mut messages: Vec<CosmosMsg<CoreumMsg>> = vec![];
+
+    for (address, weight) in config.addresses {
+        let amount = native_balances
+            .iter()
+            .filter_map(|bcoin| {
+                let amount = bcoin.amount * weight;
+                if amount.is_zero() {
+                    None
+                } else {
+                    Some(coin((bcoin.amount * weight).u128(), &bcoin.denom))
+                }
+            })
+            .collect::<Vec<Coin>>();
+        if !amount.is_empty() {
+            let native_message = CosmosMsg::Bank(BankMsg::Send {
+                to_address: address.to_string(),
+                amount,
+            });
+            messages.push(native_message);
+        }
+
+        let cw20_messages = cw20_addresses
+            .iter()
+            // filter out if balance is zero in order to avoid empty transfer error
+            .filter_map(|token| {
+                match deps.querier.query_wasm_smart::<BalanceResponse>(
+                    token,
+                    &Cw20QueryMsg::Balance {
+                        address: contract_address.clone(),
+                    },
+                ) {
+                    Ok(r) => {
+                        if !r.balance.is_zero() {
+                            Some((token, r.balance))
+                        } else {
+                            None
+                        }
+                    }
+                    // the only victim of current design
+                    Err(_) => None,
+                }
+            })
+            .map(|(token, balance)| {
+                let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: token.to_string(),
+                    msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                        recipient: address.to_string(),
+                        amount: balance * weight,
+                    })?,
+                    funds: vec![],
                 });
                 messages.push(msg);
-            }
-        }
-    });
-
-    // todo - dry up and down
-
-    cw20_addresses.iter().for_each(|denom| {
-        if let Ok(amount) = query_token_balance(&deps.querier, env.clone().contract.address, denom)
-        {
-            // config.addresses.iter().for_each(|(address, decimal)| {
-            for (address, decimal) in config.clone().addresses.into_iter() {
-                let send_amount = amount * decimal;
-                let msg = CosmosMsg::Bank(BankMsg::Send {
-                    to_address: address.clone().to_string(),
-                    amount: vec![Coin {
-                        denom: denom.to_string(),
-                        amount: send_amount,
-                    }],
-                });
-                messages.push(msg);
-            }
-        }
-    });
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attributes(vec![attr("action", "withdraw")]))
+                Ok(())
+            })
+            .collect::<StdResult<()>>()?;
+    }
+    Ok(Response::new().add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
