@@ -698,6 +698,7 @@ dependencies = [
  "cw20",
  "cw20-base",
  "dex",
+ "dex-factory",
  "dex-pool",
  "dex-stake",
  "itertools",

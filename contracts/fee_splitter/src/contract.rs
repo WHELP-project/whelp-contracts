@@ -73,8 +73,10 @@ fn execute_send_tokens(
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
+    dbg!("before");
     let config = query_config(deps)?;
 
+    dbg!("after");
     let contract_address = env.contract.address.to_string();
     // gather balances of native tokens, either from function parameter or all
     let native_balances = native_denoms
@@ -161,13 +163,4 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
     };
 
     Ok(resp)
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore]
-    fn instantiate_with_invalid_weights_should_throw_error() {
-        todo!()
-    }
 }
