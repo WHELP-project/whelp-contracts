@@ -1,9 +1,12 @@
 use bindings_test::{mock_coreum_deps, CoreumApp};
-use cosmwasm_std::{testing::mock_env, Addr, Decimal};
+use cosmwasm_std::{
+    testing::{mock_env, mock_info},
+    Addr, Decimal,
+};
 use cw_multi_test::{ContractWrapper, Executor};
 
 use crate::{
-    contract::execute,
+    contract::{execute, instantiate},
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::Config,
 };
@@ -69,39 +72,29 @@ fn fails_to_init_because_weights_not_correct() {
 
 #[test]
 fn should_send_tokens_in_correct_amount() {
-    let mut app = CoreumApp::default();
+    let mut deps = mock_coreum_deps();
+    let env = mock_env();
 
-    let code_id = store_fee_splitter_code(&mut app);
     let sender = "addr0000";
 
-    let first_tupple = ("tokenA".to_string(), Decimal::from_ratio(1u128, 2u128));
-    let second_tuple = ("tokenB".to_string(), Decimal::from_ratio(1u128, 2u128));
+    let info = mock_info(sender, &[]);
     let msg = InstantiateMsg {
-        addresses: vec![first_tupple.clone(), second_tuple.clone()],
+        addresses: vec![
+            ("tokenA".to_string(), Decimal::from_ratio(1u128, 2u128)),
+            ("tokenB".to_string(), Decimal::from_ratio(1u128, 2u128)),
+        ],
         cw20_contracts: vec!["cw20_contract_one".to_string()],
     };
 
-    let _ = app
-        .instantiate_contract(
-            code_id,
-            Addr::unchecked(sender),
-            &msg,
-            &[],
-            "fee-splitter",
-            None,
-        )
-        .unwrap();
+    let fee_splitter_instance = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
 
-    let deps = mock_coreum_deps();
-    let env = mock_env();
     let msg = ExecuteMsg::SendTokens {
-        native_denoms: vec!["addr0000".to_string(), "addr0001".to_string()],
+        native_denoms: vec!["A".to_string(), "addr0001".to_string()],
         cw20_addresses: vec!["cw20_contract_one".to_string()],
     };
 
     let res = execute(deps.as_ref(), env, msg).unwrap();
     ///todo I need to mock more things, start with the query_config
-    dbg!(res);
 }
 
 fn store_fee_splitter_code(app: &mut CoreumApp) -> u64 {

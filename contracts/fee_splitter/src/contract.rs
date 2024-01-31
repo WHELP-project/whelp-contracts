@@ -4,16 +4,12 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, StdError, StdResult, WasmMsg,
 };
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
-use cw_storage_plus::Item;
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::Config,
+    state::{Config, CONFIG},
 };
-
-/// Saves factory settings
-pub const CONFIG: Item<Config> = Item::new("config");
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -73,7 +69,9 @@ fn execute_send_tokens(
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    let config = query_config(deps)?;
+    dbg!("here");
+    let config = CONFIG.load(deps.storage)?;
+    dbg!("after config");
 
     let contract_address = env.contract.address.to_string();
     // gather balances of native tokens, either from function parameter or all
