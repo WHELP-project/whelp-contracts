@@ -55,8 +55,9 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: Deps<CoreumQueries>,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg.clone() {
@@ -68,12 +69,12 @@ pub fn execute(
 }
 
 fn execute_send_tokens(
-    deps: Deps<CoreumQueries>,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    let config = query_config(deps)?;
+    let config = query_config(deps.as_ref())?;
 
     let contract_address = env.contract.address.to_string();
     // gather balances of native tokens, either from function parameter or all
