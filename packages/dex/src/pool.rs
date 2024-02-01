@@ -4,7 +4,7 @@ use crate::{
     asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated, DecimalAsset},
     factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
     fee_config::FeeConfig,
-    oracle::{SamplePeriod, TwapResponse},
+    oracle::SamplePeriod,
 };
 
 use coreum_wasm_sdk::core::CoreumQueries;
@@ -277,7 +277,7 @@ pub enum QueryMsg {
     #[returns(CumulativePricesResponse)]
     CumulativePrices {},
     /// Returns a price history of the given duration
-    #[returns(TwapResponse)]
+    #[returns(crate::oracle::TwapResponse)]
     Twap {
         duration: SamplePeriod,
         /// duration: Day and start_age: 3 means to start from first checkpoint 3 days ago

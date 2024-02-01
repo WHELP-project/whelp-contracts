@@ -51,8 +51,9 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: Deps<CoreumQueries>,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg.clone() {
@@ -64,7 +65,7 @@ pub fn execute(
 }
 
 fn execute_send_tokens(
-    deps: Deps<CoreumQueries>,
+    deps: DepsMut<CoreumQueries>,
     env: Env,
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
