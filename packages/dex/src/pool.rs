@@ -4,7 +4,7 @@ use crate::{
     asset::{Asset, AssetInfo, AssetInfoValidated, AssetValidated, DecimalAsset},
     factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
     fee_config::FeeConfig,
-    oracle::{SamplePeriod, TwapResponse},
+    oracle::SamplePeriod,
 };
 
 use coreum_wasm_sdk::core::CoreumQueries;
