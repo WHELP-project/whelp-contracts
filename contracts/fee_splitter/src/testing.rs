@@ -84,7 +84,7 @@ fn should_send_tokens_in_correct_amount() {
         cw20_contracts: vec![],
     };
 
-    let fee_splitter_instance = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+    let fee_splitter_instance = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     assert_eq!(
         fee_splitter_instance.attributes,
         vec![Attribute {
@@ -98,7 +98,7 @@ fn should_send_tokens_in_correct_amount() {
         cw20_addresses: vec!["cw20_contract_one".to_string()],
     };
 
-    let res = execute(deps.as_ref(), env, msg).unwrap();
+    let res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     assert_eq!(
         res.messages,
