@@ -63,6 +63,8 @@ dependencies = [
  "coreum-wasm-sdk",
  "cosmwasm-std",
  "cw-multi-test",
+ "cw20",
+ "dex",
  "schemars",
  "serde",
 ]

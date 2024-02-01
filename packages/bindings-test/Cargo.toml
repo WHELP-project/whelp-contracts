@@ -14,5 +14,6 @@ cosmwasm-std = { workspace = true }
 cw-multi-test = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
-
+dex = { workspace = true }
+cw20 = { workspace = true }
 

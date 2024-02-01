@@ -1,7 +1,8 @@
 use bindings_test::{mock_coreum_deps, CoreumApp};
+use coreum_wasm_sdk::core::CoreumMsg;
 use cosmwasm_std::{
-    testing::{mock_env, mock_info},
-    Addr, Decimal,
+    testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
+    Addr, Attribute, BankMsg, Coin, CosmosMsg, Decimal, ReplyOn, Uint128,
 };
 use cw_multi_test::{ContractWrapper, Executor};
 
@@ -10,6 +11,8 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::Config,
 };
+
+pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
 
 #[test]
 fn init_works() {
@@ -72,7 +75,22 @@ fn fails_to_init_because_weights_not_correct() {
 
 #[test]
 fn should_send_tokens_in_correct_amount() {
-    let mut deps = mock_coreum_deps();
+    let mut deps = mock_coreum_deps(&[]);
+
+    deps.querier.with_balance(&[(
+        &String::from(MOCK_CONTRACT_ADDR),
+        &[
+            Coin {
+                denom: "ATOM".to_string(),
+                amount: Uint128::new(100_000000000000000000),
+            },
+            Coin {
+                denom: "TIA".to_string(),
+                amount: Uint128::new(100_000000000000000000),
+            },
+        ],
+    )]);
+
     let env = mock_env();
 
     let sender = "addr0000";
@@ -80,21 +98,69 @@ fn should_send_tokens_in_correct_amount() {
     let info = mock_info(sender, &[]);
     let msg = InstantiateMsg {
         addresses: vec![
-            ("tokenA".to_string(), Decimal::from_ratio(1u128, 2u128)),
-            ("tokenB".to_string(), Decimal::from_ratio(1u128, 2u128)),
+            ("address0000".to_string(), Decimal::percent(60u64)),
+            ("address0001".to_string(), Decimal::percent(40u64)),
         ],
-        cw20_contracts: vec!["cw20_contract_one".to_string()],
+        cw20_contracts: vec![],
     };
 
     let fee_splitter_instance = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+    assert_eq!(
+        fee_splitter_instance.attributes,
+        vec![Attribute {
+            key: "initialized".to_string(),
+            value: "fee_splitter contract".to_string(),
+        }]
+    );
 
     let msg = ExecuteMsg::SendTokens {
-        native_denoms: vec!["A".to_string(), "addr0001".to_string()],
+        native_denoms: vec!["ATOM".to_string(), "TIA".to_string()],
         cw20_addresses: vec!["cw20_contract_one".to_string()],
     };
 
     let res = execute(deps.as_ref(), env, msg).unwrap();
-    ///todo I need to mock more things, start with the query_config
+
+    assert_eq!(
+        res.messages,
+        vec![
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "address0000".to_string(),
+                    amount: vec![
+                        Coin {
+                            denom: "ATOM".to_string(),
+                            amount: Uint128::new(60000000000000000000),
+                        },
+                        Coin {
+                            denom: "TIA".to_string(),
+                            amount: Uint128::new(60000000000000000000),
+                        }
+                    ]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "address0001".to_string(),
+                    amount: vec![
+                        Coin {
+                            denom: "ATOM".to_string(),
+                            amount: Uint128::new(40000000000000000000),
+                        },
+                        Coin {
+                            denom: "TIA".to_string(),
+                            amount: Uint128::new(40000000000000000000),
+                        }
+                    ]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
+        ]
+    );
 }
 
 fn store_fee_splitter_code(app: &mut CoreumApp) -> u64 {

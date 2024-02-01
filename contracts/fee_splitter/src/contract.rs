@@ -46,7 +46,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new().add_attribute("initialized", "contract"))
+    Ok(Response::new().add_attribute("initialized", "fee_splitter contract"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -69,9 +69,7 @@ fn execute_send_tokens(
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    dbg!("here");
     let config = CONFIG.load(deps.storage)?;
-    dbg!("after config");
 
     let contract_address = env.contract.address.to_string();
     // gather balances of native tokens, either from function parameter or all
