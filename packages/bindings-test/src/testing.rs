@@ -14,11 +14,11 @@ use dex::factory::{
 
 use cw20::{BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 
-pub type CoreumDeps = OwnedDeps<MockStorage, MockApi, SplitterMockQuerier, CoreumQueries>;
+pub type CoreumDeps = OwnedDeps<MockStorage, MockApi, WhelpMockQuerier, CoreumQueries>;
 
 pub fn mock_coreum_deps(contract_balance: &[Coin]) -> CoreumDeps {
     let custom_qurier =
-        SplitterMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
+        WhelpMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
 
     CoreumDeps {
         storage: MockStorage::default(),
@@ -28,7 +28,7 @@ pub fn mock_coreum_deps(contract_balance: &[Coin]) -> CoreumDeps {
     }
 }
 
-pub struct SplitterMockQuerier {
+pub struct WhelpMockQuerier {
     base: MockQuerier<CoreumQueries>,
     token_querier: TokenQuerier,
 }
@@ -61,7 +61,7 @@ pub(crate) fn balances_to_map(
     }
     balances_map
 }
-impl Querier for SplitterMockQuerier {
+impl Querier for WhelpMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely
         let request: QueryRequest<CoreumQueries> = match from_json(bin_request) {
@@ -77,7 +77,7 @@ impl Querier for SplitterMockQuerier {
     }
 }
 
-impl SplitterMockQuerier {
+impl WhelpMockQuerier {
     pub fn handle_query(&self, request: &QueryRequest<CoreumQueries>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
@@ -167,9 +167,9 @@ impl SplitterMockQuerier {
     }
 }
 
-impl SplitterMockQuerier {
+impl WhelpMockQuerier {
     pub fn new(base: MockQuerier<CoreumQueries>) -> Self {
-        SplitterMockQuerier {
+        WhelpMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
         }
