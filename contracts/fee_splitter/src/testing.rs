@@ -62,10 +62,6 @@ fn should_send_tokens_in_correct_amount() {
 
     deps.querier.with_token_balances(&[
         (
-            &String::from("liquidity0000"),
-            &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100_000))],
-        ),
-        (
             &String::from("asset0000"),
             &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100_000))],
         ),
