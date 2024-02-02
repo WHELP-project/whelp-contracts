@@ -17,10 +17,10 @@ fn init_works() {
     let sender = "addr0000";
     let info = mock_info(sender, &[]);
 
-    let first_tupple = ("ATOM".to_string(), Decimal::percent(50u64));
-    let second_tuple = ("TIA".to_string(), Decimal::percent(50u64));
+    let first_addr_pecnt = ("address0000".to_string(), Decimal::percent(50u64));
+    let second_addr_pecnt = ("address0001".to_string(), Decimal::percent(50u64));
     let msg = InstantiateMsg {
-        addresses: vec![first_tupple.clone(), second_tuple.clone()],
+        addresses: vec![first_addr_pecnt.clone(), second_addr_pecnt.clone()],
         cw20_contracts: vec!["USDT".to_string()],
     };
 
