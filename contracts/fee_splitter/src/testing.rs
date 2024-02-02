@@ -2,8 +2,9 @@ use bindings_test::mock_coreum_deps;
 use cosmwasm_std::{
     from_json,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
-    Attribute, BankMsg, Coin, CosmosMsg, Decimal, ReplyOn, Uint128,
+    Attribute, BankMsg, Coin, CosmosMsg, Decimal, ReplyOn, Uint128, WasmMsg, to_json_binary,
 };
+use cw20::Cw20ExecuteMsg;
 
 use crate::{
     contract::{execute, instantiate, query, SubMsg},
@@ -59,6 +60,17 @@ fn fails_to_init_because_weights_not_correct() {
 fn should_send_tokens_in_correct_amount() {
     let mut deps = mock_coreum_deps(&[]);
 
+    deps.querier.with_token_balances(&[
+        (
+            &String::from("liquidity0000"),
+            &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100_000))],
+        ),
+        (
+            &String::from("asset0000"),
+            &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100_000))],
+        ),
+    ]);
+
     deps.querier.with_balance(&[(
         &String::from(MOCK_CONTRACT_ADDR),
         &[
@@ -83,10 +95,11 @@ fn should_send_tokens_in_correct_amount() {
             ("address0000".to_string(), Decimal::percent(60u64)),
             ("address0001".to_string(), Decimal::percent(40u64)),
         ],
-        cw20_contracts: vec![],
+        cw20_contracts: vec!["asset0000".to_string(), "asset0001".to_string()],
     };
 
     let fee_splitter_instance = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
     assert_eq!(
         fee_splitter_instance.attributes,
         vec![Attribute {
@@ -97,7 +110,7 @@ fn should_send_tokens_in_correct_amount() {
 
     let msg = ExecuteMsg::SendTokens {
         native_denoms: vec!["ATOM".to_string(), "TIA".to_string()],
-        cw20_addresses: vec!["cw20_contract_one".to_string()],
+        cw20_addresses: vec!["asset0000".to_string()],
     };
 
     let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
@@ -125,6 +138,19 @@ fn should_send_tokens_in_correct_amount() {
             },
             SubMsg {
                 id: 0,
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: "asset0000".to_string(),
+                    msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                        recipient: "address0000".to_string(),
+                        amount: Uint128::new(60_000),
+                    }).unwrap(),
+                    funds: vec![]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
+            SubMsg {
+                id: 0,
                 msg: CosmosMsg::Bank(BankMsg::Send {
                     to_address: "address0001".to_string(),
                     amount: vec![
@@ -141,6 +167,19 @@ fn should_send_tokens_in_correct_amount() {
                 gas_limit: None,
                 reply_on: ReplyOn::Never
             },
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: "asset0000".to_string(),
+                    msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                        recipient: "address0001".to_string(),
+                        amount: Uint128::new(40_000),
+                    }).unwrap(),
+                    funds: vec![]
+                }),
+                gas_limit: None,
+                reply_on: ReplyOn::Never
+            },
         ]
     );
 
@@ -148,6 +187,7 @@ fn should_send_tokens_in_correct_amount() {
 
     let query_result = query(deps.as_ref(), env, msg).unwrap();
     let config_res: Config = from_json(query_result).unwrap();
+
     assert_eq!(
         config_res,
         Config {
