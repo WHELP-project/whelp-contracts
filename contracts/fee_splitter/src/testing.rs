@@ -2,7 +2,7 @@ use bindings_test::mock_coreum_deps;
 use cosmwasm_std::{
     from_json,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
-    Attribute, BankMsg, Coin, CosmosMsg, Decimal, ReplyOn, Uint128, WasmMsg, to_json_binary,
+    to_json_binary, Attribute, BankMsg, Coin, CosmosMsg, Decimal, ReplyOn, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 
@@ -143,7 +143,8 @@ fn should_send_tokens_in_correct_amount() {
                     msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                         recipient: "address0000".to_string(),
                         amount: Uint128::new(60_000),
-                    }).unwrap(),
+                    })
+                    .unwrap(),
                     funds: vec![]
                 }),
                 gas_limit: None,
@@ -174,7 +175,8 @@ fn should_send_tokens_in_correct_amount() {
                     msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                         recipient: "address0001".to_string(),
                         amount: Uint128::new(40_000),
-                    }).unwrap(),
+                    })
+                    .unwrap(),
                     funds: vec![]
                 }),
                 gas_limit: None,
