@@ -1,13 +1,15 @@
 use bindings_test::mock_coreum_deps;
 use cosmwasm_std::{
+    from_json,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
     Attribute, BankMsg, Coin, CosmosMsg, Decimal, ReplyOn, Uint128,
 };
 
 use crate::{
-    contract::{execute, instantiate, SubMsg},
+    contract::{execute, instantiate, query, SubMsg},
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg},
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    state::Config,
 };
 
 #[test]
@@ -98,7 +100,7 @@ fn should_send_tokens_in_correct_amount() {
         cw20_addresses: vec!["cw20_contract_one".to_string()],
     };
 
-    let res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_eq!(
         res.messages,
@@ -140,5 +142,19 @@ fn should_send_tokens_in_correct_amount() {
                 reply_on: ReplyOn::Never
             },
         ]
+    );
+
+    let msg = QueryMsg::Config {};
+
+    let query_result = query(deps.as_ref(), env, msg).unwrap();
+    let config_res: Config = from_json(query_result).unwrap();
+    assert_eq!(
+        config_res,
+        Config {
+            addresses: vec![
+                ("address0000".to_string(), Decimal::percent(60)),
+                ("address0001".to_string(), Decimal::percent(40))
+            ],
+        }
     );
 }
