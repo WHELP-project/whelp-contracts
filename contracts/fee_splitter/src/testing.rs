@@ -60,12 +60,10 @@ fn fails_to_init_because_weights_not_correct() {
 fn should_send_tokens_in_correct_amount() {
     let mut deps = mock_coreum_deps(&[]);
 
-    deps.querier.with_token_balances(&[
-        (
-            &String::from("asset0000"),
-            &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100_000))],
-        ),
-    ]);
+    deps.querier.with_token_balances(&[(
+        &String::from("asset0000"),
+        &[(&String::from(MOCK_CONTRACT_ADDR), &Uint128::new(100_000))],
+    )]);
 
     deps.querier.with_balance(&[(
         &String::from(MOCK_CONTRACT_ADDR),
