@@ -3,6 +3,7 @@ pub mod common;
 pub mod factory;
 pub mod fee_config;
 pub mod oracle;
+pub mod name_service;
 pub mod pool;
 pub mod querier;
 pub mod stake;
