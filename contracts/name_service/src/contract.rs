@@ -1,12 +1,12 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, StdResult};
+use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, StdResult, MessageInfo};
 use cw_storage_plus::Item;
 use dex::validate_name;
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::{Config, NAME_TO_ADDRESS, NAME_TO_OWNER},
+    state::{Config, NAME_TO_ADDRESS, NAME_TO_OWNER, DomainName},
 };
 
 /// Saves factory settings
@@ -27,6 +27,7 @@ const _CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     deps: DepsMut<CoreumQueries>,
     env: Env,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     validate_name!(msg.contract_name);
@@ -37,9 +38,10 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
+    let domain = DomainName { name: "nameservice.whelp".to_string(), owner: info.sender, price: None };
     NAME_TO_ADDRESS.save(
         deps.storage,
-        msg.contract_name.clone(),
+        domain,
         &env.contract.address.clone(),
     )?;
     NAME_TO_OWNER.save(deps.storage, msg.contract_name, &msg.admin)?;
