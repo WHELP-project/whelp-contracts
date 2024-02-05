@@ -27,6 +27,7 @@ dex = { path = "./packages/dex", default-features = false }
 dex-factory = { path = "./contracts/factory", default-features = false }
 dex-pool = { path = "./contracts/pool", default-features = false }
 dex-stake = { path = "./contracts/stake", default-features = false }
+dex-fee-splitter = { path = "./contracts/fee_splitter", default-features = false }
 itertools = "0.10"
 proptest = "1.0"
 schemars = "0.8"

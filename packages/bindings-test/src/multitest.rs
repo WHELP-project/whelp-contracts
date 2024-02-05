@@ -1,7 +1,6 @@
 use std::{
     cmp::max,
     fmt::Debug,
-    marker::PhantomData,
     ops::{Deref, DerefMut},
 };
 
@@ -14,9 +13,9 @@ use coreum_wasm_sdk::{
     core::{CoreumMsg, CoreumQueries},
 };
 use cosmwasm_std::{
-    testing::{MockApi, MockQuerier, MockStorage},
+    testing::{MockApi, MockStorage},
     to_json_binary, Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, BlockInfo, CustomQuery,
-    Empty, OwnedDeps, Querier, QuerierWrapper, QueryRequest, Storage,
+    Empty, Querier, QuerierWrapper, QueryRequest, Storage,
 };
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Module, WasmKeeper,
@@ -25,17 +24,6 @@ use cw_multi_test::{
 /// How many seconds per block
 /// (when we increment block.height, use this multiplier for block.time)
 pub const BLOCK_TIME: u64 = 5;
-
-pub type CoreumDeps = OwnedDeps<MockStorage, MockApi, MockQuerier, CoreumQueries>;
-
-pub fn mock_coreum_deps() -> CoreumDeps {
-    CoreumDeps {
-        storage: MockStorage::default(),
-        api: MockApi::default(),
-        querier: MockQuerier::default(),
-        custom_query_type: PhantomData,
-    }
-}
 
 pub struct CoreumModule {}
 

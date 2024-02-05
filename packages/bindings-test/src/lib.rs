@@ -1,5 +1,6 @@
 mod multitest;
+mod testing;
 
-pub use multitest::{
-    mock_coreum_deps, CoreumApp, CoreumAppWrapped, CoreumDeps, CoreumModule, BLOCK_TIME,
-};
+pub use multitest::{CoreumApp, CoreumAppWrapped, CoreumModule, BLOCK_TIME};
+
+pub use testing::{mock_coreum_deps, CoreumDeps};

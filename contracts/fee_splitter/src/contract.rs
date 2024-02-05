@@ -4,16 +4,12 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, StdError, StdResult, WasmMsg,
 };
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
-use cw_storage_plus::Item;
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::Config,
+    state::{Config, CONFIG},
 };
-
-/// Saves factory settings
-pub const CONFIG: Item<Config> = Item::new("config");
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -38,7 +34,7 @@ pub fn instantiate(
         .iter()
         .map(|&(_, weight)| weight)
         .fold(Decimal::zero(), |acc, x| acc + x)
-        .le(&Decimal::from_ratio(1u32, 1u32));
+        .eq(&Decimal::percent(100u64));
 
     if !is_weights_valid {
         return Err(ContractError::InvalidWeights {});
@@ -50,7 +46,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new().add_attribute("initialized", "contract"))
+    Ok(Response::new().add_attribute("initialized", "fee_splitter contract"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -74,7 +70,7 @@ fn execute_send_tokens(
     native_denoms: Vec<String>,
     cw20_addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    let config = query_config(deps.as_ref())?;
+    let config = CONFIG.load(deps.storage)?;
 
     let contract_address = env.contract.address.to_string();
     // gather balances of native tokens, either from function parameter or all
@@ -162,13 +158,4 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<Config> {
     };
 
     Ok(resp)
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore]
-    fn instantiate_with_invalid_weights_should_throw_error() {
-        todo!()
-    }
 }
