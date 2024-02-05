@@ -34,7 +34,7 @@ pub fn instantiate(
         .iter()
         .map(|&(_, weight)| weight)
         .fold(Decimal::zero(), |acc, x| acc + x)
-        .le(&Decimal::percent(100u64));
+        .eq(&Decimal::percent(100u64));
 
     if !is_weights_valid {
         return Err(ContractError::InvalidWeights {});

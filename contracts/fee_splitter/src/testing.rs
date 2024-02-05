@@ -47,13 +47,30 @@ fn init_works() {
 }
 
 #[test]
-fn fails_to_init_because_weights_not_correct() {
+fn fails_to_init_because_weights_above_limit() {
     let mut deps = mock_coreum_deps(&[]);
     let env = mock_env();
     let info = mock_info(SENDER, &[]);
 
     let first_addr_percent = (FIRST_RECIPIENT.to_string(), Decimal::percent(50u64));
     let second_addr_percent = (SECOND_RECIPIENT.to_string(), Decimal::percent(60u64));
+    let msg = InstantiateMsg {
+        addresses: vec![first_addr_percent.clone(), second_addr_percent.clone()],
+        cw20_contracts: vec![USDT.to_string()],
+    };
+
+    let res = instantiate(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(res, ContractError::InvalidWeights {});
+}
+
+#[test]
+fn fails_to_init_because_weights_below_limit() {
+    let mut deps = mock_coreum_deps(&[]);
+    let env = mock_env();
+    let info = mock_info(SENDER, &[]);
+
+    let first_addr_percent = (FIRST_RECIPIENT.to_string(), Decimal::percent(20u64));
+    let second_addr_percent = (SECOND_RECIPIENT.to_string(), Decimal::percent(20u64));
     let msg = InstantiateMsg {
         addresses: vec![first_addr_percent.clone(), second_addr_percent.clone()],
         cw20_contracts: vec![USDT.to_string()],
