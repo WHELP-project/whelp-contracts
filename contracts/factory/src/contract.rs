@@ -3,9 +3,8 @@ use cosmwasm_std::{
     attr, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut,
     Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
 };
-use cw2::set_contract_version;
+use cw2::{ensure_from_older_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
-use cw_utils::ensure_from_older_version;
 
 use dex::{
     asset::{addr_opt_validate, Asset, AssetInfo},

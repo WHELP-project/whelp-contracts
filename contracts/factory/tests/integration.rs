@@ -225,7 +225,7 @@ fn test_create_then_deregister_pair() {
     // In multitest, contract names are counted in the order in which contracts are created
     assert_eq!(
         err.unwrap_err(),
-        StdError::generic_err("Querier contract error: cosmwasm_std::addresses::Addr not found")
+        StdError::generic_err("Querier contract error: type: cosmwasm_std::addresses::Addr; key: [00, 09, 70, 61, 69, 72, 5F, 69, 6E, 66, 6F, 63, 6F, 6E, 74, 72, 61, 63, 74, 32, 63, 6F, 6E, 74, 72, 61, 63, 74, 33] not found")
     );
 }
 

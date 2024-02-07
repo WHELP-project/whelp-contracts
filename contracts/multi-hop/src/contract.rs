@@ -5,9 +5,8 @@ use cosmwasm_std::{
     entry_point, from_json, to_json_binary, Addr, Api, Binary, Coin, CosmosMsg, Decimal, Deps,
     DepsMut, Env, MessageInfo, StdError, StdResult, Uint128, WasmMsg,
 };
-use cw2::set_contract_version;
+use cw2::{ensure_from_older_version, set_contract_version};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_utils::ensure_from_older_version;
 
 use crate::{
     error::ContractError,
