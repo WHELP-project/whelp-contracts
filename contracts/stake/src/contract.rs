@@ -20,8 +20,8 @@ use crate::distribution::{
     query_undistributed_rewards, query_withdraw_adjustment_data, query_withdrawable_rewards,
 };
 use crate::utils::{create_undelegate_msg, CurveExt};
-use cw2::set_contract_version;
-use cw_utils::{ensure_from_older_version, maybe_addr, Expiration};
+use cw2::{ensure_from_older_version, set_contract_version};
+use cw_utils::{maybe_addr, Expiration};
 
 use crate::error::ContractError;
 use crate::msg::{
