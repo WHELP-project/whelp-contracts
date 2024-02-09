@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result as AnyResult};
 
-use coreum_test_tube::CoreumTestApp;
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{coin, to_json_binary, Addr, Coin, Decimal, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -10,8 +9,9 @@ use cw_controllers::{Claim, ClaimsResponse};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use dex::{
     asset::{AssetInfo, AssetInfoExt, AssetInfoValidated, AssetValidated},
-    stake::{InstantiateMsg, UnbondingPeriod},
+    stake::{InstantiateMsg, UnbondingPeriod, FundingInfo, ReceiveMsg},
 };
+use bindings_test::CoreumApp;
 
 use crate::msg::{
     AllStakedResponse, AnnualizedReward, AnnualizedRewardsResponse, BondingInfoResponse,
@@ -19,7 +19,6 @@ use crate::msg::{
     RewardsPowerResponse, StakedResponse, TotalStakedResponse, UnbondAllResponse,
     UndistributedRewardsResponse, WithdrawableRewardsResponse,
 };
-use dex::stake::{FundingInfo, ReceiveMsg};
 
 pub const SEVEN_DAYS: u64 = 604800;
 
@@ -120,7 +119,7 @@ impl SuiteBuilder {
 
     #[track_caller]
     pub fn build(self) -> Suite {
-        let mut app: CoreumTestApp = CoreumTestApp::new();
+        let mut app: CoreumApp = CoreumApp::new();
         // provide initial native balances
         app.init_modules(|router, _, storage| {
             // group by address
@@ -243,54 +242,6 @@ impl Suite {
         )
     }
 
-    // call to staking contract by sender
-    pub fn mass_delegate(
-        &mut self,
-        sender: &str,
-        amount: u128,
-        unbonding_period: impl Into<Option<u64>>,
-        delegate_to: &[(&str, u128)],
-    ) -> AnyResult<AppResponse> {
-        let delegate_to = delegate_to
-            .iter()
-            .map(|(a, b)| (a.to_string(), Uint128::new(*b)))
-            .collect();
-
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.token_contract.clone(),
-            &Cw20ExecuteMsg::Send {
-                contract: self.stake_contract.to_string(),
-                amount: amount.into(),
-                msg: to_json_binary(&ReceiveMsg::MassDelegate {
-                    unbonding_period: self.unbonding_period_or_default(unbonding_period),
-                    delegate_to,
-                })?,
-            },
-            &[],
-        )
-    }
-
-    // call to stake contract by sender
-    pub fn rebond(
-        &mut self,
-        sender: &str,
-        amount: u128,
-        bond_from: impl Into<Option<u64>>,
-        bond_to: impl Into<Option<u64>>,
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.stake_contract.clone(),
-            &ExecuteMsg::Rebond {
-                tokens: amount.into(),
-                bond_from: self.unbonding_period_or_default(bond_from),
-                bond_to: self.unbonding_period_or_default(bond_to),
-            },
-            &[],
-        )
-    }
-
     pub fn unbond(
         &mut self,
         sender: &str,
@@ -304,16 +255,6 @@ impl Suite {
                 tokens: amount.into(),
                 unbonding_period: self.unbonding_period_or_default(unbonding_period),
             },
-            &[],
-        )
-    }
-
-    pub fn quick_unbond(&mut self, sender: &str, stakers: &[&str]) -> AnyResult<AppResponse> {
-        let stakers = stakers.iter().map(|s| s.to_string()).collect();
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.stake_contract.clone(),
-            &ExecuteMsg::QuickUnbond { stakers },
             &[],
         )
     }
@@ -464,24 +405,6 @@ impl Suite {
         )
     }
 
-    pub fn execute_unbond_all(&mut self, executor: &str) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(executor),
-            self.stake_contract.clone(),
-            &ExecuteMsg::UnbondAll {},
-            &[],
-        )
-    }
-
-    pub fn execute_stop_unbond_all(&mut self, executor: &str) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(executor),
-            self.stake_contract.clone(),
-            &ExecuteMsg::StopUnbondAll {},
-            &[],
-        )
-    }
-
     pub fn withdraw_funds<'s>(
         &mut self,
         executor: &str,
@@ -494,22 +417,6 @@ impl Suite {
             &ExecuteMsg::WithdrawRewards {
                 owner: owner.into().map(str::to_owned),
                 receiver: receiver.into().map(str::to_owned),
-            },
-            &[],
-        )
-    }
-
-    #[allow(dead_code)]
-    pub fn delegate_withdrawal(
-        &mut self,
-        executor: &str,
-        delegated: &str,
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(executor),
-            self.stake_contract.clone(),
-            &ExecuteMsg::DelegateWithdrawal {
-                delegated: delegated.to_owned(),
             },
             &[],
         )
@@ -547,17 +454,6 @@ impl Suite {
             &QueryMsg::UndistributedRewards {},
         )?;
         Ok(resp.rewards)
-    }
-
-    #[allow(dead_code)]
-    pub fn delegated(&self, owner: &str) -> StdResult<Addr> {
-        let resp: DelegatedResponse = self.app.wrap().query_wasm_smart(
-            self.stake_contract.clone(),
-            &QueryMsg::Delegated {
-                owner: owner.to_owned(),
-            },
-        )?;
-        Ok(resp.delegated)
     }
 
     /// returns address' balance of native token
@@ -687,14 +583,5 @@ impl Suite {
             .map(|(a, p)| (a, p.u128()))
             .filter(|(_, p)| *p > 0)
             .collect())
-    }
-
-    pub fn query_unbond_all(&self) -> StdResult<bool> {
-        let resp: UnbondAllResponse = self
-            .app
-            .wrap()
-            .query_wasm_smart(self.stake_contract.clone(), &QueryMsg::UnbondAll {})?;
-
-        Ok(resp.unbond_all)
     }
 }
