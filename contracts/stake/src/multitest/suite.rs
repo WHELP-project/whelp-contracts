@@ -2,22 +2,22 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result as AnyResult};
 
+use bindings_test::CoreumApp;
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
-use cosmwasm_std::{coin, to_json_binary, Addr, Coin, Decimal, StdResult, Uint128};
-use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
+use cosmwasm_std::{
+    coin, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdResult, Uint128,
+};
 use cw_controllers::{Claim, ClaimsResponse};
-use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
+use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use dex::{
     asset::{AssetInfo, AssetInfoExt, AssetInfoValidated, AssetValidated},
-    stake::{InstantiateMsg, UnbondingPeriod, FundingInfo, ReceiveMsg},
+    stake::{FundingInfo, InstantiateMsg, ReceiveMsg, UnbondingPeriod},
 };
-use bindings_test::CoreumApp;
 
 use crate::msg::{
     AllStakedResponse, AnnualizedReward, AnnualizedRewardsResponse, BondingInfoResponse,
-    BondingPeriodInfo, DelegatedResponse, DistributedRewardsResponse, ExecuteMsg, QueryMsg,
-    RewardsPowerResponse, StakedResponse, TotalStakedResponse, UnbondAllResponse,
-    UndistributedRewardsResponse, WithdrawableRewardsResponse,
+    BondingPeriodInfo, DistributedRewardsResponse, ExecuteMsg, QueryMsg, RewardsPowerResponse,
+    StakedResponse, TotalStakedResponse, UndistributedRewardsResponse, WithdrawableRewardsResponse,
 };
 
 pub const SEVEN_DAYS: u64 = 604800;
@@ -236,9 +236,7 @@ impl Suite {
         self.app.execute_contract(
             Addr::unchecked(sender),
             self.stake_contract.clone(),
-            &ExecuteMsg::Delegate {
-                unbonding_period,
-            },
+            &ExecuteMsg::Delegate { unbonding_period },
             &[coin(amount, self.lp_share.clone())],
         )
     }
@@ -275,16 +273,14 @@ impl Suite {
         &mut self,
         sender: &str,
         recipient: &str,
-        amount: impl Into<Uint128>,
+        amount: (u128, String),
     ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
+        self.app.execute(
             Addr::unchecked(sender),
-            self.stake_contract.clone(),
-            &Cw20ExecuteMsg::Transfer {
-                recipient: recipient.into(),
-                amount: amount.into(),
-            },
-            &[],
+            CosmosMsg::<CoreumMsg>::Bank(BankMsg::Send {
+                to_address: recipient.into(),
+                amount: vec![coin(amount.0.into(), amount.1.clone())],
+            }),
         )
     }
 

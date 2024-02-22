@@ -15,7 +15,7 @@ use coreum_wasm_sdk::{
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
     to_json_binary, Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, BlockInfo, CustomQuery,
-    Empty, Querier, QuerierWrapper, QueryRequest, Storage,
+    Empty, Querier, QuerierWrapper, QueryRequest, Storage, Coin
 };
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Module, WasmKeeper,
