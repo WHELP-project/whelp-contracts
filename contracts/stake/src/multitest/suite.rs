@@ -145,7 +145,7 @@ impl SuiteBuilder {
                 stake_id,
                 admin,
                 &InstantiateMsg {
-                    lp_share_denom: self.lp_share_denom,
+                    lp_share_denom: self.lp_share_denom.clone(),
                     tokens_per_power: self.tokens_per_power,
                     min_bond: self.min_bond,
                     unbonding_periods: self.unbonding_periods,
@@ -168,7 +168,7 @@ impl SuiteBuilder {
 }
 
 pub struct Suite {
-    pub app: CoreumTestApp,
+    pub app: CoreumApp,
     stake_contract: Addr,
     lp_share: String,
 }
@@ -232,11 +232,12 @@ impl Suite {
         unbonding_period: impl Into<Option<u64>>,
         delegate_as: Option<&str>,
     ) -> AnyResult<AppResponse> {
+        let unbonding_period = self.unbonding_period_or_default(unbonding_period);
         self.app.execute_contract(
             Addr::unchecked(sender),
             self.stake_contract.clone(),
             &ExecuteMsg::Delegate {
-                unbonding_period: self.unbonding_period_or_default(unbonding_period),
+                unbonding_period,
             },
             &[coin(amount, self.lp_share.clone())],
         )
@@ -248,12 +249,13 @@ impl Suite {
         amount: u128,
         unbonding_period: impl Into<Option<u64>>,
     ) -> AnyResult<AppResponse> {
+        let unbonding_period = self.unbonding_period_or_default(unbonding_period);
         self.app.execute_contract(
             Addr::unchecked(sender),
             self.stake_contract.clone(),
             &ExecuteMsg::Unbond {
                 tokens: amount.into(),
-                unbonding_period: self.unbonding_period_or_default(unbonding_period),
+                unbonding_period,
             },
             &[],
         )
@@ -277,7 +279,7 @@ impl Suite {
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(sender),
-            self.token_contract.clone(),
+            self.stake_contract.clone(),
             &Cw20ExecuteMsg::Transfer {
                 recipient: recipient.into(),
                 amount: amount.into(),
@@ -390,7 +392,7 @@ impl Suite {
         funding_info: FundingInfo,
     ) -> AnyResult<AppResponse> {
         let token = match funds.info {
-            AssetInfoValidated::Token(contract_addr) => contract_addr,
+            AssetInfoValidated::Cw20Token(contract_addr) => contract_addr,
             _ => bail!("Only tokens are supported for cw20 distribution"),
         };
         self.app.execute_contract(
@@ -475,7 +477,7 @@ impl Suite {
     // returns address' balance on vesting contract
     pub fn query_balance_vesting_contract(&self, address: &str) -> StdResult<u128> {
         let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-            self.token_contract.clone(),
+            self.stake_contract.clone(),
             &Cw20QueryMsg::Balance {
                 address: address.to_owned(),
             },
@@ -486,7 +488,7 @@ impl Suite {
     // returns address' balance on vesting contract
     pub fn query_balance_staking_contract(&self) -> StdResult<u128> {
         let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-            self.token_contract.clone(),
+            self.stake_contract.clone(),
             &Cw20QueryMsg::Balance {
                 address: self.stake_contract.to_string(),
             },
