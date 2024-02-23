@@ -396,15 +396,22 @@ impl Suite {
             AssetInfoValidated::Cw20Token(contract_addr) => contract_addr,
             _ => bail!("Only tokens are supported for cw20 distribution"),
         };
+        let curr_block = self.app.block_info().time;
 
         self.app.execute_contract(
             Addr::unchecked(executor),
             self.stake_contract.clone(),
-            &ExecuteMsg::WithdrawRewards {
-                owner: Some(self.stake_contract.to_string()),
-                receiver: Some(receiver.to_string()),
+            &ExecuteMsg::FundDistribution {
+                funding_info: FundingInfo {
+                    start_time: curr_block.seconds(),
+                    distribution_duration: funding_info.distribution_duration,
+                    amount: Uint128::from(funding_info.amount),
+                },
             },
-            &[Coin {denom: denom.to_string(), amount: funding_info.amount}],
+            &[Coin {
+                denom: denom.to_string(),
+                amount: funding_info.amount,
+            }],
         )
     }
 
