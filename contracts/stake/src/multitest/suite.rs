@@ -4,14 +4,12 @@ use anyhow::{bail, Result as AnyResult};
 
 use bindings_test::CoreumApp;
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
-use cosmwasm_std::{
-    coin, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdResult, Uint128,
-};
+use cosmwasm_std::{coin, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdResult, Uint128};
 use cw_controllers::{Claim, ClaimsResponse};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use dex::{
     asset::{AssetInfo, AssetInfoExt, AssetInfoValidated, AssetValidated},
-    stake::{FundingInfo, InstantiateMsg, ReceiveMsg, UnbondingPeriod},
+    stake::{FundingInfo, InstantiateMsg, UnbondingPeriod},
 };
 
 use crate::msg::{
@@ -21,6 +19,7 @@ use crate::msg::{
 };
 
 pub const SEVEN_DAYS: u64 = 604800;
+pub const VESTING_DENOM: &str = "VEST";
 
 fn contract_stake() -> Box<dyn Contract<CoreumMsg, CoreumQueries>> {
     let contract = ContractWrapper::new(
@@ -365,41 +364,47 @@ impl Suite {
     pub fn execute_fund_distribution_with_cw20(
         &mut self,
         executor: &str,
+        denom: &str,
         funds: AssetValidated,
+        receiver: &str,
     ) -> AnyResult<AppResponse> {
         let funds_amount = funds.amount.u128();
         let curr_block = self.app.block_info().time;
 
         self.execute_fund_distribution_with_cw20_curve(
             executor,
+            denom,
             funds,
             FundingInfo {
                 start_time: curr_block.seconds(),
                 distribution_duration: 100,
                 amount: Uint128::from(funds_amount),
             },
+            receiver,
         )
     }
 
     pub fn execute_fund_distribution_with_cw20_curve(
         &mut self,
         executor: &str,
+        denom: &str,
         funds: AssetValidated,
         funding_info: FundingInfo,
+        receiver: &str,
     ) -> AnyResult<AppResponse> {
         let token = match funds.info {
             AssetInfoValidated::Cw20Token(contract_addr) => contract_addr,
             _ => bail!("Only tokens are supported for cw20 distribution"),
         };
+
         self.app.execute_contract(
             Addr::unchecked(executor),
-            token,
-            &Cw20ExecuteMsg::Send {
-                contract: self.stake_contract.to_string(),
-                amount: funds.amount,
-                msg: to_json_binary(&ReceiveMsg::Fund { funding_info })?,
+            self.stake_contract.clone(),
+            &ExecuteMsg::WithdrawRewards {
+                owner: Some(self.stake_contract.to_string()),
+                receiver: Some(receiver.to_string()),
             },
-            &[],
+            &[Coin {denom: denom.to_string(), amount: funding_info.amount}],
         )
     }
 
@@ -460,36 +465,19 @@ impl Suite {
         Ok(resp.amount.u128())
     }
 
-    pub fn query_cw20_balance(&self, address: &str, cw20: impl Into<String>) -> StdResult<u128> {
-        let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-            cw20,
-            &Cw20QueryMsg::Balance {
-                address: address.to_owned(),
-            },
-        )?;
-        Ok(balance.balance.u128())
-    }
-
     // returns address' balance on vesting contract
     pub fn query_balance_vesting_contract(&self, address: &str) -> StdResult<u128> {
-        let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-            self.stake_contract.clone(),
-            &Cw20QueryMsg::Balance {
-                address: address.to_owned(),
-            },
-        )?;
-        Ok(balance.balance.u128())
+        let balance = self.app.wrap().query_balance(address, VESTING_DENOM);
+        Ok(balance?.amount.u128())
     }
 
-    // returns address' balance on vesting contract
+    // returns address' balance on staking contract
     pub fn query_balance_staking_contract(&self) -> StdResult<u128> {
-        let balance: BalanceResponse = self.app.wrap().query_wasm_smart(
-            self.stake_contract.clone(),
-            &Cw20QueryMsg::Balance {
-                address: self.stake_contract.to_string(),
-            },
-        )?;
-        Ok(balance.balance.u128())
+        let balance = self
+            .app
+            .wrap()
+            .query_balance(self.stake_contract.clone(), self.lp_share.clone());
+        Ok(balance?.amount.u128())
     }
 
     pub fn query_staked(
