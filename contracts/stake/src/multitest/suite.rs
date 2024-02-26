@@ -1,12 +1,16 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Add};
 
 use anyhow::{bail, Result as AnyResult};
 
-use bindings_test::CoreumApp;
-use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
+use bindings_test::*;
+use coreum_wasm_sdk::{
+    assetft::{self, Msg},
+    core::{CoreumMsg, CoreumQueries},
+};
 use cosmwasm_std::{coin, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdResult, Uint128};
+use cw20_base::{contract, msg};
 use cw_controllers::{Claim, ClaimsResponse};
-use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
+use cw_multi_test::{AppResponse, BankSudo, Contract, ContractWrapper, Executor};
 use dex::{
     asset::{AssetInfo, AssetInfoExt, AssetInfoValidated, AssetValidated},
     stake::{FundingInfo, InstantiateMsg, UnbondingPeriod},
@@ -576,5 +580,19 @@ impl Suite {
             .map(|(a, p)| (a, p.u128()))
             .filter(|(_, p)| *p > 0)
             .collect())
+    }
+
+    pub fn mint_token_to_user(&mut self, token_amount: u128, token_denom: &str, recipient: &str) {
+        self.app
+            .execute(
+                Addr::unchecked(recipient),
+                cosmwasm_std::CosmosMsg::Custom(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                    coin: Coin {
+                        denom: token_denom.to_string(),
+                        amount: Uint128::from(token_amount),
+                    },
+                })),
+            )
+            .unwrap();
     }
 }

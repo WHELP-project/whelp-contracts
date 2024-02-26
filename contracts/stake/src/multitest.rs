@@ -1,4 +1,4 @@
-// mod delegate;
+mod delegate;
 // mod distribution;
 // mod migration;
 // mod quick_unbond;
