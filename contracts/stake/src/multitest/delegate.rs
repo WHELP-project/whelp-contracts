@@ -68,105 +68,88 @@ fn delegate_and_unbond_tokens_still_vested() {
     );
 }
 
-// #[test]
-// fn mixed_vested_liquid_delegate_and_transfer_remaining() {
-//     let user = "user";
-//     let mut suite = SuiteBuilder::new()
-//         .with_initial_balances(vec![(user, 100_000)])
-//         .build();
+#[test]
+fn mixed_vested_liquid_delegate_and_transfer_remaining() {
+    let user = "user_addr_0000";
+    let denom = "VEST";
+    let amount = 100_000u128;
+    let balances = vec![(user, amount)];
+    let mut suite = SuiteBuilder::new()
+        .with_native_balances(denom, balances)
+        .with_lp_share_denom(denom.to_string())
+        .build();
 
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         100_000u128
-//     );
+    assert_eq!(
+        suite.query_balance_vesting_contract(user).unwrap(),
+        100_000u128
+    );
 
-//     suite.delegate(user, 60_000u128, None).unwrap(); // delegate some of vested tokens as well
-//     assert_eq!(suite.query_staked(user, None).unwrap(), 60_000u128);
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         40_000u128
-//     );
+    suite.delegate(user, 60_000u128, None).unwrap(); // delegate some of vested tokens as well
+    assert_eq!(suite.query_staked(user, None).unwrap(), 60_000u128);
+    assert_eq!(
+        suite.query_balance_vesting_contract(user).unwrap(),
+        40_000u128
+    );
 
-//     // transfer remaining 40_000 to a different address, to show that vested tokens are delegated
-//     // first
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         40_000u128
-//     );
-//     suite.transfer(user, "random_user", 40_000u128).unwrap();
+    // transfer remaining 40_000 to a different address, to show that vested tokens are delegated
+    // first
+    assert_eq!(
+        suite.query_balance_vesting_contract(user).unwrap(),
+        40_000u128
+    );
+    suite.transfer(user, "random_user", (40_000u128, denom.to_string())).unwrap();
 
-//     assert_eq!(suite.query_balance_vesting_contract(user).unwrap(), 0u128); // user has empty
-//                                                                             // account now
+    assert_eq!(suite.query_balance_vesting_contract(user).unwrap(), 0u128); // user has empty
+                                                                            // account now
 
-//     // undelegate some of the tokens
-//     suite.unbond(user, 20_000u128, None).unwrap();
-//     assert_eq!(suite.query_staked(user, None).unwrap(), 40_000u128); // 60_000 delegated - 20_000
-//                                                                      // unbonded
-//     assert_eq!(suite.query_balance_vesting_contract(user).unwrap(), 0u128);
+    // undelegate some of the tokens
+    suite.unbond(user, 20_000u128, None).unwrap();
+    assert_eq!(suite.query_staked(user, None).unwrap(), 40_000u128); // 60_000 delegated - 20_000
+                                                                     // unbonded
+    assert_eq!(suite.query_balance_vesting_contract(user).unwrap(), 0u128);
 
-//     let claims = suite.query_claims(user).unwrap();
-//     assert!(matches!(
-//         claims[0],
-//         Claim {
-//             amount,
-//             ..
-//         } if amount == Uint128::new(20_000)
-//     ));
+    let claims = suite.query_claims(user).unwrap();
+    assert!(matches!(
+        claims[0],
+        Claim {
+            amount,
+            ..
+        } if amount == Uint128::new(20_000)
+    ));
 
-//     suite.update_time(SEVEN_DAYS); // update height to simulate passing time
-//     suite.claim(user).unwrap();
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         20_000u128
-//     );
-// }
+    suite.update_time(SEVEN_DAYS); // update height to simulate passing time
+    suite.claim(user).unwrap();
+    assert_eq!(
+        suite.query_balance_vesting_contract(user).unwrap(),
+        20_000u128
+    );
+}
 
-// #[test]
-// fn delegate_as_properly_assigned() {
-//     let user = "factory";
-//     let user2 = "client";
-//     let mut suite = SuiteBuilder::new()
-//         .with_initial_balances(vec![(user, 100_000)])
-//         .build();
+#[test]
+fn delegate_as_properly_assigned() {
+    let user = "user_addr_0000";
+    let user2 = "user_addr_0001";
+    let denom = "VEST";
+    let amount = 100_000u128;
+    let balances = vec![(user, amount)];
+    let mut suite = SuiteBuilder::new()
+        .with_native_balances(denom, balances)
+        .with_lp_share_denom(denom.to_string())
+        .build();
 
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         100_000u128
-//     );
+    assert_eq!(
+        suite.query_balance_vesting_contract(user).unwrap(),
+        100_000u128
+    );
 
-//     // delegate half of the tokens, ensure they are staked
-//     suite
-//         .delegate_as(user, 50_000u128, None, Some(user2))
-//         .unwrap();
-//     assert_eq!(suite.query_staked(user, None).unwrap(), 0u128);
-//     assert_eq!(suite.query_staked(user2, None).unwrap(), 50_000u128);
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         50_000u128
-//     );
-// }
-
-// #[test]
-// fn mass_delegation_simple_case() {
-//     let user = "factory";
-//     let user2 = "client";
-//     let mut suite = SuiteBuilder::new()
-//         .with_initial_balances(vec![(user, 100_000)])
-//         .build();
-
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         100_000u128
-//     );
-
-//     // delegate half of the tokens, ensure they are staked
-//     suite
-//         .mass_delegate(user, 50_000u128, None, &[(user2, 50_000u128)])
-//         .unwrap();
-//     assert_eq!(suite.query_staked(user, None).unwrap(), 0u128);
-//     assert_eq!(suite.query_staked(user2, None).unwrap(), 50_000u128);
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         50_000u128
-//     );
-// }
+    // delegate half of the tokens, ensure they are staked
+    suite
+        .delegate_as(user, 50_000u128, None, Some(user2))
+        .unwrap();
+    assert_eq!(suite.query_staked(user, None).unwrap(), 0u128);
+    assert_eq!(suite.query_staked(user2, None).unwrap(), 50_000u128);
+    assert_eq!(
+        suite.query_balance_vesting_contract(user).unwrap(),
+        50_000u128
+    );
+}
