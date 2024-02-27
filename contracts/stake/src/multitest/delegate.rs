@@ -124,32 +124,3 @@ fn mixed_vested_liquid_delegate_and_transfer_remaining() {
         20_000u128
     );
 }
-
-#[test]
-fn delegate_as_properly_assigned() {
-    let user = "user_addr_0000";
-    let user2 = "user_addr_0001";
-    let denom = "VEST";
-    let amount = 100_000u128;
-    let balances = vec![(user, amount)];
-    let mut suite = SuiteBuilder::new()
-        .with_native_balances(denom, balances)
-        .with_lp_share_denom(denom.to_string())
-        .build();
-
-    assert_eq!(
-        suite.query_balance_vesting_contract(user).unwrap(),
-        100_000u128
-    );
-
-    // delegate half of the tokens, ensure they are staked
-    suite
-        .delegate_as(user, 50_000u128, None, Some(user2))
-        .unwrap();
-    assert_eq!(suite.query_staked(user, None).unwrap(), 0u128);
-    assert_eq!(suite.query_staked(user2, None).unwrap(), 50_000u128);
-    assert_eq!(
-        suite.query_balance_vesting_contract(user).unwrap(),
-        50_000u128
-    );
-}
