@@ -1,12 +1,14 @@
+use std::vec;
+
 use cosmwasm_std::{to_json_binary, Addr, Empty, StdError, Uint128};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
-
-use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
-use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use dex::stake::ReceiveMsg;
-use dex_stake_2_0_0::msg::TotalStakedResponse;
 
-use crate::msg::{ExecuteMsg, MigrateMsg, QueryMsg, UnbondAllResponse};
+use crate::{
+    contract::{execute, instantiate, query},
+    msg::{ExecuteMsg, MigrateMsg, QueryMsg, UnbondAllResponse},
+    multitest::suite::SuiteBuilder,
+};
 
 // const UNBONDER: &str = "unbonder";
 const MINTER: &str = "minter";
@@ -22,11 +24,15 @@ fn stake_old_migrate_with_unbond_all_and_unbond() {
     let admin = Addr::unchecked(ADMIN);
 
     // CW20 token
-    let cw20_contract: Box<dyn Contract<Empty>> = Box::new(ContractWrapper::new_with_empty(
-        cw20_base::contract::execute,
-        cw20_base::contract::instantiate,
-        cw20_base::contract::query,
-    ));
+    // let cw20_contract: Box<dyn Contract<Empty>> =
+    //     Box::new(ContractWrapper::new_with_empty(execute, instantiate, query));
+    let suite = SuiteBuilder::new()
+        .with_native_balances("VEST", vec![(USER, 1_000_000)])
+        .with_lp_share_denom("VEST".to_string())
+        .with_admin(ADMIN)
+        .with_unbonder(UNBONDER)
+        .with_unbonding_periods(vec![SEVEN_DAYS])
+        .build();
 
     // Instantiate Cw20 token.
     let token_id = app.store_code(cw20_contract);
@@ -55,17 +61,14 @@ fn stake_old_migrate_with_unbond_all_and_unbond() {
         .unwrap();
 
     // Upload old stake contract and create instance
-    let old_contract: Box<dyn Contract<Empty>> = Box::new(ContractWrapper::new_with_empty(
-        dex_stake_2_0_0::contract::execute,
-        dex_stake_2_0_0::contract::instantiate,
-        dex_stake_2_0_0::contract::query,
-    ));
+    let old_contract: Box<dyn Contract<Empty>> =
+        Box::new(ContractWrapper::new_with_empty(execute, instantiate, query));
     let stake_old_id = app.store_code(old_contract);
     let stake_old_contract = app
         .instantiate_contract(
             stake_old_id,
             admin.clone(),
-            &dex_2_0_0::stake::InstantiateMsg {
+            &dex::stake::InstantiateMsg {
                 cw20_contract: token_contract.to_string(),
                 tokens_per_power: Uint128::new(1000),
                 min_bond: Uint128::new(5000),

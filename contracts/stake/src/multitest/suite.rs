@@ -364,61 +364,6 @@ impl Suite {
         )
     }
 
-    // call to staking contract by sender
-    pub fn execute_fund_distribution_with_cw20(
-        &mut self,
-        executor: &str,
-        denom: &str,
-        funds: AssetValidated,
-        receiver: &str,
-    ) -> AnyResult<AppResponse> {
-        let funds_amount = funds.amount.u128();
-        let curr_block = self.app.block_info().time;
-
-        self.execute_fund_distribution_with_cw20_curve(
-            executor,
-            denom,
-            funds,
-            FundingInfo {
-                start_time: curr_block.seconds(),
-                distribution_duration: 100,
-                amount: Uint128::from(funds_amount),
-            },
-            receiver,
-        )
-    }
-
-    pub fn execute_fund_distribution_with_cw20_curve(
-        &mut self,
-        executor: &str,
-        denom: &str,
-        funds: AssetValidated,
-        funding_info: FundingInfo,
-        receiver: &str,
-    ) -> AnyResult<AppResponse> {
-        let token = match funds.info {
-            AssetInfoValidated::Cw20Token(contract_addr) => contract_addr,
-            _ => bail!("Only tokens are supported for cw20 distribution"),
-        };
-        let curr_block = self.app.block_info().time;
-
-        self.app.execute_contract(
-            Addr::unchecked(executor),
-            self.stake_contract.clone(),
-            &ExecuteMsg::FundDistribution {
-                funding_info: FundingInfo {
-                    start_time: curr_block.seconds(),
-                    distribution_duration: funding_info.distribution_duration,
-                    amount: Uint128::from(funding_info.amount),
-                },
-            },
-            &[Coin {
-                denom: denom.to_string(),
-                amount: funding_info.amount,
-            }],
-        )
-    }
-
     pub fn withdraw_funds<'s>(
         &mut self,
         executor: &str,
