@@ -2,13 +2,12 @@ use super::suite::{SuiteBuilder, SEVEN_DAYS};
 use cosmwasm_std::Uint128;
 use cw_controllers::Claim;
 
-const AMOUNT: u128 = 100_000;
 const DENOM: &str = "VEST";
 const USER: &str = "user_addr_0000";
 
 #[test]
 fn delegate_and_unbond_tokens_still_vested() {
-    let balances = vec![(USER, AMOUNT)];
+    let balances = vec![(USER, 100_000u128)];
     let mut suite = SuiteBuilder::new()
         .with_native_balances(DENOM, balances)
         .with_lp_share_denom(DENOM.to_string())
@@ -66,7 +65,7 @@ fn delegate_and_unbond_tokens_still_vested() {
 
 #[test]
 fn mixed_vested_liquid_delegate_and_transfer_remaining() {
-    let balances = vec![(USER, AMOUNT)];
+    let balances = vec![(USER, 100_000u128)];
     let mut suite = SuiteBuilder::new()
         .with_native_balances(DENOM, balances)
         .with_lp_share_denom(DENOM.to_string())
