@@ -238,49 +238,50 @@ fn query_all_staked(stake_config: Vec<UnbondingPeriod>, amount: Vec<u128>) -> Op
     Some(38u64)
 }
 
-// #[test]
-// fn delegate_unbond_under_min_bond() {
-//     let user = "user";
-//     let unbonding_period1 = 1000u64;
-//     let unbonding_period2 = 4000u64;
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period1, unbonding_period2])
-//         .with_min_bond(2_000)
-//         .with_initial_balances(vec![(user, 100_000)])
-//         .build();
+#[test]
+fn delegate_unbond_under_min_bond() {
+    let user = "user";
+    let unbonding_period1 = 1000u64;
+    let unbonding_period2 = 4000u64;
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period1, unbonding_period2])
+        .with_min_bond(2_000)
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .build();
 
-//     // delegating first amount works (5_000 * 0.4 = 2_000)
-//     suite.delegate(user, 5_000u128, unbonding_period1).unwrap();
-//     assert_eq!(
-//         suite.query_staked(user, unbonding_period1).unwrap(),
-//         5_000u128
-//     );
+    // delegating first amount works (5_000 * 0.4 = 2_000)
+    suite.delegate(user, 5_000u128, unbonding_period1).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period1).unwrap(),
+        5_000u128
+    );
 
-//     // delegating another amount under min bond doesn't increase voting power
-//     // 1_800 < 2_000
-//     suite.delegate(user, 1_800u128, unbonding_period2).unwrap();
-//     assert_eq!(
-//         suite.query_staked(user, unbonding_period2).unwrap(),
-//         1_800u128
-//     );
+    // delegating another amount under min bond doesn't increase voting power
+    // 1_800 < 2_000
+    suite.delegate(user, 1_800u128, unbonding_period2).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period2).unwrap(),
+        1_800u128
+    );
 
-//     // once the stake hits min_bond (2_000), count it, even if voting power (2_000 * 0.8 = 1_600) is still under min_bond
-//     suite.delegate(user, 200u128, unbonding_period2).unwrap();
-//     assert_eq!(
-//         suite.query_staked(user, unbonding_period2).unwrap(),
-//         2_000u128
-//     );
+    // once the stake hits min_bond (2_000), count it, even if voting power (2_000 * 0.8 = 1_600) is still under min_bond
+    suite.delegate(user, 200u128, unbonding_period2).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period2).unwrap(),
+        2_000u128
+    );
 
-//     suite.delegate(user, 5_000u128, unbonding_period2).unwrap();
-//     assert_eq!(
-//         suite.query_staked(user, unbonding_period2).unwrap(),
-//         7_000u128
-//     );
+    suite.delegate(user, 5_000u128, unbonding_period2).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period2).unwrap(),
+        7_000u128
+    );
 
-//     // undelegate tokens from first pool so that delegation goes under min_bond
-//     suite.unbond(user, 3_500u128, unbonding_period1).unwrap();
-//     assert_eq!(
-//         suite.query_staked(user, unbonding_period1).unwrap(),
-//         1_500u128
-//     );
-// }
+    // undelegate tokens from first pool so that delegation goes under min_bond
+    suite.unbond(user, 3_500u128, unbonding_period1).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period1).unwrap(),
+        1_500u128
+    );
+}
