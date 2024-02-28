@@ -4,7 +4,7 @@ use dex::stake::UnbondingPeriod;
 
 use crate::error::ContractError;
 use crate::msg::{AllStakedResponse, StakedResponse};
-use crate::multitest::suite::{juno_power, SEVEN_DAYS};
+use crate::multitest::suite::juno_power;
 
 use super::suite::SuiteBuilder;
 use test_case::test_case;
