@@ -1,10 +1,15 @@
+use std::vec;
+
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::{Cw20Coin, MinterResponse};
 
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use dex::asset::{AssetInfo, AssetInfoValidated};
 
-use crate::{multitest::suite::SuiteBuilder, ContractError};
+use crate::{
+    multitest::suite::{native_token, SuiteBuilder},
+    ContractError,
+};
 
 use super::suite::{juno, SEVEN_DAYS};
 
@@ -129,47 +134,19 @@ fn multiple_delegate_unbond_and_claim_with_unbond_all() {
 //     let unbonding_period = 1000u64;
 
 //     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_initial_balances(vec![(user, 100_000)])
 //         .with_admin("admin")
 //         .with_unbonder(UNBONDER)
-//         .with_native_balances("juno", vec![(user, 1200)])
+//         .with_unbonding_periods(vec![unbonding_period])
+//         .with_lp_share_denom("whelp".to_string())
+//         .with_native_balances("inj", vec![(user, 1_200)])
+//         .with_native_balances("juno", vec![(user, 1_200)])
 //         .build();
 
-//     // Create CW20 token.
-//     let token_id = suite.app.store_code(contract_token());
-//     let dex_token = suite
-//         .app
-//         .instantiate_contract(
-//             token_id,
-//             Addr::unchecked("admin"),
-//             &Cw20InstantiateMsg {
-//                 name: "dex-token".to_owned(),
-//                 symbol: "DEX".to_owned(),
-//                 decimals: 9,
-//                 initial_balances: vec![Cw20Coin {
-//                     // member4 gets some to distribute
-//                     address: "user".to_owned(),
-//                     amount: Uint128::from(500u128),
-//                 }],
-//                 mint: Some(MinterResponse {
-//                     minter: "minter".to_owned(),
-//                     cap: None,
-//                 }),
-//                 marketing: None,
-//             },
-//             &[],
-//             "vesting",
-//             None,
-//         )
-//         .unwrap();
-
-//     // Distribution flow for native and CW20 tokens.
 //     suite
 //         .create_distribution_flow(
 //             "admin",
 //             user,
-//             AssetInfo::Native("juno".to_string()),
+//             AssetInfo::SmartToken("juno".to_string()),
 //             vec![(unbonding_period, Decimal::one())],
 //         )
 //         .unwrap();
@@ -178,7 +155,7 @@ fn multiple_delegate_unbond_and_claim_with_unbond_all() {
 //         .create_distribution_flow(
 //             "admin",
 //             user,
-//             AssetInfo::Token(dex_token.to_string()),
+//             AssetInfo::SmartToken("inj".to_string()),
 //             vec![(unbonding_period, Decimal::one())],
 //         )
 //         .unwrap();
@@ -190,16 +167,10 @@ fn multiple_delegate_unbond_and_claim_with_unbond_all() {
 //         .execute_fund_distribution(user, None, juno(400))
 //         .unwrap();
 //     suite
-//         .execute_fund_distribution_with_cw20(
-//             user,
-//             AssetInfoValidated::Token(dex_token).with_balance(400u128),
-//         )
+//         .execute_fund_distribution(user, None, native_token("inj".to_string(), 100u128))
 //         .unwrap();
 
 //     suite.update_time(100);
-
-//     // Set unbond all flag to true.
-//     suite.execute_unbond_all(UNBONDER).unwrap();
 
 //     // Cannot distribute funds when unbod all.
 //     let err = suite.distribute_funds(user, None, None).unwrap_err();
