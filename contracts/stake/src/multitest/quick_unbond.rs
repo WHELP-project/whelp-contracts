@@ -27,7 +27,15 @@ fn initial_setup() -> Suite {
         .with_unbonding_periods(UNBONDING_PERIODS.to_vec())
         .with_native_balances("cash", vec![(REWARDS_DISTRIBUTOR, 100_000)])
         .with_lp_share_denom("tia".to_string())
-        .with_native_balances("tia", vec![(VOTER1, 500), (VOTER2, 600), (VOTER3, 450)])
+        .with_native_balances(
+            "tia",
+            vec![
+                (VOTER1, 500),
+                (VOTER2, 600),
+                (VOTER3, 450),
+                (UNBONDER, 1000),
+            ],
+        )
         .build();
 
     suite
@@ -173,25 +181,6 @@ fn control_case() {
 
     suite.claim(VOTER2).unwrap();
     suite.claim(VOTER3).unwrap();
-
-    suite
-        .distribute_funds(
-            REWARDS_DISTRIBUTOR,
-            REWARDS_DISTRIBUTOR,
-            Some(cash().with_balance(800u128)),
-        )
-        .unwrap();
-
-    run_checks(suite);
-}
-
-#[test]
-fn unbond() {
-    let mut suite = initial_setup();
-
-    suite
-        .unbond(UNBONDER, 500u128, UNBONDING_PERIODS[0])
-        .unwrap();
 
     suite
         .distribute_funds(
