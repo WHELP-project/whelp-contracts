@@ -979,184 +979,186 @@ fn divisible_amount_distributed_twice() {
     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
 }
 
-// #[test]
-// fn divisible_amount_distributed_twice_accumulated() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//         "member4".to_owned(),
-//     ];
+#[test]
+fn divisible_amount_distributed_twice_accumulated() {
+    let members = vec![
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+        "member4".to_owned(),
+    ];
 
-//     let bonds = vec![5_000u128, 10_000u128, 25_000u128];
-//     let unbonding_period = 1000u64;
+    let bonds = vec![5_000u128, 10_000u128, 25_000u128];
+    let unbonding_period = 1000u64;
 
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[3], 1000u128)])
-//         .with_initial_balances(vec![
-//             (&members[0], bonds[0]),
-//             (&members[1], bonds[1]),
-//             (&members[2], bonds[2]),
-//             (&members[3], 1000u128),
-//         ])
-//         .build();
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_admin("admin")
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("juno", vec![(&members[3], 1000u128)])
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], bonds[0]),
+                (&members[1], bonds[1]),
+                (&members[2], bonds[2]),
+                (&members[3], 1000u128),
+            ],
+        )
+        .build();
 
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
 
-//     suite
-//         .delegate(&members[0], bonds[0], unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], bonds[1], unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[2], bonds[2], unbonding_period)
-//         .unwrap();
+    suite
+        .delegate(&members[0], bonds[0], unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[1], bonds[1], unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[2], bonds[2], unbonding_period)
+        .unwrap();
 
-//     suite
-//         .distribute_funds(&members[3], None, Some(juno(400)))
-//         .unwrap();
+    suite
+        .distribute_funds(&members[3], None, Some(juno(400)))
+        .unwrap();
 
-//     suite
-//         .distribute_funds(&members[3], None, Some(juno(600)))
-//         .unwrap();
+    suite
+        .distribute_funds(&members[3], None, Some(juno(600)))
+        .unwrap();
 
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(1000)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0)]);
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(1000)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0)]);
 
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
 
-//     assert_eq!(
-//         suite
-//             .query_balance_vesting_contract(suite.token_contract().as_str())
-//             .unwrap(),
-//         0
-//     );
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 125);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 250);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 625);
-//     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
-// }
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 125);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 250);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 625);
+    assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
+}
 
-// #[test]
-// fn points_changed_after_distribution() {
-//     let members = vec![
-//         "member0".to_owned(),
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//     ];
+#[test]
+fn points_changed_after_distribution() {
+    let members = vec![
+        "member0".to_owned(),
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+    ];
 
-//     let unbonding_period = 1000u64;
+    let unbonding_period = 1000u64;
 
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_min_bond(1000)
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[3], 1500)])
-//         .with_initial_balances(vec![
-//             (&members[0], 6_000u128),
-//             (&members[1], 2_000u128),
-//             (&members[2], 5_000u128),
-//             (&members[3], 1500u128),
-//         ])
-//         .build();
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_min_bond(1000)
+        .with_admin("admin")
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("juno", vec![(&members[3], 1500)])
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], 6_000u128),
+                (&members[1], 2_000u128),
+                (&members[2], 5_000u128),
+                (&members[3], 1500u128),
+            ],
+        )
+        .build();
 
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::percent(200))],
-//         )
-//         .unwrap();
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::percent(200))],
+        )
+        .unwrap();
 
-//     suite.delegate(&members[0], 1000, unbonding_period).unwrap();
-//     suite.delegate(&members[1], 2000, unbonding_period).unwrap();
-//     suite.delegate(&members[2], 5000, unbonding_period).unwrap();
+    suite.delegate(&members[0], 1000, unbonding_period).unwrap();
+    suite.delegate(&members[1], 2000, unbonding_period).unwrap();
+    suite.delegate(&members[2], 5000, unbonding_period).unwrap();
 
-//     assert_eq!(
-//         suite.query_rewards_power(&members[0]).unwrap(),
-//         juno_power(2u128)
-//     );
-//     assert_eq!(
-//         suite.query_rewards_power(&members[1]).unwrap(),
-//         juno_power(4u128)
-//     );
-//     assert_eq!(
-//         suite.query_rewards_power(&members[2]).unwrap(),
-//         juno_power(10u128)
-//     );
-//     assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(16));
+    assert_eq!(
+        suite.query_rewards_power(&members[0]).unwrap(),
+        juno_power(2u128)
+    );
+    assert_eq!(
+        suite.query_rewards_power(&members[1]).unwrap(),
+        juno_power(4u128)
+    );
+    assert_eq!(
+        suite.query_rewards_power(&members[2]).unwrap(),
+        juno_power(10u128)
+    );
+    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(16));
 
-//     suite
-//         .distribute_funds(&members[3], None, Some(juno(400)))
-//         .unwrap();
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0u128)]);
-//     assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(400)]);
-//     // TODO: add distributed / withdrawable tests
+    suite
+        .distribute_funds(&members[3], None, Some(juno(400)))
+        .unwrap();
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0u128)]);
+    assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(400)]);
+    // TODO: add distributed / withdrawable tests
 
-//     // Modifying power to:
-//     // member[0] => 6
-//     // member[1] => 0 (removed)
-//     // member[2] => 5
-//     suite.delegate(&members[0], 5000, unbonding_period).unwrap();
-//     suite.unbond(&members[1], 2000, unbonding_period).unwrap();
-//     // BUG: unbonding tokens are considered rewards to be paid out
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0u128)]);
-//     assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(400)]);
+    // Modifying power to:
+    // member[0] => 6
+    // member[1] => 0 (removed)
+    // member[2] => 5
+    suite.delegate(&members[0], 5000, unbonding_period).unwrap();
+    suite.unbond(&members[1], 2000, unbonding_period).unwrap();
+    // BUG: unbonding tokens are considered rewards to be paid out
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0u128)]);
+    assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(400)]);
 
-//     assert_eq!(
-//         suite.query_rewards_power(&members[0]).unwrap(),
-//         juno_power(12u128)
-//     );
-//     assert_eq!(suite.query_rewards_power(&members[1]).unwrap(), vec![]);
-//     assert_eq!(
-//         suite.query_rewards_power(&members[2]).unwrap(),
-//         juno_power(10u128)
-//     );
-//     assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(22));
+    assert_eq!(
+        suite.query_rewards_power(&members[0]).unwrap(),
+        juno_power(12u128)
+    );
+    assert_eq!(suite.query_rewards_power(&members[1]).unwrap(), vec![]);
+    assert_eq!(
+        suite.query_rewards_power(&members[2]).unwrap(),
+        juno_power(10u128)
+    );
+    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(22));
 
-//     // Ensure funds are withdrawn properly, considering old points
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(400u128)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0)]);
-//     assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(0)]);
+    // Ensure funds are withdrawn properly, considering old points
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(400u128)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0)]);
+    assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(0)]);
 
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 50);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 250);
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 50);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 250);
 
-//     // Distribute tokens again to ensure distribution considers new points
-//     // 600 -> member0 and 500 -> member2
-//     suite
-//         .distribute_funds(&members[3], None, Some(juno(1100)))
-//         .unwrap();
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(1500u128)]);
-//     assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(1100)]);
+    // Distribute tokens again to ensure distribution considers new points
+    // 600 -> member0 and 500 -> member2
+    suite
+        .distribute_funds(&members[3], None, Some(juno(1100)))
+        .unwrap();
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(1500u128)]);
+    assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(1100)]);
 
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
-//     assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(0)]);
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
+    assert_eq!(suite.withdrawable_funds().unwrap(), vec![juno(0)]);
 
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 650);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 750);
-// }
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 650);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 750);
+}
 
 // #[test]
 // fn points_changed_after_distribution_accumulated() {
