@@ -165,7 +165,7 @@ fn multiple_users_multiple_unbonding_periods() {
         .create_distribution_flow(
             "admin",
             members[0],
-            AssetInfo::SmartToken("ucore".to_string()),
+            AssetInfo::SmartToken("juno".to_string()),
             vec![
                 (unbonding_period1, Decimal::percent(1)),
                 (unbonding_period2, Decimal::percent(40)),
@@ -202,7 +202,7 @@ fn multiple_users_multiple_unbonding_periods() {
 
     assert_eq!(
         suite.query_rewards_power(user1).unwrap(),
-        vec![(AssetInfoValidated::SmartToken("ucore".to_string()), 6u128)]
+        vec![(AssetInfoValidated::SmartToken("juno".to_string()), 6u128)]
     ); // same as before
 
     assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(27)); // same as before
