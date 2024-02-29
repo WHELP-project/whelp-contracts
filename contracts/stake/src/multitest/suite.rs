@@ -35,7 +35,7 @@ fn contract_stake() -> Box<dyn Contract<CoreumMsg, CoreumQueries>> {
     Box::new(contract)
 }
 
-pub const COREUM_DENOM: &str = "ucore";
+pub const COREUM_DENOM: &str = "juno";
 
 pub(super) fn juno_power(amount: u128) -> Vec<(AssetInfoValidated, u128)> {
     vec![(

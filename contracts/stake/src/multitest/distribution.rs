@@ -1,10 +1,12 @@
 use cosmwasm_std::{assert_approx_eq, Addr, Decimal, Uint128};
 use cw20::{Cw20Coin, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
+use cw_multi_test::Executor;
 use dex::asset::{AssetInfo, AssetInfoValidated};
 use dex::stake::FundingInfo;
 
 use super::suite::SuiteBuilder;
+use crate::multitest::suite::COREUM_DENOM;
 use crate::{
     multitest::suite::{juno, juno_power, native_token},
     ContractError,
@@ -23,23 +25,28 @@ fn multiple_distribution_flows() {
     let unbonding_period = 1000u64;
 
     let mut suite = SuiteBuilder::new()
-        .with_unbonding_periods(vec![unbonding_period])
-        .with_initial_balances(vec![
-            (&members[0], bonds[0]),
-            (&members[1], bonds[1]),
-            (&members[2], bonds[2]),
-            (&members[3], 400u128),
-        ])
         .with_admin("admin")
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], bonds[0]),
+                (&members[1], bonds[1]),
+                (&members[2], bonds[2]),
+                (&members[3], 400u128),
+            ],
+        )
         .with_native_balances("juno", vec![(&members[3], 1200)])
         .with_native_balances("luna", vec![(&members[3], 1200)])
+        .with_native_balances("dex", vec![(&members[3], 400)])
         .build();
 
     suite
         .create_distribution_flow(
             "admin",
             &members[0],
-            AssetInfo::Native("juno".to_string()),
+            AssetInfo::SmartToken("juno".to_string()),
             vec![(unbonding_period, Decimal::one())],
         )
         .unwrap();
@@ -48,36 +55,8 @@ fn multiple_distribution_flows() {
         .create_distribution_flow(
             "admin",
             &members[0],
-            AssetInfo::Native("luna".to_string()),
+            AssetInfo::SmartToken("luna".to_string()),
             vec![(unbonding_period, Decimal::one())],
-        )
-        .unwrap();
-
-    // create dex token
-    let token_id = suite.app.store_code(contract_token());
-    let dex_token = suite
-        .app
-        .instantiate_contract(
-            token_id,
-            Addr::unchecked("admin"),
-            &Cw20InstantiateMsg {
-                name: "dex-token".to_owned(),
-                symbol: "DEX".to_owned(),
-                decimals: 9,
-                initial_balances: vec![Cw20Coin {
-                    // member4 gets some to distribute
-                    address: "member4".to_owned(),
-                    amount: Uint128::from(500u128),
-                }],
-                mint: Some(MinterResponse {
-                    minter: "minter".to_owned(),
-                    cap: None,
-                }),
-                marketing: None,
-            },
-            &[],
-            "vesting",
-            None,
         )
         .unwrap();
 
@@ -144,17 +123,14 @@ fn multiple_distribution_flows() {
         .create_distribution_flow(
             "admin",
             &members[0],
-            AssetInfo::Token(dex_token.to_string()),
+            AssetInfo::SmartToken("dex".to_string()),
             vec![(unbonding_period, Decimal::one())],
         )
         .unwrap();
 
     // Finally, setup the dex distribution before advancing time again to collect rewards
     suite
-        .execute_fund_distribution_with_cw20(
-            &members[3],
-            AssetInfoValidated::Token(dex_token.clone()).with_balance(400u128),
-        )
+        .execute_fund_distribution(&members[3], None, native_token("dex".to_string(), 400u128))
         .unwrap();
 
     // Advance the final 50% for the first two native tokens and 50% for the dex token
@@ -167,25 +143,25 @@ fn multiple_distribution_flows() {
     assert_eq!(
         suite.withdrawable_rewards(&members[0]).unwrap(),
         vec![
+            native_token("dex".to_string(), 25u128),
             juno(50),
             native_token("luna".to_string(), 50),
-            AssetInfoValidated::Token(dex_token.clone()).with_balance(25u128)
         ]
     );
     assert_eq!(
         suite.withdrawable_rewards(&members[1]).unwrap(),
         vec![
+            native_token("dex".to_string(), 50u128),
             juno(100),
             native_token("luna".to_string(), 100),
-            AssetInfoValidated::Token(dex_token.clone()).with_balance(50u128)
         ]
     );
     assert_eq!(
         suite.withdrawable_rewards(&members[2]).unwrap(),
         vec![
+            native_token("dex".to_string(), 125u128),
             juno(250),
             native_token("luna".to_string(), 250),
-            AssetInfoValidated::Token(dex_token).with_balance(125u128)
         ]
     );
 }
