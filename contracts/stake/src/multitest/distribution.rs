@@ -1609,134 +1609,141 @@ fn multiple_rewards() {
     assert_eq!(suite.query_balance(&members[1], "dex").unwrap(), 333);
 }
 
-// #[test]
-// fn distribute_staking_token_should_fail() {
-//     let executor = "executor";
-//     let mut suite = SuiteBuilder::new().with_admin("admin").build();
+#[test]
+fn distribute_staking_token_should_fail() {
+    let executor = "executor";
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_lp_share_denom("luna".to_string())
+        .with_lp_share_denom("luna".to_string())
+        .build();
 
-//     // try to add staking token distribution
-//     let err = suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Token(suite.token_contract()),
-//             vec![],
-//         )
-//         .unwrap_err();
+    // try to add staking token distribution
+    let err = suite
+        .create_distribution_flow(
+            "admin",
+            executor,
+            AssetInfo::SmartToken("luna".to_string()),
+            vec![],
+        )
+        .unwrap_err();
 
-//     assert_eq!(ContractError::InvalidAsset {}, err.downcast().unwrap());
-// }
+    assert_eq!(ContractError::InvalidAsset {}, err.downcast().unwrap());
+}
 
-// #[test]
-// fn unbond_after_new_distribution() {
-//     let executor = "executor";
-//     let member = "member";
-//     let mut suite = SuiteBuilder::new()
-//         .with_admin("admin")
-//         .with_unbonding_periods(vec![100])
-//         .with_initial_balances(vec![(member, 1_000)])
-//         .with_native_balances("juno", vec![(member, 1_000)])
-//         .build();
+#[test]
+fn unbond_after_new_distribution() {
+    let executor = "executor";
+    let member = "member";
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_unbonding_periods(vec![100])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(member, 1_000)])
+        .with_native_balances("juno", vec![(member, 1_000)])
+        .build();
 
-//     // delegate before any distribution exists
-//     suite.delegate(member, 1_000, 100).unwrap();
+    // delegate before any distribution exists
+    suite.delegate(member, 1_000, 100).unwrap();
 
-//     // add distribution
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(100, Decimal::one())],
-//         )
-//         .unwrap();
+    // add distribution
+    suite
+        .create_distribution_flow(
+            "admin",
+            executor,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(100, Decimal::one())],
+        )
+        .unwrap();
 
-//     // unbond
-//     suite.unbond("member", 1_000, 100).unwrap();
-// }
+    // unbond
+    suite.unbond("member", 1_000, 100).unwrap();
+}
 
-// #[test]
-// fn distribution_respects_min_bond() {
-//     let executor = "executor";
-//     let members = ["member0", "member1"];
-//     let mut suite = SuiteBuilder::new()
-//         .with_admin("admin")
-//         .with_unbonding_periods(vec![100])
-//         .with_min_bond(2000)
-//         .with_initial_balances(vec![(members[0], 1_000), (members[1], 3_000)])
-//         .with_native_balances("juno", vec![(executor, 1_000)])
-//         .build();
+#[test]
+fn distribution_respects_min_bond() {
+    let executor = "executor";
+    let members = ["member0", "member1"];
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_unbonding_periods(vec![100])
+        .with_min_bond(2000)
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(members[0], 1_000), (members[1], 3_000)])
+        .with_native_balances("juno", vec![(executor, 1_000)])
+        .build();
 
-//     // delegate less than min_bond with one account
-//     suite.delegate(members[0], 1000, 100).unwrap();
-//     // delegate more than min_bond with another account, such that the total is >= min_bond
-//     suite.delegate(members[1], 3000, 100).unwrap();
+    // delegate less than min_bond with one account
+    suite.delegate(members[0], 1000, 100).unwrap();
+    // delegate more than min_bond with another account, such that the total is >= min_bond
+    suite.delegate(members[1], 3000, 100).unwrap();
 
-//     // add distribution
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(100, Decimal::one())],
-//         )
-//         .unwrap();
+    // add distribution
+    suite
+        .create_distribution_flow(
+            "admin",
+            executor,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(100, Decimal::one())],
+        )
+        .unwrap();
 
-//     // distribute
-//     suite
-//         .distribute_funds(executor, executor, Some(juno(300)))
-//         .unwrap();
+    // distribute
+    suite
+        .distribute_funds(executor, executor, Some(juno(300)))
+        .unwrap();
 
-//     // withdraw
-//     suite.withdraw_funds(members[0], None, None).unwrap();
-//     suite.withdraw_funds(members[1], None, None).unwrap();
+    // withdraw
+    suite.withdraw_funds(members[0], None, None).unwrap();
+    suite.withdraw_funds(members[1], None, None).unwrap();
 
-//     assert_eq!(
-//         suite.query_balance(members[0], "juno").unwrap(),
-//         0,
-//         "member0 should be below min_bond"
-//     );
-//     assert_eq!(
-//         suite.query_balance(members[1], "juno").unwrap(),
-//         300,
-//         "member1 should be above min_bond and get everything"
-//     );
-// }
+    assert_eq!(
+        suite.query_balance(members[0], "juno").unwrap(),
+        0,
+        "member0 should be below min_bond"
+    );
+    assert_eq!(
+        suite.query_balance(members[1], "juno").unwrap(),
+        300,
+        "member1 should be above min_bond and get everything"
+    );
+}
 
-// #[test]
-// fn withdraw_adjustment_handled_lazily() {
-//     // This tests the case that a user bonds before a distribution is created and does not bond again after that.
-//     // To pass this test, one cannot rely on `WITHDRAW_ADJUSTMENT` being set when bonding.
-//     let executor = "executor";
-//     let member = "member";
-//     let mut suite = SuiteBuilder::new()
-//         .with_admin("admin")
-//         .with_unbonding_periods(vec![100])
-//         .with_min_bond(0)
-//         .with_initial_balances(vec![(member, 1_000)])
-//         .with_native_balances("juno", vec![(executor, 1_000)])
-//         .build();
+#[test]
+fn withdraw_adjustment_handled_lazily() {
+    // This tests the case that a user bonds before a distribution is created and does not bond again after that.
+    // To pass this test, one cannot rely on `WITHDRAW_ADJUSTMENT` being set when bonding.
+    let executor = "executor";
+    let member = "member";
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_unbonding_periods(vec![100])
+        .with_min_bond(0)
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(member, 1_000)])
+        .with_native_balances("juno", vec![(executor, 1_000)])
+        .build();
 
-//     // delegate before any distribution exists
-//     suite.delegate(member, 1_000, 100).unwrap();
+    // delegate before any distribution exists
+    suite.delegate(member, 1_000, 100).unwrap();
 
-//     // add distribution
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(100, Decimal::one())],
-//         )
-//         .unwrap();
+    // add distribution
+    suite
+        .create_distribution_flow(
+            "admin",
+            executor,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(100, Decimal::one())],
+        )
+        .unwrap();
 
-//     // distribute
-//     suite
-//         .distribute_funds(executor, None, Some(juno(500)))
-//         .unwrap();
+    // distribute
+    suite
+        .distribute_funds(executor, None, Some(juno(500)))
+        .unwrap();
 
-//     // withdraw
-//     suite.withdraw_funds(member, member, None).unwrap();
-//     // member should get rewards
-//     assert_eq!(suite.query_balance(member, "juno").unwrap(), 500);
-// }
+    // withdraw
+    suite.withdraw_funds(member, member, None).unwrap();
+    // member should get rewards
+    assert_eq!(suite.query_balance(member, "juno").unwrap(), 500);
+}
