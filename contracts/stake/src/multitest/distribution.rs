@@ -1,9 +1,5 @@
-use cosmwasm_std::{assert_approx_eq, Addr, Decimal, Uint128};
-use cw20::{Cw20Coin, MinterResponse};
-use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
-use cw_multi_test::Executor;
-use dex::asset::{native_asset, AssetInfo, AssetInfoValidated};
-use dex::stake::FundingInfo;
+use cosmwasm_std::{Decimal, Uint128};
+use dex::asset::{native_asset, AssetInfo};
 
 use super::suite::SuiteBuilder;
 use crate::multitest::suite::COREUM_DENOM;
