@@ -2,7 +2,7 @@ use cosmwasm_std::{assert_approx_eq, Addr, Decimal, Uint128};
 use cw20::{Cw20Coin, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use cw_multi_test::Executor;
-use dex::asset::{AssetInfo, AssetInfoValidated};
+use dex::asset::{native_asset, AssetInfo, AssetInfoValidated};
 use dex::stake::FundingInfo;
 
 use super::suite::SuiteBuilder;
@@ -1370,635 +1370,244 @@ fn distribution_with_leftover_accumulated() {
     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 1300);
 }
 
-// #[test]
-// fn redirecting_withdrawn_funds() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//         "member4".to_owned(),
-//     ];
-
-//     let unbonding_period = 1000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_min_bond(1000)
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[3], 100)])
-//         // points are set to be prime numbers, difficult to distribute over. All are mutually prime
-//         // with distributed amount
-//         .with_initial_balances(vec![
-//             (&members[0], 4_000u128),
-//             (&members[1], 6_000u128),
-//             (&members[3], 100u128),
-//         ])
-//         .build();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
-
-//     suite
-//         .delegate(&members[0], 4_000, unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], 6_000, unbonding_period)
-//         .unwrap();
-
-//     suite
-//         .distribute_funds(&members[3], None, Some(juno(100)))
-//         .unwrap();
-
-//     suite
-//         .withdraw_funds(&members[0], None, members[2].as_str())
-//         .unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 60);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 40);
-// }
-
-// #[test]
-// fn cannot_withdraw_others_funds() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//     ];
-//     let unbonding_period = 1000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_min_bond(1000)
-//         .with_initial_balances(vec![
-//             (&members[0], 4_000u128),
-//             (&members[1], 6_000u128),
-//             (&members[2], 100u128),
-//         ])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[2], 100)])
-//         .build();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
-
-//     suite
-//         .delegate(&members[0], 4_000u128, unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], 6_000u128, unbonding_period)
-//         .unwrap();
-
-//     suite
-//         .distribute_funds(&members[2], None, Some(juno(100)))
-//         .unwrap();
-//     // assert staking token balance is still the same
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), 10000);
-//     // assert rewards arrived
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "juno")
-//             .unwrap(),
-//         100
-//     );
-
-//     let err = suite
-//         .withdraw_funds(&members[0], members[1].as_str(), None)
-//         .unwrap_err();
-
-//     assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     // assert staking token balance is still the same
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), 10000);
-//     // assert rewards arrived
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "juno")
-//             .unwrap(),
-//         40
-//     );
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 60);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
-// }
-
-// #[test]
-// fn funds_withdrawal_delegation() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//     ];
-
-//     let unbonding_period = 1000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_min_bond(1000)
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[2], 100)])
-//         .with_initial_balances(vec![
-//             (&members[0], 4_000u128),
-//             (&members[1], 6_000u128),
-//             (&members[2], 100u128),
-//         ])
-//         .build();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
-
-//     suite
-//         .delegate(&members[0], 4_000u128, unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], 6_000u128, unbonding_period)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.delegated(&members[0]).unwrap().as_str(),
-//         members[0].as_str()
-//     );
-//     assert_eq!(
-//         suite.delegated(&members[1]).unwrap().as_str(),
-//         members[1].as_str()
-//     );
-
-//     suite
-//         .distribute_funds(&members[2], None, Some(juno(100)))
-//         .unwrap();
-
-//     suite.delegate_withdrawal(&members[1], &members[0]).unwrap();
-
-//     suite
-//         .withdraw_funds(&members[0], members[1].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.delegated(&members[0]).unwrap().as_str(),
-//         members[0].as_str()
-//     );
-//     assert_eq!(
-//         suite.delegated(&members[1]).unwrap().as_str(),
-//         members[0].as_str()
-//     );
-
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 100);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
-// }
-
-// #[test]
-// fn querying_unknown_address() {
-//     let suite = SuiteBuilder::new().build();
-
-//     let resp = suite.withdrawable_rewards("unknown").unwrap();
-//     assert_eq!(resp, vec![]);
-// }
-
-// #[test]
-// fn rebond_works() {
-//     let members = vec!["member0".to_owned(), "member1".to_owned()];
-//     let executor = "executor";
-
-//     let unbonding_period = 1000u64;
-//     let unbonding_period2 = 2000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period, unbonding_period2])
-//         .with_min_bond(1000)
-//         .with_initial_balances(vec![
-//             (&members[0], 1_000u128),
-//             (&members[1], 2_000u128),
-//             (executor, 450 + 300),
-//         ])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(executor, 1_000u128)]) // give some juno to reward people with
-//         .build();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![
-//                 (unbonding_period, Decimal::one()),
-//                 (unbonding_period2, Decimal::percent(200)),
-//             ],
-//         )
-//         .unwrap();
-
-//     // delegate
-//     suite
-//         .delegate(&members[0], 1_000u128, unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], 2_000u128, unbonding_period)
-//         .unwrap();
-
-//     // rebond member1 up to unbonding_period2
-//     suite
-//         .rebond(&members[1], 2_000u128, unbonding_period, unbonding_period2)
-//         .unwrap();
-//     // rewards power breakdown:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 2 / 1000 = 4
-//     // total: 5
-
-//     // distribute
-//     suite
-//         .distribute_funds(executor, None, Some(juno(450)))
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.query_balance(&members[0], "juno").unwrap(),
-//         90,
-//         "member0 should have received 450 * 1 / 5 = 90"
-//     );
-//     assert_eq!(
-//         suite.query_balance(&members[1], "juno").unwrap(),
-//         360,
-//         "member1 should have received 450 * 4 / 5 = 360"
-//     );
-
-//     // rebond member1 down again to unbonding_period
-//     suite
-//         .rebond(&members[1], 2_000u128, unbonding_period2, unbonding_period)
-//         .unwrap();
-//     // rewards power breakdown:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 1 / 1000 = 2
-//     // total: 3
-
-//     // distribute
-//     suite
-//         .distribute_funds(executor, None, Some(juno(300)))
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.query_balance(&members[0], "juno").unwrap(),
-//         90 + 100,
-//         "member0 should have received 300 * 1 / 3 = 100"
-//     );
-//     assert_eq!(
-//         suite.query_balance(&members[1], "juno").unwrap(),
-//         360 + 200,
-//         "member1 should have received 300 * 2 / 3 = 200"
-//     );
-// }
-
-// #[test]
-// fn rebond_multiple_works() {
-//     // This is just a version of `rebond_works` with multiple distributions in order to have
-//     // a more complex case with withdrawals and rebonding in-between distributing funds.
-//     let members = vec!["member0".to_owned(), "member1".to_owned()];
-//     let executor = "executor";
-
-//     let unbonding_period = 1000u64;
-//     let unbonding_period2 = 2000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period, unbonding_period2])
-//         .with_min_bond(1000)
-//         .with_initial_balances(vec![(&members[0], 1_000u128), (&members[1], 2_000u128)])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(executor, 1_000u128)]) // give some juno to reward people with
-//         .with_native_balances("osmo", vec![(executor, 600u128)]) // give some osmo to reward people with
-//         .build();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![
-//                 (unbonding_period, Decimal::one()),
-//                 (unbonding_period2, Decimal::percent(200)),
-//             ],
-//         )
-//         .unwrap();
-
-//     // create second distribution flow
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("osmo".to_string()),
-//             vec![
-//                 (unbonding_period, Decimal::one()),
-//                 (unbonding_period2, Decimal::one()),
-//             ],
-//         )
-//         .unwrap();
-
-//     // delegate
-//     suite
-//         .delegate(&members[0], 1_000u128, unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], 2_000u128, unbonding_period)
-//         .unwrap();
-
-//     // rebond member1 up to unbonding_period2
-//     suite
-//         .rebond(&members[1], 2_000u128, unbonding_period, unbonding_period2)
-//         .unwrap();
-//     // juno rewards power breakdown:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 2 / 1000 = 4
-//     // total: 5
-
-//     // distribute
-//     suite
-//         .distribute_funds(executor, None, Some(juno(450)))
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.query_balance(&members[0], "juno").unwrap(),
-//         90,
-//         "member0 should have received 450 * 1 / 5 = 90"
-//     );
-//     assert_eq!(
-//         suite.query_balance(&members[1], "juno").unwrap(),
-//         360,
-//         "member1 should have received 450 * 4 / 5 = 360"
-//     );
-
-//     // osmo rewards power breakdown:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 1 / 1000 = 2
-//     // total: 3
-
-//     // distribute
-//     suite
-//         .distribute_funds(
-//             executor,
-//             None,
-//             Some(AssetInfoValidated::Native("osmo".to_string()).with_balance(300u128)),
-//         )
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.query_balance(&members[0], "osmo").unwrap(),
-//         100,
-//         "member0 should have received 300 * 1 / 3 = 100"
-//     );
-//     assert_eq!(
-//         suite.query_balance(&members[1], "osmo").unwrap(),
-//         200,
-//         "member1 should have received 300 * 2 / 3 = 200"
-//     );
-
-//     // rebond member1 down again to unbonding_period
-//     suite
-//         .rebond(&members[1], 2_000u128, unbonding_period2, unbonding_period)
-//         .unwrap();
-
-//     // juno rewards power breakdown:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 1 / 1000 = 2
-//     // total: 3
-
-//     // distribute
-//     suite
-//         .distribute_funds(executor, None, Some(juno(300)))
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.query_balance(&members[0], "juno").unwrap(),
-//         90 + 100,
-//         "member0 should have received 300 * 1 / 3 = 100"
-//     );
-//     assert_eq!(
-//         suite.query_balance(&members[1], "juno").unwrap(),
-//         360 + 200,
-//         "member1 should have received 300 * 2 / 3 = 200"
-//     );
-
-//     // osmo rewards power breakdown:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 1 / 1000 = 2
-//     // total: 3
-
-//     // distribute
-//     suite
-//         .distribute_funds(
-//             executor,
-//             None,
-//             Some(AssetInfoValidated::Native("osmo".to_string()).with_balance(300u128)),
-//         )
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     assert_eq!(
-//         suite.query_balance(&members[0], "osmo").unwrap(),
-//         100 + 100,
-//         "member0 should have received 300 * 1 / 3 = 100"
-//     );
-//     assert_eq!(
-//         suite.query_balance(&members[1], "osmo").unwrap(),
-//         200 + 200,
-//         "member1 should have received 300 * 2 / 3 = 200"
-//     );
-// }
-
-// #[test]
-// fn multiple_rewards() {
-//     // This test checks that handling of multiple different distributions works correctly.
-//     // One of them is a native token, one a cw20 token.
-//     // We add distributions for both, then delegate and distribute, then check that it was done correctly.
-
-//     let members = vec!["member0".to_owned(), "member1".to_owned()];
-//     let executor = "executor";
-
-//     let unbonding_period = 1000u64;
-//     let unbonding_period2 = 2000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period, unbonding_period2])
-//         .with_min_bond(1000)
-//         .with_initial_balances(vec![(&members[0], 1_000), (&members[1], 2_000)])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(executor, 1_000)])
-//         .build();
-
-//     // add juno distribution
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![
-//                 (unbonding_period, Decimal::one()),
-//                 (unbonding_period2, Decimal::percent(200)),
-//             ],
-//         )
-//         .unwrap();
-
-//     // create dex token
-//     let token_id = suite.app.store_code(contract_token());
-//     let dex_token = suite
-//         .app
-//         .instantiate_contract(
-//             token_id,
-//             Addr::unchecked("admin"),
-//             &Cw20InstantiateMsg {
-//                 name: "dex-token".to_owned(),
-//                 symbol: "DEX".to_owned(),
-//                 decimals: 9,
-//                 initial_balances: vec![Cw20Coin {
-//                     // executor gets some to distribute
-//                     address: executor.to_string(),
-//                     amount: Uint128::from(500u128),
-//                 }],
-//                 mint: Some(MinterResponse {
-//                     minter: "minter".to_owned(),
-//                     cap: None,
-//                 }),
-//                 marketing: None,
-//             },
-//             &[],
-//             "vesting",
-//             None,
-//         )
-//         .unwrap();
-
-//     // add dex distribution
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             executor,
-//             AssetInfo::Token(dex_token.to_string()),
-//             vec![
-//                 (unbonding_period, Decimal::one()),
-//                 (unbonding_period2, Decimal::one()),
-//             ],
-//         )
-//         .unwrap();
-
-//     // delegate
-//     suite
-//         .delegate(&members[0], 1_000u128, unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], 2_000u128, unbonding_period2)
-//         .unwrap();
-
-//     // distribute juno
-//     suite
-//         .distribute_funds(executor, executor, Some(juno(1_000)))
-//         .unwrap();
-//     // distribute dex
-//     suite
-//         .distribute_funds(
-//             executor,
-//             executor,
-//             Some(AssetInfoValidated::Token(dex_token.clone()).with_balance(500u128)),
-//         )
-//         .unwrap();
-
-//     // withdraw
-//     suite
-//         .withdraw_funds(&members[0], members[0].as_str(), None)
-//         .unwrap();
-//     suite
-//         .withdraw_funds(&members[1], members[1].as_str(), None)
-//         .unwrap();
-
-//     // rewards power for juno:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 2 / 1000 = 4
-//     // => 1000 * 1 / 5 = 200, 1000 * 4 / 5 = 800
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 200);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 800);
-
-//     // rewards power for dex:
-//     // member0: 1000 * 1 / 1000 = 1
-//     // member1: 2000 * 1 / 1000 = 2
-//     // => 500 * 1 / 3 = 166, 500 * 2 / 3 = 333
-//     assert_eq!(
-//         suite
-//             .query_cw20_balance(&members[0], dex_token.clone())
-//             .unwrap(),
-//         166
-//     );
-//     assert_eq!(
-//         suite.query_cw20_balance(&members[1], dex_token).unwrap(),
-//         333
-//     );
-// }
+#[test]
+fn redirecting_withdrawn_funds() {
+    let members = vec![
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+        "member4".to_owned(),
+    ];
+
+    let unbonding_period = 1000u64;
+
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_min_bond(1000)
+        .with_admin("admin")
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("juno", vec![(&members[3], 100)])
+        // points are set to be prime numbers, difficult to distribute over. All are mutually prime
+        // with distributed amount
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], 4_000u128),
+                (&members[1], 6_000u128),
+                (&members[3], 100u128),
+            ],
+        )
+        .build();
+
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+
+    suite
+        .delegate(&members[0], 4_000, unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[1], 6_000, unbonding_period)
+        .unwrap();
+
+    suite
+        .distribute_funds(&members[3], None, Some(juno(100)))
+        .unwrap();
+
+    suite
+        .withdraw_funds(&members[0], None, members[2].as_str())
+        .unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 60);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 40);
+}
+
+#[test]
+fn cannot_withdraw_others_funds() {
+    let members = vec![
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+    ];
+    let unbonding_period = 1000u64;
+
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_min_bond(1000)
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], 4_000u128),
+                (&members[1], 6_000u128),
+                (&members[2], 100u128),
+            ],
+        )
+        .with_admin("admin")
+        .with_native_balances("juno", vec![(&members[2], 100)])
+        .build();
+
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+
+    suite
+        .delegate(&members[0], 4_000u128, unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[1], 6_000u128, unbonding_period)
+        .unwrap();
+
+    suite
+        .distribute_funds(&members[2], None, Some(juno(100)))
+        .unwrap();
+    // assert staking token balance is still the same
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), 10000);
+    // assert rewards arrived
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "juno")
+            .unwrap(),
+        100
+    );
+
+    let err = suite
+        .withdraw_funds(&members[0], members[1].as_str(), None)
+        .unwrap_err();
+
+    assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
+
+    suite
+        .withdraw_funds(&members[1], members[1].as_str(), None)
+        .unwrap();
+
+    // assert staking token balance is still the same
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), 10000);
+    // assert rewards arrived
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "juno")
+            .unwrap(),
+        40
+    );
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 60);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
+}
+
+#[test]
+fn querying_unknown_address() {
+    let suite = SuiteBuilder::new().build();
+
+    let resp = suite.withdrawable_rewards("unknown").unwrap();
+    assert_eq!(resp, vec![]);
+}
+
+#[test]
+fn multiple_rewards() {
+    // This test checks that handling of multiple different distributions works correctly.
+    // One of them is a native token, one a cw20 token.
+    // We add distributions for both, then delegate and distribute, then check that it was done correctly.
+
+    let members = vec!["member0".to_owned(), "member1".to_owned()];
+    let executor = "executor";
+
+    let unbonding_period = 1000u64;
+    let unbonding_period2 = 2000u64;
+
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period, unbonding_period2])
+        .with_min_bond(1000)
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(&members[0], 1_000), (&members[1], 2_000)])
+        .with_admin("admin")
+        .with_native_balances("juno", vec![(executor, 1_000)])
+        // somewhat strange that I need the thing below for the test to work
+        // we should have dex because of the dex distribution
+        .with_native_balances("dex", vec![(executor, 500)])
+        .build();
+
+    // add juno distribution
+    suite
+        .create_distribution_flow(
+            "admin",
+            executor,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![
+                (unbonding_period, Decimal::one()),
+                (unbonding_period2, Decimal::percent(200)),
+            ],
+        )
+        .unwrap();
+
+    // add dex distribution
+    suite
+        .create_distribution_flow(
+            "admin",
+            executor,
+            AssetInfo::SmartToken("dex".to_string()),
+            vec![
+                (unbonding_period, Decimal::one()),
+                (unbonding_period2, Decimal::one()),
+            ],
+        )
+        .unwrap();
+
+    // delegate
+    suite
+        .delegate(&members[0], 1_000u128, unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[1], 2_000u128, unbonding_period2)
+        .unwrap();
+
+    // distribute juno
+    suite
+        .distribute_funds(executor, executor, Some(juno(1_000)))
+        .unwrap();
+    // distribute dex
+    suite
+        .distribute_funds(
+            executor,
+            executor,
+            Some(native_asset("dex".to_string(), 500u128)),
+        )
+        .unwrap();
+
+    // withdraw
+    suite
+        .withdraw_funds(&members[0], members[0].as_str(), None)
+        .unwrap();
+    suite
+        .withdraw_funds(&members[1], members[1].as_str(), None)
+        .unwrap();
+
+    // rewards power for juno:
+    // member0: 1000 * 1 / 1000 = 1
+    // member1: 2000 * 2 / 1000 = 4
+    // => 1000 * 1 / 5 = 200, 1000 * 4 / 5 = 800
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 200);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 800);
+
+    // rewards power for dex:
+    // member0: 1000 * 1 / 1000 = 1
+    // member1: 2000 * 1 / 1000 = 2
+    // => 500 * 1 / 3 = 166, 500 * 2 / 3 = 333
+    assert_eq!(suite.query_balance(&members[0], "dex").unwrap(), 166);
+    assert_eq!(suite.query_balance(&members[1], "dex").unwrap(), 333);
+}
 
 // #[test]
 // fn distribute_staking_token_should_fail() {
