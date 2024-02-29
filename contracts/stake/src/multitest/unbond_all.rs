@@ -124,25 +124,6 @@ fn multiple_delegate_unbond_and_claim_with_unbond_all() {
 }
 
 // #[test]
-// fn delegate_with_unbond_all_flag() {
-//     let user = "user";
-//     let mut suite = SuiteBuilder::new()
-//         .with_initial_balances(vec![(user, 100_000)])
-//         .with_unbonder(UNBONDER)
-//         .build();
-
-//     // Set unbond all flag to true.
-//     suite.execute_unbond_all(UNBONDER).unwrap();
-
-//     // Cannot delegate if unbond all.
-//     let err = suite.delegate(user, 50_000u128, None).unwrap_err();
-//     assert_eq!(
-//         ContractError::CannotDelegateIfUnbondAll {},
-//         err.downcast().unwrap()
-//     );
-// }
-
-// #[test]
 // fn delegate_as_with_unbond_all_flag() {
 //     let user = "factory";
 //     let user2 = "client";
