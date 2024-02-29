@@ -580,12 +580,12 @@ fn divisible_amount_distributed_with_rate() {
     suite.withdraw_funds(&members[1], None, None).unwrap();
     suite.withdraw_funds(&members[2], None, None).unwrap();
 
-    // assert_eq!(
-    //     suite
-    //         .query_balance_vesting_contract(suite.stake_contract().as_str())
-    //         .unwrap(),
-    //     0
-    // );
+    assert_eq!(
+        suite
+            .query_balance_vesting_contract(suite.stake_contract().as_str())
+            .unwrap(),
+        0
+    );
     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 50);
     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 250);
