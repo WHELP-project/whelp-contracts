@@ -37,43 +37,36 @@ fn delegate_and_unbond() {
     assert_eq!(suite.query_balance_vesting_contract(user).unwrap(), 0u128);
 }
 
-// #[test]
-// fn single_delegate_unbond_and_claim_with_unbond_all() {
-//     let user = "user";
-//     let mut suite = SuiteBuilder::new()
-//         .with_initial_balances(vec![(user, 100_000)])
-//         .with_unbonder(UNBONDER)
-//         .build();
+#[test]
+fn single_delegate_unbond_and_claim() {
+    let user = "user";
+    let mut suite = SuiteBuilder::new()
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .build();
 
-//     // Delegate half of the tokens for 7 days (default with None).
-//     suite.delegate(user, 50_000u128, None).unwrap();
+    // Delegate half of the tokens for 7 days (default with None).
+    suite.delegate(user, 50_000u128, None).unwrap();
 
-//     // Unbond.
-//     suite.unbond(user, 25_000u128, None).unwrap();
+    // Unbond.
+    suite.unbond(user, 25_000u128, None).unwrap();
 
-//     // Set unbond all flag to true.
-//     suite.execute_unbond_all(UNBONDER).unwrap();
+    // Staking contract has all tokens previously deposited
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), 50_000u128);
 
-//     // Staking contract has all tokens previously deposited
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), 50_000u128);
+    // Staking tokens are half of the delegated
+    assert_eq!(suite.query_total_staked().unwrap(), 25_000u128);
 
-//     // Staking tokens are half of the delegated
-//     assert_eq!(suite.query_total_staked().unwrap(), 25_000u128);
+    // Claim is there since made before unbond all.
+    let claims = suite.query_claims(user).unwrap();
+    assert_eq!(claims.len(), 1);
 
-//     // Claim is there since made before unbond all.
-//     let claims = suite.query_claims(user).unwrap();
-//     assert_eq!(claims.len(), 1);
-
-//     // Free locked tokens.
-//     suite.update_time(SEVEN_DAYS * 2);
-//     suite.claim(user).unwrap();
-
-//     // User has not delegated tokens + delegated and then unbonded.
-//     assert_eq!(
-//         suite.query_balance_vesting_contract(user).unwrap(),
-//         75_000u128
-//     );
-// }
+    // Free locked tokens.
+    suite.update_time(SEVEN_DAYS * 2);
+    suite.claim(user).unwrap();
+    // User has not delegated tokens + delegated and then unbonded.
+    assert_eq!(suite.query_total_staked().unwrap(), 25_000u128);
+}
 
 // #[test]
 // fn multiple_delegate_unbond_and_claim_with_unbond_all() {
