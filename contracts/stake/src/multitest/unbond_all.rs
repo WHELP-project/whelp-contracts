@@ -1,20 +1,10 @@
 use std::vec;
 
-use cosmwasm_std::{Addr, Decimal, Uint128};
-use cw20::{Cw20Coin, MinterResponse};
+use crate::multitest::suite::SuiteBuilder;
 
-use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
-use dex::asset::{AssetInfo, AssetInfoValidated};
-
-use crate::{
-    multitest::suite::{native_token, SuiteBuilder},
-    ContractError,
-};
-
-use super::suite::{juno, SEVEN_DAYS};
+use super::suite::SEVEN_DAYS;
 
 const UNBONDER: &str = "unbonder";
-const ADMIN: &str = "admin";
 
 #[test]
 fn delegate_and_unbond() {
@@ -127,58 +117,3 @@ fn multiple_delegate_unbond_and_claim_with_unbond_all() {
     // last unbonded by user is 100k - 25k
     assert_eq!(suite.query_balance_staking_contract().unwrap(), 75_000u128);
 }
-
-// #[test]
-// fn multiple_distribution_flows() {
-//     let user = "user";
-//     let unbonding_period = 1000u64;
-
-//     let mut suite = SuiteBuilder::new()
-//         .with_admin("admin")
-//         .with_unbonder(UNBONDER)
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_lp_share_denom("whelp".to_string())
-//         .with_native_balances("inj", vec![(user, 1_200)])
-//         .with_native_balances("juno", vec![(user, 1_200)])
-//         .build();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             user,
-//             AssetInfo::SmartToken("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
-
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             user,
-//             AssetInfo::SmartToken("inj".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
-
-//     suite.delegate(user, 1_000, unbonding_period).unwrap();
-
-//     // Fund both distribution flows with same amount.
-//     suite
-//         .execute_fund_distribution(user, None, juno(400))
-//         .unwrap();
-//     suite
-//         .execute_fund_distribution(user, None, native_token("inj".to_string(), 100u128))
-//         .unwrap();
-
-//     suite.update_time(100);
-
-//     // Cannot distribute funds when unbod all.
-//     let err = suite.distribute_funds(user, None, None).unwrap_err();
-
-//     assert_eq!(
-//         ContractError::CannotDistributeIfUnbondAll {
-//             what: "rewards".into()
-//         },
-//         err.downcast().unwrap()
-//     );
-// }
