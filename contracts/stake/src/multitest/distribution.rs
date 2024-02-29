@@ -166,327 +166,148 @@ fn multiple_distribution_flows() {
     );
 }
 
-// copy of multiple_distribution_flows but using the mass_bond approach to ensure
-// it is consistent with the users staking individually
-// #[test]
-// fn mass_bond_with_multiple_distribution_flows() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//         "member4".to_owned(),
-//     ];
-//     // this guy hodls the funds to mass bond to others
-//     let richie = "richie rich";
-//     let bonds = vec![5_000u128, 10_000u128, 25_000u128];
-//     let delegated: u128 = bonds.iter().sum();
-//     let unbonding_period = 1000u64;
+#[test]
+fn can_fund_an_inprogress_reward_period_with_more_funds_and_a_curve() {
+    let members = vec![
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+        "member4".to_owned(),
+    ];
+    let bonds = vec![5_000u128, 10_000u128, 25_000u128];
+    let delegated: u128 = bonds.iter().sum();
+    let unbonding_period = 1000u64;
 
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_initial_balances(vec![
-//             // all future bonds held by richie rich
-//             (richie, delegated),
-//             (&members[3], 400u128),
-//         ])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[3], 1200)])
-//         .with_native_balances("luna", vec![(&members[3], 1200)])
-//         .build();
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], bonds[0]),
+                (&members[1], bonds[1]),
+                (&members[2], bonds[2]),
+                (&members[3], 400u128),
+            ],
+        )
+        .with_native_balances("juno", vec![(&members[3], 1200)])
+        .build();
 
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
-//     // Setup a second distribution flow
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("luna".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
 
-//     // create dex token
-//     let token_id = suite.app.store_code(contract_token());
-//     let dex_token = suite
-//         .app
-//         .instantiate_contract(
-//             token_id,
-//             Addr::unchecked("admin"),
-//             &Cw20InstantiateMsg {
-//                 name: "dex-token".to_owned(),
-//                 symbol: "DEX".to_owned(),
-//                 decimals: 9,
-//                 initial_balances: vec![Cw20Coin {
-//                     // member4 gets some to distribute
-//                     address: "member4".to_owned(),
-//                     amount: Uint128::from(500u128),
-//                 }],
-//                 mint: Some(MinterResponse {
-//                     minter: "minter".to_owned(),
-//                     cap: None,
-//                 }),
-//                 marketing: None,
-//             },
-//             &[],
-//             "vesting",
-//             None,
-//         )
-//         .unwrap();
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), 0);
 
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), 0);
+    suite
+        .delegate(&members[0], bonds[0], unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[1], bonds[1], unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[2], bonds[2], unbonding_period)
+        .unwrap();
 
-//     // this is the only part we change from the above.. using mass_bond not delegate
-//     let delegations: &[(&str, u128)] = &[
-//         (&members[0], bonds[0]),
-//         (&members[1], bonds[1]),
-//         (&members[2], bonds[2]),
-//     ];
-//     suite
-//         .mass_delegate(richie, delegated, unbonding_period, delegations)
-//         .unwrap();
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
 
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
-//     // Fund both distribution flows
-//     suite
-//         .execute_fund_distribution(&members[3], None, juno(400))
-//         .unwrap();
-//     suite
-//         .execute_fund_distribution(&members[3], None, native_token("luna".to_string(), 400))
-//         .unwrap();
+    let _resp = suite
+        .execute_fund_distribution(&members[3], None, juno(400))
+        .unwrap();
 
-//     // assert that rewards are there
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "juno")
-//             .unwrap(),
-//         400,
-//     );
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "luna")
-//             .unwrap(),
-//         400,
-//     );
-//     // Reward epoch is 100, so advance 50% of that
-//     suite.update_time(50);
+    // assert that staking token balance is still the same
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+    // assert that rewards are there
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "juno")
+            .unwrap(),
+        400,
+    );
+    // Reward epoch is 100, so advance 50% of that
+    suite.update_time(50);
 
-//     // Distribute the funds
-//     suite.distribute_funds(&members[3], None, None).unwrap();
+    // Distribute the funds
+    let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
 
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
 
-//     // Assert that we have 2 rewards tokens and their amounts
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[0]).unwrap(),
-//         vec![juno(25), native_token("luna".to_string(), 25)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[1]).unwrap(),
-//         vec![juno(50), native_token("luna".to_string(), 50)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[2]).unwrap(),
-//         vec![juno(125), native_token("luna".to_string(), 125)]
-//     );
+    // We have 50% of the initial funds distributed, so we should have 50% of the rewards there
+    assert_eq!(
+        suite.withdrawable_rewards(&members[0]).unwrap(),
+        vec![juno(25)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[1]).unwrap(),
+        vec![juno(50)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[2]).unwrap(),
+        vec![juno(125)]
+    );
 
-//     // add dex distribution
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Token(dex_token.to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(200)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(200)]);
 
-//     // Finally, setup the dex distribution before advancing time again to collect rewards
-//     suite
-//         .execute_fund_distribution_with_cw20(
-//             &members[3],
-//             AssetInfoValidated::Token(dex_token.clone()).with_balance(400u128),
-//         )
-//         .unwrap();
+    // Do some withdrawals
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
 
-//     // Advance the final 50% for the first two native tokens and 50% for the dex token
-//     suite.update_time(50);
+    // Verify the amounts
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 25);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 50);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 125);
 
-//     // Distribute the funds
-//     suite.distribute_funds(&members[3], None, None).unwrap();
+    // By now we have done 1 funding and 1 payout, perform another funding and progress
+    suite
+        .execute_fund_distribution(&members[3], None, juno(400))
+        .unwrap();
 
-//     // Assert we have gathered all the rewards from the two native tokens and 50% of the rewards from the dex token
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[0]).unwrap(),
-//         vec![
-//             juno(50),
-//             native_token("luna".to_string(), 50),
-//             AssetInfoValidated::Token(dex_token.clone()).with_balance(25u128)
-//         ]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[1]).unwrap(),
-//         vec![
-//             juno(100),
-//             native_token("luna".to_string(), 100),
-//             AssetInfoValidated::Token(dex_token.clone()).with_balance(50u128)
-//         ]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[2]).unwrap(),
-//         vec![
-//             juno(250),
-//             native_token("luna".to_string(), 250),
-//             AssetInfoValidated::Token(dex_token).with_balance(125u128)
-//         ]
-//     );
-// }
+    // Advanced time 50, this will unlock the final 50% of the first funding and 50% of the second
+    suite.update_time(50);
 
-// #[test]
-// fn can_fund_an_inprogress_reward_period_with_more_funds_and_a_curve() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//         "member4".to_owned(),
-//     ];
-//     let bonds = vec![5_000u128, 10_000u128, 25_000u128];
-//     let delegated: u128 = bonds.iter().sum();
-//     let unbonding_period = 1000u64;
+    suite.distribute_funds(&members[3], None, None).unwrap();
 
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_initial_balances(vec![
-//             (&members[0], bonds[0]),
-//             (&members[1], bonds[1]),
-//             (&members[2], bonds[2]),
-//             (&members[3], 400u128),
-//         ])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[3], 1200)])
-//         .build();
+    // 400 distributed from first funding (100%), 200 from the second as we are 50% of the way on that
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(600)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(200)]);
 
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
+    // Do some withdrawals
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
 
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), 0);
+    // Verify the amounts
+    // We should have the full amount of the first funding and half of the amount of the second by now
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 75);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 150);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 375);
+    assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 400);
 
-//     suite
-//         .delegate(&members[0], bonds[0], unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], bonds[1], unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[2], bonds[2], unbonding_period)
-//         .unwrap();
+    // Fund one more time with the same curves
+    let _resp = suite
+        .execute_fund_distribution(&members[3], None, juno(400))
+        .unwrap();
 
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
-
-//     let _resp = suite
-//         .execute_fund_distribution(&members[3], None, juno(400))
-//         .unwrap();
-
-//     // assert that staking token balance is still the same
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
-//     // assert that rewards are there
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "juno")
-//             .unwrap(),
-//         400,
-//     );
-//     // Reward epoch is 100, so advance 50% of that
-//     suite.update_time(50);
-
-//     // Distribute the funds
-//     let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
-
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
-
-//     // We have 50% of the initial funds distributed, so we should have 50% of the rewards there
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[0]).unwrap(),
-//         vec![juno(25)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[1]).unwrap(),
-//         vec![juno(50)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[2]).unwrap(),
-//         vec![juno(125)]
-//     );
-
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(200)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(200)]);
-
-//     // Do some withdrawals
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
-
-//     // Verify the amounts
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 25);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 50);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 125);
-
-//     // By now we have done 1 funding and 1 payout, perform another funding and progress
-//     suite
-//         .execute_fund_distribution(&members[3], None, juno(400))
-//         .unwrap();
-
-//     // Advanced time 50, this will unlock the final 50% of the first funding and 50% of the second
-//     suite.update_time(50);
-
-//     suite.distribute_funds(&members[3], None, None).unwrap();
-
-//     // 400 distributed from first funding (100%), 200 from the second as we are 50% of the way on that
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(600)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(200)]);
-
-//     // Do some withdrawals
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
-
-//     // Verify the amounts
-//     // We should have the full amount of the first funding and half of the amount of the second by now
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 75);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 150);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 375);
-//     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 400);
-
-//     // Fund one more time with the same curves
-//     let _resp = suite
-//         .execute_fund_distribution(&members[3], None, juno(400))
-//         .unwrap();
-
-//     // assert that staking token balance is still the same
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
-//     // assert that rewards are there
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "juno")
-//             .unwrap(),
-//         600,
-//     );
-// }
+    // assert that staking token balance is still the same
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+    // assert that rewards are there
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "juno")
+            .unwrap(),
+        600,
+    );
+}
 
 // #[test]
 // fn partial_payouts_by_rate() {
