@@ -713,80 +713,84 @@ fn calculate_apr() {
     assert_eq!(annual_rewards[2].1[0].amount, Some(Decimal::zero()));
 }
 
-// #[test]
-// fn simple_apr_simulation() {
-//     let distributor = "distributor";
-//     let members = vec!["member1", "member2"];
-//     let unbonding_periods = vec![1, 2, 3];
-//     let stakes = [100_000_000u128, 200_000_000u128];
-//     let rewards = 250_000_000u128;
+#[test]
+fn simple_apr_simulation() {
+    let distributor = "distributor";
+    let members = vec!["member1", "member2"];
+    let unbonding_periods = vec![1, 2, 3];
+    let stakes = [100_000_000u128, 200_000_000u128];
+    let rewards = 250_000_000u128;
 
-//     let mut suite = SuiteBuilder::new()
-//         .with_admin("admin")
-//         .with_unbonding_periods(unbonding_periods.clone())
-//         .with_initial_balances(vec![(members[0], stakes[0]), (members[1], stakes[1])])
-//         .with_native_balances("juno", vec![(distributor, rewards)])
-//         .build();
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_unbonding_periods(unbonding_periods.clone())
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![(members[0], stakes[0]), (members[1], stakes[1])],
+        )
+        .with_native_balances("juno", vec![(distributor, rewards)])
+        .build();
 
-//     // create distribution flow
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             distributor,
-//             AssetInfo::Native("juno".to_string()),
-//             vec![
-//                 (unbonding_periods[0], Decimal::percent(70)),
-//                 (unbonding_periods[1], Decimal::one()),
-//                 (unbonding_periods[2], Decimal::percent(200)),
-//             ],
-//         )
-//         .unwrap();
+    // create distribution flow
+    suite
+        .create_distribution_flow(
+            "admin",
+            distributor,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![
+                (unbonding_periods[0], Decimal::percent(70)),
+                (unbonding_periods[1], Decimal::one()),
+                (unbonding_periods[2], Decimal::percent(200)),
+            ],
+        )
+        .unwrap();
 
-//     const YEAR: u64 = 365 * 24 * 60 * 60;
+    const YEAR: u64 = 365 * 24 * 60 * 60;
 
-//     suite
-//         .execute_fund_distribution_curve(distributor, "juno", rewards, 2 * YEAR)
-//         .unwrap();
+    suite
+        .execute_fund_distribution_curve(distributor, "juno", rewards, 2 * YEAR)
+        .unwrap();
 
-//     suite
-//         .delegate(members[0], stakes[0], unbonding_periods[0])
-//         .unwrap();
-//     suite
-//         .delegate(members[1], stakes[1], unbonding_periods[1])
-//         .unwrap();
+    suite
+        .delegate(members[0], stakes[0], unbonding_periods[0])
+        .unwrap();
+    suite
+        .delegate(members[1], stakes[1], unbonding_periods[1])
+        .unwrap();
 
-//     // get promised rewards per token
-//     let expected_reward_per_token = suite
-//         .query_annualized_rewards()
-//         .unwrap()
-//         .into_iter()
-//         .map(|(_, rewards)| rewards[0].amount.unwrap())
-//         .collect::<Vec<_>>();
+    // get promised rewards per token
+    let expected_reward_per_token = suite
+        .query_annualized_rewards()
+        .unwrap()
+        .into_iter()
+        .map(|(_, rewards)| rewards[0].amount.unwrap())
+        .collect::<Vec<_>>();
 
-//     // forward 1 year
-//     suite.update_time(YEAR);
+    // forward 1 year
+    suite.update_time(YEAR);
 
-//     // distribute to update withdrawable rewards
-//     suite.distribute_funds(members[0], None, None).unwrap();
+    // distribute to update withdrawable rewards
+    suite.distribute_funds(members[0], None, None).unwrap();
 
-//     // check actual rewards
-//     let actual_reward = suite
-//         .withdrawable_rewards(members[0])
-//         .unwrap()
-//         .swap_remove(0);
-//     assert_eq!(
-//         actual_reward.amount,
-//         expected_reward_per_token[0] * Uint128::new(stakes[0]),
-//     );
-//     let actual_reward = suite
-//         .withdrawable_rewards(members[1])
-//         .unwrap()
-//         .swap_remove(0);
-//     assert_eq!(
-//         actual_reward.amount,
-//         expected_reward_per_token[1] * Uint128::new(stakes[1]),
-//     );
-// }
+    // check actual rewards
+    let actual_reward = suite
+        .withdrawable_rewards(members[0])
+        .unwrap()
+        .swap_remove(0);
+    assert_eq!(
+        actual_reward.amount,
+        expected_reward_per_token[0] * Uint128::new(stakes[0]),
+    );
+    let actual_reward = suite
+        .withdrawable_rewards(members[1])
+        .unwrap()
+        .swap_remove(0);
+    assert_eq!(
+        actual_reward.amount,
+        expected_reward_per_token[1] * Uint128::new(stakes[1]),
+    );
+}
 
 // #[test]
 // fn divisible_amount_distributed() {
