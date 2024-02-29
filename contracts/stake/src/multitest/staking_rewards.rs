@@ -74,7 +74,7 @@ fn one_user_multiple_unbonding_periods() {
         .with_native_balances("TIA", vec![(user, 100_000)])
         .build();
 
-    let bonds = vec![20_000u128, 30_000u128, 10_000u128];
+    let bonds = [20_000u128, 30_000u128, 10_000u128];
     let delegated: u128 = bonds.iter().sum();
 
     suite.delegate(user, bonds[0], unbonding_period1).unwrap();
@@ -142,7 +142,7 @@ fn multiple_users_multiple_unbonding_periods() {
     let unbonding_period2 = 4000u64;
     let unbonding_period3 = 8000u64;
 
-    let bonds = vec![20_000u128, 30_000u128, 10_000u128, 16_000u128, 6_000u128];
+    let bonds = [20_000u128, 30_000u128, 10_000u128, 16_000u128, 6_000u128];
     let delegated: u128 = bonds.iter().sum();
     let members = ["user1", "user2", "user3"];
 

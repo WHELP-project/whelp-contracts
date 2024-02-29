@@ -278,7 +278,7 @@ impl Suite {
             Addr::unchecked(sender),
             CosmosMsg::<CoreumMsg>::Bank(BankMsg::Send {
                 to_address: recipient.into(),
-                amount: vec![coin(amount.0.into(), amount.1.clone())],
+                amount: vec![coin(amount.0, amount.1.clone())],
             }),
         )
     }
