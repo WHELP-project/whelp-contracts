@@ -309,175 +309,179 @@ fn can_fund_an_inprogress_reward_period_with_more_funds_and_a_curve() {
     );
 }
 
-// #[test]
-// fn partial_payouts_by_rate() {
-//     let members = vec![
-//         "member1".to_owned(),
-//         "member2".to_owned(),
-//         "member3".to_owned(),
-//         "member4".to_owned(),
-//     ];
-//     let bonds = vec![5_000u128, 10_000u128, 25_000u128];
-//     let delegated: u128 = bonds.iter().sum();
-//     let unbonding_period = 1000u64;
+#[test]
+fn partial_payouts_by_rate() {
+    let members = vec![
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+        "member4".to_owned(),
+    ];
+    let bonds = vec![5_000u128, 10_000u128, 25_000u128];
+    let delegated: u128 = bonds.iter().sum();
+    let unbonding_period = 1000u64;
 
-//     let mut suite = SuiteBuilder::new()
-//         .with_unbonding_periods(vec![unbonding_period])
-//         .with_initial_balances(vec![
-//             (&members[0], bonds[0]),
-//             (&members[1], bonds[1]),
-//             (&members[2], bonds[2]),
-//             (&members[3], 400u128),
-//         ])
-//         .with_admin("admin")
-//         .with_native_balances("juno", vec![(&members[3], 400)])
-//         .build();
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![
+                (&members[0], bonds[0]),
+                (&members[1], bonds[1]),
+                (&members[2], bonds[2]),
+                (&members[3], 400u128),
+            ],
+        )
+        .with_admin("admin")
+        .with_native_balances("juno", vec![(&members[3], 400)])
+        .build();
 
-//     suite
-//         .create_distribution_flow(
-//             "admin",
-//             &members[0],
-//             AssetInfo::Native("juno".to_string()),
-//             vec![(unbonding_period, Decimal::one())],
-//         )
-//         .unwrap();
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
 
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), 0);
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), 0);
 
-//     suite
-//         .delegate(&members[0], bonds[0], unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[1], bonds[1], unbonding_period)
-//         .unwrap();
-//     suite
-//         .delegate(&members[2], bonds[2], unbonding_period)
-//         .unwrap();
+    suite
+        .delegate(&members[0], bonds[0], unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[1], bonds[1], unbonding_period)
+        .unwrap();
+    suite
+        .delegate(&members[2], bonds[2], unbonding_period)
+        .unwrap();
 
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
 
-//     let _resp = suite
-//         .execute_fund_distribution(&members[3], None, juno(400))
-//         .unwrap();
+    let _resp = suite
+        .execute_fund_distribution(&members[3], None, juno(400))
+        .unwrap();
 
-//     // assert that staking token balance is still the same
-//     assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
-//     // assert that rewards are there
-//     assert_eq!(
-//         suite
-//             .query_balance(suite.stake_contract().as_str(), "juno")
-//             .unwrap(),
-//         400,
-//     );
-//     // Reward epoch is 100, so advance 20% of that
-//     suite.update_time(20);
+    // assert that staking token balance is still the same
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+    // assert that rewards are there
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "juno")
+            .unwrap(),
+        400,
+    );
+    // Reward epoch is 100, so advance 20% of that
+    suite.update_time(20);
 
-//     // TODO: Would be better if we didn't need to pass in 1 token here, involves removing an error check in that function
-//     let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
+    // TODO: Would be better if we didn't need to pass in 1 token here, involves removing an error check in that function
+    let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
 
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
-//     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
 
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[0]).unwrap(),
-//         vec![juno(10)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[1]).unwrap(),
-//         vec![juno(20)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[2]).unwrap(),
-//         vec![juno(50)]
-//     );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[0]).unwrap(),
+        vec![juno(10)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[1]).unwrap(),
+        vec![juno(20)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[2]).unwrap(),
+        vec![juno(50)]
+    );
 
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(80)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(320)]);
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(80)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(320)]);
 
-//     // Do some withdrawals
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
+    // Do some withdrawals
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
 
-//     // Verify the amounts
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 10);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 20);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 50);
-//     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
+    // Verify the amounts
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 10);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 20);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 50);
+    assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
 
-//     // Reward epoch is 100, we already did 20, do another 20 so advance 40% of total
-//     suite.update_time(20);
+    // Reward epoch is 100, we already did 20, do another 20 so advance 40% of total
+    suite.update_time(20);
 
-//     let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
-//     // verify withdrawable rewards is
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[0]).unwrap(),
-//         vec![juno(10)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[1]).unwrap(),
-//         vec![juno(20)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[2]).unwrap(),
-//         vec![juno(50)]
-//     );
+    let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
+    // verify withdrawable rewards is
+    assert_eq!(
+        suite.withdrawable_rewards(&members[0]).unwrap(),
+        vec![juno(10)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[1]).unwrap(),
+        vec![juno(20)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[2]).unwrap(),
+        vec![juno(50)]
+    );
 
-//     // Instead of withdrawing, lets advance and distribute one more time then withdraw
-//     // Reward epoch is 100, we have done 40 by now + 20 = 60% of total
-//     suite.update_time(20);
+    // Instead of withdrawing, lets advance and distribute one more time then withdraw
+    // Reward epoch is 100, we have done 40 by now + 20 = 60% of total
+    suite.update_time(20);
 
-//     let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
+    let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
 
-//     // verify withdrawable rewards is
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[0]).unwrap(),
-//         vec![juno(20)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[1]).unwrap(),
-//         vec![juno(40)]
-//     );
-//     assert_eq!(
-//         suite.withdrawable_rewards(&members[2]).unwrap(),
-//         vec![juno(100)]
-//     );
+    // verify withdrawable rewards is
+    assert_eq!(
+        suite.withdrawable_rewards(&members[0]).unwrap(),
+        vec![juno(20)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[1]).unwrap(),
+        vec![juno(40)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[2]).unwrap(),
+        vec![juno(100)]
+    );
 
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(240)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(160)]);
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(240)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(160)]);
 
-//     // Do some withdrawals
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
+    // Do some withdrawals
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
 
-//     // Verify the amounts
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 30);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 60);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 150);
-//     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
+    // Verify the amounts
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 30);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 60);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 150);
+    assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
 
-//     // And now the final piece
-//     suite.update_time(40);
+    // And now the final piece
+    suite.update_time(40);
 
-//     let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
+    let _resp = suite.distribute_funds(&members[3], None, None).unwrap();
 
-//     assert_eq!(suite.distributed_funds().unwrap(), vec![juno(400)]);
-//     assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0)]);
+    assert_eq!(suite.distributed_funds().unwrap(), vec![juno(400)]);
+    assert_eq!(suite.undistributed_funds().unwrap(), vec![juno(0)]);
 
-//     // Do some withdrawals
-//     suite.withdraw_funds(&members[0], None, None).unwrap();
-//     suite.withdraw_funds(&members[1], None, None).unwrap();
-//     suite.withdraw_funds(&members[2], None, None).unwrap();
+    // Do some withdrawals
+    suite.withdraw_funds(&members[0], None, None).unwrap();
+    suite.withdraw_funds(&members[1], None, None).unwrap();
+    suite.withdraw_funds(&members[2], None, None).unwrap();
 
-//     // Verify the amounts
-//     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 50);
-//     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
-//     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 250);
-//     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
-// }
+    // Verify the amounts
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 50);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 250);
+    assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
+}
 
 // #[test]
 // fn divisible_amount_distributed_with_rate() {
