@@ -466,7 +466,7 @@ fn unbond_then_unbond_again() {
 }
 
 #[test]
-fn one_user_multiple_periods_rebond_fail() {
+fn one_user_multiple_periods_delegate_or_unbond_fail() {
     let user = "user";
     let unbonding_period1 = 1000u64;
     let unbonding_period2 = 4000u64;
