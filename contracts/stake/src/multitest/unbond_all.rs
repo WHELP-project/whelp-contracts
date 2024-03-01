@@ -1,9 +1,14 @@
 use std::vec;
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use cw_multi_test::Executor;
+use dex::asset::AssetInfo;
 
-use crate::{msg::ExecuteMsg, multitest::suite::SuiteBuilder, ContractError};
+use crate::{
+    msg::ExecuteMsg,
+    multitest::suite::{juno, native_token, SuiteBuilder},
+    ContractError,
+};
 
 use super::suite::SEVEN_DAYS;
 
@@ -181,6 +186,74 @@ fn delegate_as_with_unbond_all_flag() {
 
     assert_eq!(
         ContractError::CannotDelegateIfUnbondAll {},
+        err.downcast().unwrap()
+    );
+}
+
+#[test]
+fn multiple_distribution_flows() {
+    let user = "user";
+    let unbonding_period = 1000u64;
+
+    let mut suite = SuiteBuilder::new()
+        .with_admin("admin")
+        .with_unbonder(UNBONDER)
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .with_native_balances("juno", vec![(user, 1200)])
+        .with_native_balances("wynd", vec![(user, 1200)])
+        .build();
+
+    // Distribution flow
+    suite
+        .create_distribution_flow(
+            "admin",
+            user,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+
+    suite
+        .create_distribution_flow(
+            "admin",
+            user,
+            AssetInfo::SmartToken("wynd".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+
+    suite.delegate(user, 1_000, unbonding_period).unwrap();
+
+    // Fund both distribution flows with same amount.
+    suite
+        .execute_fund_distribution(user, None, juno(400))
+        .unwrap();
+    suite
+        .execute_fund_distribution(user, None, native_token("wynd".to_string(), 400u128))
+        .unwrap();
+
+    suite.update_time(100);
+
+    // Set unbond all flag to true.
+    let stake_contract = suite.stake_contract();
+    suite
+        .app
+        .execute_contract(
+            Addr::unchecked(UNBONDER),
+            Addr::unchecked(stake_contract),
+            &ExecuteMsg::UnbondAll {},
+            &[],
+        )
+        .unwrap();
+    // Cannot distribute funds when unbod all.
+    let err = suite.distribute_funds(user, None, None).unwrap_err();
+
+    assert_eq!(
+        ContractError::CannotDistributeIfUnbondAll {
+            what: "rewards".into()
+        },
         err.downcast().unwrap()
     );
 }
