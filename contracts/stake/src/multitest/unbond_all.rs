@@ -1,6 +1,9 @@
 use std::vec;
 
-use crate::multitest::suite::SuiteBuilder;
+use cosmwasm_std::Addr;
+use cw_multi_test::Executor;
+
+use crate::{msg::ExecuteMsg, multitest::suite::SuiteBuilder, ContractError};
 
 use super::suite::SEVEN_DAYS;
 
@@ -116,4 +119,35 @@ fn multiple_delegate_unbond_and_claim_with_unbond_all() {
     );
     // last unbonded by user is 100k - 25k
     assert_eq!(suite.query_balance_staking_contract().unwrap(), 75_000u128);
+}
+
+#[test]
+fn delegate_with_unbond_all_flag() {
+    let user = "user";
+    let admin = "admin";
+    let mut suite = SuiteBuilder::new()
+        .with_admin(admin)
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .with_unbonder(UNBONDER)
+        .build();
+
+    // Set unbond all flag to true.
+    let stake_contract = suite.stake_contract();
+    suite
+        .app
+        .execute_contract(
+            Addr::unchecked(UNBONDER),
+            Addr::unchecked(stake_contract),
+            &ExecuteMsg::UnbondAll {},
+            &[],
+        )
+        .unwrap();
+
+    // Cannot delegate if unbond all.
+    let err = suite.delegate(user, 50_000u128, None).unwrap_err();
+    assert_eq!(
+        ContractError::CannotDelegateIfUnbondAll {},
+        err.downcast().unwrap()
+    );
 }
