@@ -1,7 +1,7 @@
 use std::vec;
 
 use cosmwasm_std::{assert_approx_eq, Decimal, Uint128};
-use dex::asset::{native_asset, AssetInfo, AssetInfoExt, AssetInfoValidated};
+use dex::asset::{native_asset, AssetInfo};
 
 use super::suite::SuiteBuilder;
 use crate::multitest::suite::COREUM_DENOM;
