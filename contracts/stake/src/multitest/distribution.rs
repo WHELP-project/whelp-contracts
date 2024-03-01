@@ -1,5 +1,7 @@
-use cosmwasm_std::{Decimal, Uint128};
-use dex::asset::{native_asset, AssetInfo};
+use std::vec;
+
+use cosmwasm_std::{assert_approx_eq, Decimal, Uint128};
+use dex::asset::{native_asset, AssetInfo, AssetInfoExt, AssetInfoValidated};
 
 use super::suite::SuiteBuilder;
 use crate::multitest::suite::COREUM_DENOM;
@@ -1043,16 +1045,231 @@ fn divisible_amount_distributed() {
     suite.withdraw_funds(&members[1], None, None).unwrap();
     suite.withdraw_funds(&members[2], None, None).unwrap();
 
-    // assert_eq!(
-    //     suite
-    //         .query_balance_vesting_contract(suite.stake_contract().as_str())
-    //         .unwrap(),
-    //     0
-    // );
+    assert_eq!(
+        suite
+            .query_balance_vesting_contract(suite.stake_contract().as_str())
+            .unwrap(),
+        0
+    );
     assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 50);
     assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 100);
     assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 250);
     assert_eq!(suite.query_balance(&members[3], "juno").unwrap(), 0);
+}
+
+#[test]
+fn apr_native() {
+    let distributor = "distributor";
+    let member1 = "member1";
+    let member2 = "member2";
+    let unbonding_periods = vec![100u64, 1000u64, 10_000u64];
+
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(unbonding_periods.clone())
+        .with_admin("admin")
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("dex", vec![(member1, 500_000_000), (member2, 500_000_000)])
+        .with_native_balances(
+            "tia",
+            vec![("member1", 500_000_000), ("member2", 500_000_000)],
+        )
+        .with_native_balances("juno", vec![(distributor, 1_000_000_000_000_000_000)])
+        .build();
+
+    // create distribution flow
+    suite
+        .create_distribution_flow(
+            "admin",
+            distributor,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![
+                (unbonding_periods[0], Decimal::percent(70)),
+                (unbonding_periods[1], Decimal::one()),
+                (unbonding_periods[2], Decimal::percent(200)),
+            ],
+        )
+        .unwrap();
+
+    // delegate to different unbonding periods (100 JUNO each, 2x per member)
+    suite
+        .delegate(member1, 100_000_000, unbonding_periods[0])
+        .unwrap();
+    suite
+        .delegate(member1, 100_000_000, unbonding_periods[1])
+        .unwrap();
+    suite
+        .delegate(member2, 100_000_000, unbonding_periods[1])
+        .unwrap();
+    suite
+        .delegate(member2, 100_000_000, unbonding_periods[2])
+        .unwrap();
+    // rewards power breakdown:
+    // 100_000_000 * 0.7 / 1000 = 70_000
+    // 100_000_000 * 1 / 1000 = 100_000
+    // 100_000_000 * 2 / 1000 = 200_000
+    assert_eq!(
+        suite.query_rewards_power(member1).unwrap()[0].1,
+        170_000,
+        "70_000 + 100_000 = 170_000"
+    );
+    assert_eq!(
+        suite.query_rewards_power(member2).unwrap()[0].1,
+        300_000,
+        "100_000 + 200_000 = 300_000"
+    );
+    // apr should be 0 at the moment, because the distribution is not funded yet
+    let annual_rewards = suite.query_annualized_rewards().unwrap();
+    assert_eq!(annual_rewards[0].1[0].amount, Some(Decimal::zero()));
+    assert_eq!(annual_rewards[1].1[0].amount, Some(Decimal::zero()));
+    assert_eq!(annual_rewards[2].1[0].amount, Some(Decimal::zero()));
+
+    // fund the distribution flow - 1_000_000 JUNO for a year
+    const YEAR: u64 = 365 * 24 * 60 * 60;
+
+    suite
+        .execute_fund_distribution_curve(distributor, "juno", 1_000_000_000_000_000u128, YEAR)
+        .unwrap();
+
+    // distributing 1_000_000_000_000_000 uJUNO,
+    // total rewards power is 470_000
+    // rewards power per period:
+    // 70_000, 200_000, 200_000
+    // so total rewards by period (period power / total power * total rewards):
+    // 70_000 / 470_000 * 1_000_000_000_000_000 = 148936170212765
+    // 200_000 / 470_000 * 1_000_000_000_000_000 = 425531914893617
+    // 200_000 / 470_000 * 1_000_000_000_000_000 = 425531914893617
+    // now divide by staked amount to get annualized rewards per token:
+    // 148936170212765 / 100_000_000 = 1489361.70212765
+    // 425531914893617 / 200_000_000 = 2127659.574468085
+    // 425531914893617 / 100_000_000 = 4255319.14893617
+    let annual_rewards = suite.query_annualized_rewards().unwrap();
+    assert_eq!(
+        // multiply by 1000 to get an int of promille. eg 123.4 % = 1.234 * 1000 = 1234
+        annual_rewards[0].1[0].amount.unwrap() * Uint128::new(1000),
+        Uint128::new(1489361702),
+    );
+    assert_eq!(
+        annual_rewards[1].1[0].amount.unwrap() * Uint128::new(1000),
+        Uint128::new(2127659574),
+    );
+    assert_eq!(
+        annual_rewards[2].1[0].amount.unwrap() * Uint128::new(1000),
+        Uint128::new(4255319148),
+    );
+
+    // forward almost a year
+    suite.update_time(YEAR - 1);
+
+    // APR should be the same as before (modulo some rounding difference), calculated by extrapolating the curve
+    let annual_rewards = suite.query_annualized_rewards().unwrap();
+    assert_approx_eq!(
+        annual_rewards[0].1[0].amount.unwrap() * Uint128::new(1000),
+        Uint128::new(1489361702),
+        "0.000000001"
+    );
+    assert_approx_eq!(
+        annual_rewards[1].1[0].amount.unwrap() * Uint128::new(1000),
+        Uint128::new(2127659574),
+        "0.000000001"
+    );
+    assert_approx_eq!(
+        annual_rewards[2].1[0].amount.unwrap() * Uint128::new(1000),
+        Uint128::new(4255319148),
+        "0.000000001"
+    );
+
+    // forward the last second
+    suite.update_time(1);
+
+    // APR should be 0 again, because the distribution is depleted
+    let annual_rewards = suite.query_annualized_rewards().unwrap();
+    assert_eq!(annual_rewards[0].1[0].amount, Some(Decimal::zero()));
+    assert_eq!(annual_rewards[1].1[0].amount, Some(Decimal::zero()));
+    assert_eq!(annual_rewards[2].1[0].amount, Some(Decimal::zero()));
+
+    // Following code should be removed if the code is not generalized for piecewise linear
+    /*
+    // fund with a complex piecewise linear curve
+    suite
+        .execute_fund_distribution_with_cw20_curve(
+            distributor,
+            cw20_info.with_balance(1_000_000_000u128),
+            Curve::PiecewiseLinear(PiecewiseLinear {
+                steps: vec![
+                    (0, 1_000_000_000u128.into()),
+                    (YEAR * 2, 500_000_000u128.into()),
+                    (YEAR * 3, 100_000_000u128.into()),
+                    (YEAR * 4, 0u128.into()),
+                ],
+            }),
+        )
+        .unwrap();
+
+    // change stakes
+    suite
+        .unbond(member1, 99_999_000, unbonding_periods[0])
+        .unwrap();
+    suite
+        .unbond(member2, 100_000_000, unbonding_periods[1])
+        .unwrap();
+    // stakes:
+    // member1: 1_000 < min_bond in period 0, 100_000_000 in period 1
+    // member2: 100_000_000 in period 2
+    // rewards power:
+    assert_eq!(
+        suite.query_rewards_power(member1).unwrap()[0].1,
+        100_000,
+        "100_000_000 * 1 / 1000"
+    );
+    assert_eq!(
+        suite.query_rewards_power(member2).unwrap()[0].1,
+        200_000,
+        "100_000_000 * 2 / 1000"
+    );
+    // total power: 300_000
+
+    // distributing 250_000_000 uJUNO in the first year,
+    // so total rewards by period (period power / total power * total rewards):
+    // period 0 has no power, but we can calculate differently without the period's power:
+    // rewards multiplier / total power * total rewards / tokens per power
+    // = 0.7 / 300_000 * 250_000_000 / 1000 = 0.583333333333
+    // period 1: 100_000 / 300_000 * 250_000_000 / 100_000_000 = 0.83333333
+    // period 2: 200_000 / 300_000 * 250_000_000 = 1.66666666
+    let annual_rewards = suite.query_annualized_rewards().unwrap();
+
+    assert_eq!(
+        annual_rewards[0].1[0].amount.unwrap() * Uint128::new(1_000_000),
+        Uint128::new(583333),
+    );
+    assert_eq!(
+        annual_rewards[1].1[0].amount.unwrap() * Uint128::new(1_000_000),
+        Uint128::new(833333),
+    );
+    assert_eq!(
+        annual_rewards[2].1[0].amount.unwrap() * Uint128::new(1_000_000),
+        Uint128::new(1666666),
+    );
+
+    // forward 2.5 years
+    suite.update_time(YEAR * 2 + YEAR / 2);
+
+    // distributing 200_000_000 uJUNO in the first half and 50_000_000 uJUNO in the second half,
+    // so 250_000_000 uJUNO in the full year
+    // annual rewards should be the same as before
+    let annual_rewards = suite.query_annualized_rewards().unwrap();
+    assert_eq!(
+        annual_rewards[0].1[0].amount.unwrap() * Uint128::new(1_000_000),
+        Uint128::new(583333),
+    );
+    assert_eq!(
+        annual_rewards[1].1[0].amount.unwrap() * Uint128::new(1_000_000),
+        Uint128::new(833333),
+    );
+    assert_eq!(
+        annual_rewards[2].1[0].amount.unwrap() * Uint128::new(1_000_000),
+        Uint128::new(1666666),
+    );
+    */
 }
 
 #[test]
