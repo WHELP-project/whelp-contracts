@@ -162,6 +162,169 @@ fn multiple_distribution_flows() {
     );
 }
 
+// copy of multiple_distribution_flows but using the mass_bond approach to ensure
+// it is consistent with the users staking individually
+#[test]
+fn mass_bond_with_multiple_distribution_flows() {
+    let members = vec![
+        "member1".to_owned(),
+        "member2".to_owned(),
+        "member3".to_owned(),
+        "member4".to_owned(),
+    ];
+    // this guy hodls the funds to mass bond to others
+    let richie = "richie rich";
+    let bonds = [5_000u128, 10_000u128, 25_000u128];
+    let delegated: u128 = bonds.iter().sum();
+    let unbonding_period = 1000u64;
+
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![unbonding_period])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![
+                // all future bonds held by richie rich
+                (richie, delegated),
+                (&members[0], 30_000),
+                (&members[1], 30_000),
+                (&members[2], 30_000),
+                (&members[3], 30_000),
+            ],
+        )
+        .with_admin("admin")
+        .with_native_balances("juno", vec![(&members[3], 1200)])
+        .with_native_balances("luna", vec![(&members[3], 1200)])
+        .with_native_balances("dex", vec![(&members[3], 400)])
+        .build();
+
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+    // Setup a second distribution flow
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("luna".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), 0);
+
+    // this is the only part we change from the above.. using mass_bond not delegate
+    let delegations: &[(&str, u128)] = &[
+        (&members[0], bonds[0]),
+        (&members[1], bonds[1]),
+        (&members[2], bonds[2]),
+    ];
+
+    delegations.iter().for_each(|(member, amount)| {
+        suite
+            .delegate(member, amount.to_owned(), unbonding_period)
+            .unwrap();
+    });
+
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+    // Fund both distribution flows
+    suite
+        .execute_fund_distribution(&members[3], None, juno(400))
+        .unwrap();
+    suite
+        .execute_fund_distribution(&members[3], None, native_token("luna".to_string(), 400))
+        .unwrap();
+
+    // assert that rewards are there
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "juno")
+            .unwrap(),
+        400,
+    );
+    assert_eq!(
+        suite
+            .query_balance(suite.stake_contract().as_str(), "luna")
+            .unwrap(),
+        400,
+    );
+    // Reward epoch is 100, so advance 50% of that
+    suite.update_time(50);
+
+    // Distribute the funds
+    suite.distribute_funds(&members[3], None, None).unwrap();
+
+    assert_eq!(suite.query_balance(&members[0], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[1], "juno").unwrap(), 0);
+    assert_eq!(suite.query_balance(&members[2], "juno").unwrap(), 0);
+
+    // Assert that we have 2 rewards tokens and their amounts
+    assert_eq!(
+        suite.withdrawable_rewards(&members[0]).unwrap(),
+        vec![juno(25), native_token("luna".to_string(), 25)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[1]).unwrap(),
+        vec![juno(50), native_token("luna".to_string(), 50)]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[2]).unwrap(),
+        vec![juno(125), native_token("luna".to_string(), 125)]
+    );
+
+    // add dex distribution
+    suite
+        .create_distribution_flow(
+            "admin",
+            &members[0],
+            AssetInfo::SmartToken("dex".to_string()),
+            vec![(unbonding_period, Decimal::one())],
+        )
+        .unwrap();
+
+    // Finally, setup the dex distribution before advancing time again to collect rewards
+    suite
+        .execute_fund_distribution(&members[3], None, native_token("dex".to_string(), 400u128))
+        .unwrap();
+
+    // Advance the final 50% for the first two native tokens and 50% for the dex token
+    suite.update_time(50);
+
+    // Distribute the funds
+    suite.distribute_funds(&members[3], None, None).unwrap();
+
+    // Assert we have gathered all the rewards from the two native tokens and 50% of the rewards from the dex token
+    assert_eq!(
+        suite.withdrawable_rewards(&members[0]).unwrap(),
+        vec![
+            native_token("dex".to_string(), 25),
+            juno(50),
+            native_token("luna".to_string(), 50),
+        ]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[1]).unwrap(),
+        vec![
+            native_token("dex".to_string(), 50),
+            juno(100),
+            native_token("luna".to_string(), 100),
+        ]
+    );
+    assert_eq!(
+        suite.withdrawable_rewards(&members[2]).unwrap(),
+        vec![
+            native_token("dex".to_string(), 125),
+            juno(250),
+            native_token("luna".to_string(), 250),
+        ]
+    );
+}
+
 #[test]
 fn can_fund_an_inprogress_reward_period_with_more_funds_and_a_curve() {
     let members = vec![
