@@ -151,3 +151,36 @@ fn delegate_with_unbond_all_flag() {
         err.downcast().unwrap()
     );
 }
+
+#[test]
+fn delegate_as_with_unbond_all_flag() {
+    let user = "factory";
+    let user2 = "client";
+    let mut suite = SuiteBuilder::new()
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .with_unbonder(UNBONDER)
+        .build();
+
+    // Set unbond all flag to true.
+    let stake_contract = suite.stake_contract();
+    suite
+        .app
+        .execute_contract(
+            Addr::unchecked(UNBONDER),
+            Addr::unchecked(stake_contract),
+            &ExecuteMsg::UnbondAll {},
+            &[],
+        )
+        .unwrap();
+
+    // Cannot delegate through cw20 contract if unbond all.
+    let err = suite
+        .delegate_as(user, 50_000u128, None, Some(user2))
+        .unwrap_err();
+
+    assert_eq!(
+        ContractError::CannotDelegateIfUnbondAll {},
+        err.downcast().unwrap()
+    );
+}
