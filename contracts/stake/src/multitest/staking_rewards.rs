@@ -285,3 +285,235 @@ fn delegate_unbond_under_min_bond() {
         1_500u128
     );
 }
+
+#[test]
+fn one_user_multiple_periods_unbond_then_bond() {
+    let user = "user";
+    let unbonding_period1 = 1000u64;
+    let unbonding_period2 = 4000u64;
+    let unbonding_period3 = 8000u64;
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![
+            unbonding_period1,
+            unbonding_period2,
+            unbonding_period3,
+        ])
+        .with_admin("admin")
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 125_000)])
+        .build();
+
+    suite
+        .create_distribution_flow(
+            "admin",
+            user,
+            AssetInfo::SmartToken("juno".to_string()),
+            vec![
+                (unbonding_period1, Decimal::percent(25)),
+                (unbonding_period2, Decimal::percent(60)),
+                (unbonding_period3, Decimal::percent(80)),
+            ],
+        )
+        .unwrap();
+
+    let bonds = [20_000u128, 30_000u128, 10_000u128];
+    let delegated: u128 = bonds.iter().sum();
+
+    suite.delegate(user, bonds[0], unbonding_period1).unwrap();
+    suite.delegate(user, bonds[1], unbonding_period2).unwrap();
+    suite.delegate(user, bonds[2], unbonding_period3).unwrap();
+
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+
+    // unbond then delegate again
+    suite.unbond(user, 20_000u128, unbonding_period1).unwrap();
+    suite.unbond(user, 20_000u128, unbonding_period2).unwrap();
+    assert_eq!(suite.query_staked(user, unbonding_period1).unwrap(), 0u128);
+    suite.delegate(user, 20_000u128, unbonding_period1).unwrap();
+    suite.delegate(user, 20_000u128, unbonding_period2).unwrap();
+
+    assert_eq!(suite.query_total_staked().unwrap(), 60_000u128);
+
+    assert_eq!(
+        suite.query_rewards_power(user).unwrap(),
+        vec![(AssetInfoValidated::SmartToken("juno".to_string()), 31u128)]
+    );
+
+    // 0.25 * 20_000 + 0.6 * 30_000 + 0.8 * 10_000
+    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(31));
+
+    // top some more on first unbonding period but not more than we originally topped up
+    suite.delegate(user, 25_000u128, unbonding_period1).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period1).unwrap(),
+        45_000u128
+    );
+    assert_eq!(
+        suite.query_all_staked(user).unwrap(),
+        AllStakedResponse {
+            stakes: vec![
+                StakedResponse {
+                    stake: Uint128::new(45_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 1000,
+                    lp_share_denom: "tia".to_string(),
+                },
+                StakedResponse {
+                    stake: Uint128::new(30_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 4000,
+                    lp_share_denom: "tia".to_string(),
+                },
+                StakedResponse {
+                    stake: Uint128::new(10_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 8000,
+                    lp_share_denom: "tia".to_string(),
+                },
+            ]
+        }
+    );
+    assert_eq!(
+        suite.query_rewards_power(user).unwrap(),
+        vec![(AssetInfoValidated::SmartToken("juno".to_string()), 37u128)]
+    );
+
+    // 0.25 * 45_000 + 0.6 * 30_000 + 0.8 * 10_000
+    assert_eq!(suite.query_total_rewards_power().unwrap(), juno_power(37));
+}
+
+#[test]
+fn unbond_then_unbond_again() {
+    let user = "user";
+    let unbonding_period1 = 1000u64;
+    let unbonding_period2 = 4000u64;
+    let unbonding_period3 = 8000u64;
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![
+            unbonding_period1,
+            unbonding_period2,
+            unbonding_period3,
+        ])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .build();
+
+    // delegate on first unbonding period
+    suite
+        .delegate(user, 100_000u128, unbonding_period1)
+        .unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period1).unwrap(),
+        100_000u128
+    );
+
+    // manual rebond 40% of tokens to bucket 2
+    suite.unbond(user, 40_000u128, unbonding_period1).unwrap();
+
+    suite.update_time(unbonding_period1 + 1);
+    suite.claim(user).unwrap();
+    suite.delegate(user, 40_000u128, unbonding_period2).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period1).unwrap(),
+        60_000u128
+    );
+
+    assert_eq!(
+        suite.query_staked(user, unbonding_period2).unwrap(),
+        40_000u128
+    );
+
+    // manual rebond half of bucket 2 tokens to bucket 3
+    suite.unbond(user, 20_000u128, unbonding_period2).unwrap();
+    suite.update_time(unbonding_period2 + 1);
+    suite.claim(user).unwrap();
+    suite.delegate(user, 20_000u128, unbonding_period3).unwrap();
+    assert_eq!(
+        suite.query_staked(user, unbonding_period2).unwrap(),
+        20_000u128
+    );
+
+    assert_eq!(
+        suite.query_staked(user, unbonding_period3).unwrap(),
+        20_000u128
+    );
+
+    assert_eq!(
+        suite.query_all_staked(user).unwrap(),
+        AllStakedResponse {
+            stakes: vec![
+                StakedResponse {
+                    stake: Uint128::new(60_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 1000,
+                    lp_share_denom: "tia".to_string(),
+                },
+                StakedResponse {
+                    stake: Uint128::new(20_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 4000,
+                    lp_share_denom: "tia".to_string(),
+                },
+                StakedResponse {
+                    stake: Uint128::new(20_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 8000,
+                    lp_share_denom: "tia".to_string(),
+                },
+            ]
+        }
+    );
+}
+
+#[test]
+fn one_user_multiple_periods_rebond_fail() {
+    let user = "user";
+    let unbonding_period1 = 1000u64;
+    let unbonding_period2 = 4000u64;
+    let unbonding_period3 = 8000u64;
+    let mut suite = SuiteBuilder::new()
+        .with_unbonding_periods(vec![
+            unbonding_period1,
+            unbonding_period2,
+            unbonding_period3,
+        ])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances("tia", vec![(user, 100_000)])
+        .build();
+
+    let bonds = [20_000u128, 30_000u128, 10_000u128];
+    let delegated: u128 = bonds.iter().sum();
+
+    suite.delegate(user, bonds[0], unbonding_period1).unwrap();
+    suite.delegate(user, bonds[1], unbonding_period2).unwrap();
+    suite.delegate(user, bonds[2], unbonding_period3).unwrap();
+
+    assert_eq!(suite.query_balance_staking_contract().unwrap(), delegated);
+
+    // Fail case, unbonding 50_000 from a bucket with 20_000
+    let err = suite
+        .unbond(user, 50_000u128, unbonding_period1)
+        .unwrap_err();
+    assert_eq!(
+        ContractError::Std(StdError::overflow(OverflowError::new(
+            OverflowOperation::Sub,
+            20000u128,
+            50000u128
+        ))),
+        err.downcast().unwrap()
+    );
+
+    // Fail case, bonding to a non-existent bucket
+    let err = suite.delegate(user, 10_000u128, 12000).unwrap_err();
+    assert_eq!(
+        ContractError::NoUnbondingPeriodFound(12000),
+        err.downcast().unwrap()
+    );
+
+    // Fail case, unbonding from a non-existent bucket
+    let err = suite.unbond(user, 50_000u128, 2000).unwrap_err();
+    assert_eq!(
+        ContractError::NoUnbondingPeriodFound(2000),
+        err.downcast().unwrap()
+    );
+}
