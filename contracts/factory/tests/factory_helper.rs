@@ -29,17 +29,17 @@ impl FactoryHelper {
     }
 
     pub fn instantiate(router: &mut CoreumApp, owner: &Addr, factory_code_id: Option<u64>) -> Self {
-        let astro_token_contract = Box::new(ContractWrapper::new_with_empty(
+        let base_token_cntract = Box::new(ContractWrapper::new_with_empty(
             cw20_base::contract::execute,
             cw20_base::contract::instantiate,
             cw20_base::contract::query,
         ));
 
-        let cw20_token_code_id = router.store_code(astro_token_contract);
+        let cw20_token_code_id = router.store_code(base_token_cntract);
 
         let msg = cw20_base::msg::InstantiateMsg {
-            name: String::from("Astro token"),
-            symbol: String::from("ASTRO"),
+            name: String::from("Base token"),
+            symbol: String::from("BASE"),
             decimals: 6,
             initial_balances: vec![],
             mint: Some(MinterResponse {
@@ -55,7 +55,7 @@ impl FactoryHelper {
                 owner.clone(),
                 &msg,
                 &[],
-                String::from("ASTRO"),
+                String::from("BASE"),
                 None,
             )
             .unwrap();
