@@ -233,8 +233,31 @@ fn query_all_staked(stake_config: Vec<UnbondingPeriod>, amount: Vec<u128>) -> Op
     }
 
     // This works
-    suite.query_all_staked(user).unwrap();
-
+    assert_eq!(
+        suite.query_all_staked(user).unwrap(),
+        AllStakedResponse {
+            stakes: vec![
+                StakedResponse {
+                    stake: Uint128::new(20_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 1000,
+                    lp_share_denom: "tia".to_string(),
+                },
+                StakedResponse {
+                    stake: Uint128::new(30_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 4000,
+                    lp_share_denom: "tia".to_string(),
+                },
+                StakedResponse {
+                    stake: Uint128::new(20_000),
+                    total_locked: Uint128::zero(),
+                    unbonding_period: 8000,
+                    lp_share_denom: "tia".to_string(),
+                },
+            ]
+        }
+    );
     Some(38u64)
 }
 
