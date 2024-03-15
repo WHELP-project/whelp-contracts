@@ -1,7 +1,6 @@
-// mod delegate;
-// mod distribution;
-// mod migration;
-// mod quick_unbond;
-// mod staking_rewards;
+mod delegate;
+mod distribution;
+mod quick_unbond;
+mod staking_rewards;
 mod suite;
-// mod unbond_all;
+mod unbond_all;

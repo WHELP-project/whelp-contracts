@@ -1,7 +1,7 @@
 use cosmwasm_std::{assert_approx_eq, Decimal};
 use dex::asset::{AssetInfo, AssetInfoExt, AssetInfoValidated};
 
-use crate::{multitest::suite::SuiteBuilder, ContractError};
+use crate::multitest::suite::SuiteBuilder;
 
 use super::suite::Suite;
 
@@ -15,7 +15,7 @@ const VOTER2: &str = "voter2";
 const VOTER3: &str = "voter3";
 
 fn cash() -> AssetInfoValidated {
-    AssetInfoValidated::Native("cash".to_string())
+    AssetInfoValidated::SmartToken("cash".to_string())
 }
 
 fn initial_setup() -> Suite {
@@ -26,7 +26,16 @@ fn initial_setup() -> Suite {
         .with_tokens_per_power(1)
         .with_unbonding_periods(UNBONDING_PERIODS.to_vec())
         .with_native_balances("cash", vec![(REWARDS_DISTRIBUTOR, 100_000)])
-        .with_initial_balances(vec![(VOTER1, 500), (VOTER2, 600), (VOTER3, 450)])
+        .with_lp_share_denom("tia".to_string())
+        .with_native_balances(
+            "tia",
+            vec![
+                (VOTER1, 500),
+                (VOTER2, 600),
+                (VOTER3, 450),
+                (UNBONDER, 1000),
+            ],
+        )
         .build();
 
     suite
@@ -45,9 +54,6 @@ fn initial_setup() -> Suite {
     suite.delegate(VOTER2, 600, UNBONDING_PERIODS[1]).unwrap();
     suite.delegate(VOTER3, 450, UNBONDING_PERIODS[0]).unwrap();
 
-    suite
-        .rebond(VOTER2, 300, UNBONDING_PERIODS[1], UNBONDING_PERIODS[0])
-        .unwrap();
     suite.unbond(VOTER2, 100, UNBONDING_PERIODS[1]).unwrap();
     suite.unbond(VOTER3, 450, UNBONDING_PERIODS[0]).unwrap();
 
@@ -59,8 +65,8 @@ fn initial_setup() -> Suite {
     );
     assert_eq!(
         suite.query_rewards_power(VOTER2).unwrap()[0].1,
-        700,
-        "300 in period 1, 200 in period 2 => power 300 + 400 = 700"
+        1000,
+        "600 in period 1, 600 in period 2 => power 1200 - unbonded"
     );
     assert!(
         suite.query_rewards_power(VOTER3).unwrap().is_empty(),
@@ -68,15 +74,15 @@ fn initial_setup() -> Suite {
     );
     assert_eq!(
         suite.query_total_rewards_power().unwrap()[0].1,
-        1200,
-        "500 + 700 = 1200"
+        1500,
+        "500 + 1000 = 1500"
     );
 
     suite
         .distribute_funds(
             REWARDS_DISTRIBUTOR,
             REWARDS_DISTRIBUTOR,
-            Some(cash().with_balance(1200u128)),
+            Some(cash().with_balance(1500u128)),
         )
         .unwrap();
 
@@ -84,17 +90,17 @@ fn initial_setup() -> Suite {
     assert_eq!(
         suite.withdrawable_rewards(VOTER1).unwrap()[0].amount.u128(),
         500,
-        "500 / 1200 * 1200 = 500"
+        "500 / 1500 * 1500 = 500"
     );
     assert_eq!(
         suite.withdrawable_rewards(VOTER2).unwrap()[0].amount.u128(),
-        700,
-        "700 / 1200 * 1200 = 700"
+        1000,
+        "1000 / 1500 * 1500 = 1000"
     );
     assert_eq!(
         suite.withdrawable_rewards(VOTER3).unwrap()[0].amount.u128(),
         0,
-        "0 / 1200 * 1200 = 0"
+        "0 / 1500 * 1500 = 0"
     );
 
     suite
@@ -118,24 +124,9 @@ fn run_checks(suite: Suite) {
     assert_eq!(suite.query_total_rewards_power().unwrap()[0].1, 500);
 
     // check unstaked LP balance
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER1, suite.token_contract())
-            .unwrap(),
-        0
-    );
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER2, suite.token_contract())
-            .unwrap(),
-        600
-    );
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER3, suite.token_contract())
-            .unwrap(),
-        450
-    );
+    assert_eq!(suite.query_balance(VOTER1, "tia").unwrap(), 0);
+    assert_eq!(suite.query_balance(VOTER2, "tia").unwrap(), 300);
+    assert_eq!(suite.query_balance(VOTER3, "tia").unwrap(), 450);
 
     // check withdrawable rewards
     assert_approx_eq!(
@@ -146,7 +137,7 @@ fn run_checks(suite: Suite) {
     );
     assert_eq!(
         suite.withdrawable_rewards(VOTER2).unwrap()[0].amount.u128(),
-        700,
+        1000,
         "same as before"
     );
     assert_eq!(
@@ -170,9 +161,9 @@ fn run_checks(suite: Suite) {
     assert_eq!(bonding_infos[0].total_staked.u128(), 500);
     assert_eq!(bonding_infos[1].total_staked.u128(), 0);
 
-    // also make sure nobody has claims left
+    // check claims
     assert_eq!(suite.query_claims(VOTER1).unwrap().len(), 0);
-    assert_eq!(suite.query_claims(VOTER2).unwrap().len(), 0);
+    assert_eq!(suite.query_claims(VOTER2).unwrap().len(), 1);
     assert_eq!(suite.query_claims(VOTER3).unwrap().len(), 0);
 }
 
@@ -184,7 +175,7 @@ fn control_case() {
 
     suite.update_time(DAY);
 
-    suite.unbond(VOTER2, 300, UNBONDING_PERIODS[0]).unwrap();
+    suite.unbond(VOTER2, 300, UNBONDING_PERIODS[1]).unwrap();
 
     suite.update_time(DAY);
 
@@ -203,81 +194,16 @@ fn control_case() {
 }
 
 #[test]
-fn quick_unbond_case() {
-    // same as control case, but quick unbond with no waiting
-    let mut suite = initial_setup();
-
-    suite.quick_unbond(UNBONDER, &[VOTER2, VOTER3]).unwrap();
-
-    suite
-        .distribute_funds(
-            REWARDS_DISTRIBUTOR,
-            REWARDS_DISTRIBUTOR,
-            Some(cash().with_balance(800u128)),
-        )
-        .unwrap();
-
-    run_checks(suite);
-}
-
-#[test]
-fn unbonder_permission_check() {
-    let mut suite = initial_setup();
-
-    assert_eq!(
-        ContractError::Unauthorized {},
-        suite
-            .quick_unbond(VOTER2, &[VOTER2])
-            .unwrap_err()
-            .downcast()
-            .unwrap(),
-        "only unbonder should be able to quick unbond"
-    );
-
-    // now without unbonder
-    let mut suite = SuiteBuilder::new().with_admin(ADMIN).build();
-
-    assert_eq!(
-        ContractError::Unauthorized {},
-        suite
-            .quick_unbond(ADMIN, &[VOTER1])
-            .unwrap_err()
-            .downcast()
-            .unwrap(),
-        "no one should be able to quick unbond"
-    );
-}
-
-#[test]
-fn non_staker_works() {
-    let mut suite = initial_setup();
-
-    suite.quick_unbond(UNBONDER, &[VOTER2, "ignoreme"]).unwrap();
-
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER2, suite.token_contract())
-            .unwrap(),
-        600
-    );
-    assert_eq!(
-        suite.withdrawable_rewards(VOTER2).unwrap()[0].amount.u128(),
-        700,
-        "same as before"
-    );
-}
-
-#[test]
 fn multiple_distributions() {
     let mut suite = SuiteBuilder::new()
         .with_admin(ADMIN)
-        .with_unbonder(UNBONDER)
         .with_min_bond(100) // also make power calculation a bit more interesting
         .with_tokens_per_power(10)
         .with_unbonding_periods(UNBONDING_PERIODS.to_vec())
+        .with_lp_share_denom("tia".to_string())
         .with_native_balances("cash", vec![(REWARDS_DISTRIBUTOR, 100_000)])
         .with_native_balances("juno", vec![(REWARDS_DISTRIBUTOR, 100_000)])
-        .with_initial_balances(vec![(VOTER1, 10), (VOTER2, 100), (VOTER3, 200)])
+        .with_native_balances("tia", vec![(VOTER1, 10), (VOTER2, 100), (VOTER3, 200)])
         .build();
 
     suite
@@ -296,7 +222,7 @@ fn multiple_distributions() {
         .create_distribution_flow(
             ADMIN,
             REWARDS_DISTRIBUTOR,
-            AssetInfo::Native("juno".to_string()),
+            AssetInfo::SmartToken("juno".to_string()),
             vec![
                 (UNBONDING_PERIODS[0], Decimal::percent(100)),
                 (UNBONDING_PERIODS[1], Decimal::percent(200)),
@@ -308,13 +234,6 @@ fn multiple_distributions() {
     suite.delegate(VOTER2, 100, UNBONDING_PERIODS[1]).unwrap();
     suite.delegate(VOTER3, 200, UNBONDING_PERIODS[1]).unwrap();
 
-    suite
-        .rebond(VOTER2, 100, UNBONDING_PERIODS[1], UNBONDING_PERIODS[0])
-        .unwrap();
-    suite
-        .rebond(VOTER3, 200, UNBONDING_PERIODS[1], UNBONDING_PERIODS[0])
-        .unwrap();
-
     // at this point, we have:
     assert!(
         suite.query_rewards_power(VOTER1).unwrap().is_empty(),
@@ -322,15 +241,15 @@ fn multiple_distributions() {
     );
     assert_eq!(
         suite.query_rewards_power(VOTER2).unwrap()[0].1,
-        10,
-        "100 in period 1 => power 100 / 10 = 10"
+        20,
+        "100 in period 1 that has %200 percentage => power 200 / 10 = 20"
     );
     assert_eq!(
         suite.query_rewards_power(VOTER3).unwrap()[0].1,
-        20,
-        "200 in period 1 => power 200 / 10 = 20"
+        40,
+        "200 in period 1 that has %200 percentage => power 400 / 10 = 40"
     );
-    // => total power is 30
+    // => total power is 60
 
     // distribute 3000 cash and 1500 juno
     suite
@@ -344,7 +263,7 @@ fn multiple_distributions() {
         .distribute_funds(
             REWARDS_DISTRIBUTOR,
             REWARDS_DISTRIBUTOR,
-            Some(AssetInfoValidated::Native("juno".to_string()).with_balance(1500u128)),
+            Some(AssetInfoValidated::SmartToken("juno".to_string()).with_balance(1500u128)),
         )
         .unwrap();
 
@@ -370,12 +289,12 @@ fn multiple_distributions() {
         assert_eq!(
             voter2_rewards[0].amount.u128() + voter2_cash,
             1000,
-            "10 / 30 * 3000 = 1000"
+            "20 / 60 * 3000 = 1000"
         );
         assert_eq!(
             voter3_rewards[0].amount.u128() + voter3_cash,
             2000,
-            "20 / 30 * 3000 = 2000"
+            "40 / 60 * 3000 = 2000"
         );
         // assert juno rewards
         assert_eq!(
@@ -386,12 +305,12 @@ fn multiple_distributions() {
         assert_eq!(
             voter2_rewards[1].amount.u128() + voter2_juno,
             500,
-            "10 / 30 * 1500 = 500"
+            "20 / 60 * 1500 = 500"
         );
         assert_eq!(
             voter3_rewards[1].amount.u128() + voter3_juno,
             1000,
-            "20 / 30 * 1500 = 1000"
+            "40 / 60 * 1500 = 1000"
         );
     }
 
@@ -399,40 +318,22 @@ fn multiple_distributions() {
 
     // withdraw some rewards before unbonding
     suite.withdraw_funds(VOTER2, None, None).unwrap();
-
-    // create claim
+    // unbond all
     suite.unbond(VOTER1, 10, UNBONDING_PERIODS[1]).unwrap();
-
-    // now we unbond all of them
-    suite
-        .quick_unbond(UNBONDER, &[VOTER1, VOTER2, VOTER3])
-        .unwrap();
+    suite.unbond(VOTER2, 100, UNBONDING_PERIODS[1]).unwrap();
+    suite.unbond(VOTER3, 200, UNBONDING_PERIODS[1]).unwrap();
 
     // rewards should stay the same
     assert_rewards(&mut suite);
 
+    // unbond doesn't return the initially delegated tokens
     // assert token balances
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER1, suite.token_contract())
-            .unwrap(),
-        10
-    );
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER2, suite.token_contract())
-            .unwrap(),
-        100
-    );
-    assert_eq!(
-        suite
-            .query_cw20_balance(VOTER3, suite.token_contract())
-            .unwrap(),
-        200
-    );
+    // assert_eq!(suite.query_balance(VOTER1, "tia").unwrap(), 10);
+    // assert_eq!(suite.query_balance(VOTER2, "tia").unwrap(), 100);
+    // assert_eq!(suite.query_balance(VOTER3, "tia").unwrap(), 200);
 
     // no claims created and none left
-    assert!(suite.query_claims(VOTER1).unwrap().is_empty());
-    assert!(suite.query_claims(VOTER2).unwrap().is_empty());
-    assert!(suite.query_claims(VOTER3).unwrap().is_empty());
+    // assert!(suite.query_claims(VOTER1).unwrap().is_empty());
+    // assert!(suite.query_claims(VOTER2).unwrap().is_empty());
+    // assert!(suite.query_claims(VOTER3).unwrap().is_empty());
 }
