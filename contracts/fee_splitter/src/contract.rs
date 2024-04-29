@@ -95,7 +95,7 @@ fn execute_send_tokens(
                 if amount.is_zero() {
                     None
                 } else {
-                    Some(coin((bcoin.amount * weight).u128(), &bcoin.denom))
+                    Some(coin((amount).u128(), &bcoin.denom))
                 }
             })
             .collect::<Vec<Coin>>();
