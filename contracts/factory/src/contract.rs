@@ -77,7 +77,7 @@ pub fn instantiate(
         fee_address: addr_opt_validate(deps.api, &msg.fee_address)?,
         max_referral_commission: msg.max_referral_commission,
         default_stake_config: msg.default_stake_config,
-        only_owner_can_create_pools: true,
+        only_owner_can_create_pools: false,
         trading_starts: msg.trading_starts,
     };
 
