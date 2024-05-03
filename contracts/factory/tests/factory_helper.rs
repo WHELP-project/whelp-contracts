@@ -1,7 +1,7 @@
 use anyhow::Result as AnyResult;
 
 use bindings_test::CoreumApp;
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use cosmwasm_std::{Addr, Binary, Coin, Decimal, Uint128};
 use cw20::MinterResponse;
 use cw_multi_test::{AppResponse, ContractWrapper, Executor};
 
@@ -142,11 +142,13 @@ impl FactoryHelper {
         sender: &Addr,
         fee_address: Option<String>,
         only_owner_can_create_pools: Option<bool>,
+        permissionless_deposit: Option<Asset>,
         default_stake_config: Option<PartialDefaultStakeConfig>,
     ) -> AnyResult<AppResponse> {
         let msg = dex::factory::ExecuteMsg::UpdateConfig {
             fee_address,
             only_owner_can_create_pools,
+            permissionless_deposit,
             default_stake_config,
         };
 
@@ -161,6 +163,7 @@ impl FactoryHelper {
         tokens: [&str; 2],
         init_params: Option<Binary>,
         staking_config: Option<PartialStakeConfig>,
+        send_funds: Option<Coin>,
     ) -> AnyResult<AppResponse> {
         let asset_infos = vec![
             AssetInfo::SmartToken(tokens[0].to_owned()),
@@ -175,7 +178,13 @@ impl FactoryHelper {
             total_fee_bps: None,
         };
 
-        router.execute_contract(sender.clone(), self.factory.clone(), &msg, &[])
+        let send_funds = if let Some(send_funds) = send_funds {
+            vec![send_funds]
+        } else {
+            vec![]
+        };
+
+        router.execute_contract(sender.clone(), self.factory.clone(), &msg, &send_funds)
     }
 
     #[allow(dead_code)]
@@ -198,7 +207,7 @@ impl FactoryHelper {
         tokens: [&str; 2],
         init_params: Option<Binary>,
     ) -> AnyResult<Addr> {
-        self.create_pair(router, sender, pair_type, tokens, init_params, None)?;
+        self.create_pair(router, sender, pair_type, tokens, init_params, None, None)?;
 
         let asset_infos = vec![
             AssetInfo::SmartToken(tokens[0].to_owned()),

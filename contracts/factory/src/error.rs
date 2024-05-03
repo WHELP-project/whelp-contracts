@@ -48,4 +48,9 @@ pub enum ContractError {
 
     #[error("Factory is in permissionless mode: deposit must be sent to create new pair")]
     PermissionlessRequiresDeposit {},
+
+    #[error(
+        "Factory will be upgraded to allow permissionless pools. Deposit requirement is needed"
+    )]
+    DepositRequirementNotProvided {},
 }

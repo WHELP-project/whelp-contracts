@@ -153,6 +153,8 @@ pub enum ExecuteMsg {
         fee_address: Option<String>,
         /// Whether only the owner or anyone can create new pools
         only_owner_can_create_pools: Option<bool>,
+        /// Required deposit when working with permissionless pools
+        permissionless_deposit: Option<Asset>,
         /// The default configuration for the staking contracts of new pools
         default_stake_config: Option<PartialDefaultStakeConfig>,
     },

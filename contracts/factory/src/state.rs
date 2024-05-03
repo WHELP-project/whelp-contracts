@@ -26,6 +26,8 @@ pub struct Config {
     pub default_stake_config: DefaultStakeConfig,
     /// When this is set to `true`, only the owner can create pairs
     pub only_owner_can_create_pools: bool,
+    /// Deposit used for permissionless pool,
+    pub permissionless_deposit: Option<Asset>,
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
 }

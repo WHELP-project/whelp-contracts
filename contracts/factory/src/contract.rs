@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, Uint128, WasmMsg,
+    Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
@@ -66,7 +66,7 @@ pub fn instantiate(
     }
 
     let mut only_owner_can_create_pools = true;
-    if let Some(permissionless_deposit) = msg.permissionless_deposit {
+    if let Some(permissionless_deposit) = msg.permissionless_deposit.clone() {
         PERMISSIONLESS_DEPOSIT.save(deps.storage, &permissionless_deposit)?;
         only_owner_can_create_pools = false;
     }
@@ -84,6 +84,7 @@ pub fn instantiate(
         max_referral_commission: msg.max_referral_commission,
         default_stake_config: msg.default_stake_config,
         only_owner_can_create_pools,
+        permissionless_deposit: msg.permissionless_deposit,
         trading_starts: msg.trading_starts,
     };
 
@@ -115,6 +116,8 @@ pub struct UpdateConfig {
     fee_address: Option<String>,
     /// Whether only the owner or anyone can create new pairs
     only_owner_can_create_pools: Option<bool>,
+    /// Required deposit when working with permissionless pools
+    permissionless_deposit: Option<Asset>,
     /// The default configuration for the staking contracts of new pairs
     default_stake_config: Option<PartialDefaultStakeConfig>,
 }
@@ -157,6 +160,7 @@ pub fn execute(
         ExecuteMsg::UpdateConfig {
             fee_address,
             only_owner_can_create_pools,
+            permissionless_deposit,
             default_stake_config,
         } => execute_update_config(
             deps,
@@ -164,6 +168,7 @@ pub fn execute(
             UpdateConfig {
                 fee_address,
                 only_owner_can_create_pools,
+                permissionless_deposit,
                 default_stake_config,
             },
         ),
@@ -409,7 +414,19 @@ pub fn execute_update_config(
     }
 
     if let Some(only_owner) = param.only_owner_can_create_pools {
-        config.only_owner_can_create_pools = only_owner;
+        match only_owner {
+            true => {
+                config.only_owner_can_create_pools = only_owner;
+            }
+            false => {
+                if param.permissionless_deposit.is_some() {
+                    config.only_owner_can_create_pools = false;
+                    config.permissionless_deposit = param.permissionless_deposit;
+                } else {
+                    return Err(ContractError::DepositRequirementNotProvided {});
+                }
+            }
+        }
     }
 
     if let Some(default_stake_config) = param.default_stake_config {

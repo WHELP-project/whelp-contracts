@@ -220,6 +220,7 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         fee_address: Some(String::from("new_fee_addr")),
         only_owner_can_create_pools: Some(true),
+        permissionless_deposit: None,
         default_stake_config: None,
     };
 
@@ -241,6 +242,7 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         fee_address: None,
         only_owner_can_create_pools: None,
+        permissionless_deposit: None,
         default_stake_config: None,
     };
 
