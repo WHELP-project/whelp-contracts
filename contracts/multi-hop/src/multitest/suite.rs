@@ -164,6 +164,7 @@ impl SuiteBuilder {
                         ..self.stake_config
                     },
                     trading_starts: None,
+                    permissionless_deposit: None::<Asset>,
                 },
                 &[],
                 "Dex Factory",

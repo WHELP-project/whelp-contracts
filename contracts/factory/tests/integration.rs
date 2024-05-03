@@ -2,7 +2,7 @@ mod factory_helper;
 
 use bindings_test::CoreumApp;
 use cosmwasm_std::{attr, from_json, Addr, Decimal, StdError, Uint128};
-use dex::asset::AssetInfo;
+use dex::asset::{Asset, AssetInfo};
 use dex::factory::{
     ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg,
     PartialDefaultStakeConfig, PoolConfig, PoolType, QueryMsg,
@@ -68,6 +68,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let factory_instance = app

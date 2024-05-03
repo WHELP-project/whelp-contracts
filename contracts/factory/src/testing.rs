@@ -1,12 +1,12 @@
 use cosmwasm_std::{
     attr, from_json,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
-    to_json_binary, Addr, Decimal, ReplyOn, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Addr, Coin, Decimal, ReplyOn, SubMsg, Uint128, WasmMsg,
 };
 use cw_utils::MsgInstantiateContractResponse;
 
 use dex::{
-    asset::AssetInfo,
+    asset::{Asset, AssetInfo},
     factory::{
         ConfigResponse, DefaultStakeConfig, ExecuteMsg, InstantiateMsg, PartialStakeConfig,
         PoolConfig, PoolType, PoolsResponse, QueryMsg,
@@ -70,6 +70,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -93,6 +94,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -129,6 +131,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -157,6 +160,7 @@ fn trading_starts_validation() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     // in the past
@@ -201,6 +205,7 @@ fn update_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -255,6 +260,7 @@ fn update_owner() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -342,6 +348,7 @@ fn update_pair_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -435,7 +442,7 @@ fn update_pair_config() {
 }
 
 #[test]
-fn create_pair() {
+fn create_permissioned_pair() {
     let mut deps = mock_dependencies(&[]);
 
     let pair_config = PoolConfig {
@@ -455,6 +462,7 @@ fn create_pair() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();
@@ -537,6 +545,103 @@ fn create_pair() {
 }
 
 #[test]
+fn create_permissionless_pair() {
+    let mut deps = mock_dependencies(&[]);
+
+    let pair_config = PoolConfig {
+        code_id: 42,
+        pool_type: PoolType::Xyk {},
+        fee_config: FeeConfig {
+            total_fee_bps: 100,
+            protocol_fee_bps: 10,
+        },
+        is_disabled: false,
+    };
+
+    let msg = InstantiateMsg {
+        pool_configs: vec![pair_config.clone()],
+        fee_address: None,
+        owner: "owner0000".to_string(),
+        max_referral_commission: Decimal::one(),
+        default_stake_config: default_stake_config(),
+        trading_starts: None,
+        permissionless_deposit: Some(Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000u128),
+        }),
+    };
+
+    let env = mock_env();
+    let info = mock_info("addr0000", &[]);
+
+    // instantiating the factory
+    let _ = instantiate(deps.as_mut(), env, info, msg.clone()).unwrap();
+
+    let asset_infos = vec![
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
+    ];
+
+    let config = CONFIG.load(&deps.storage);
+    let env = mock_env();
+    let info = mock_info(
+        "owner0000",
+        &[Coin {
+            denom: "coreum".to_string(),
+            amount: Uint128::new(3_000),
+        }],
+    );
+
+    // skipping the creation of a different pool with non-whitelisted pairs
+    let res = execute(
+        deps.as_mut(),
+        env,
+        info,
+        ExecuteMsg::CreatePool {
+            pool_type: PoolType::Xyk {},
+            asset_infos: asset_infos.clone(),
+            init_params: None,
+            total_fee_bps: None,
+            staking_config: PartialStakeConfig::default(),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "create_pair"),
+            attr("pair", "asset0000-asset0001")
+        ]
+    );
+    assert_eq!(
+        res.messages,
+        vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                msg: to_json_binary(&PoolInstantiateMsg {
+                    factory_addr: String::from(MOCK_CONTRACT_ADDR),
+                    asset_infos,
+                    init_params: None,
+                    staking_config: default_stake_config().to_stake_config(),
+                    trading_starts: mock_env().block.time.seconds(),
+                    fee_config: pair_config.fee_config,
+                    circuit_breaker: None,
+                })
+                .unwrap(),
+                code_id: pair_config.code_id,
+                funds: vec![],
+                admin: Some(config.unwrap().owner.to_string()),
+                label: String::from("Dex pair"),
+            }
+            .into(),
+            id: 1,
+            gas_limit: None,
+            reply_on: ReplyOn::Success
+        }]
+    );
+}
+
+#[test]
 fn register() {
     let mut deps = mock_dependencies(&[]);
     let owner = "owner0000";
@@ -556,6 +661,7 @@ fn register() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_deposit: None::<Asset>,
     };
 
     let env = mock_env();

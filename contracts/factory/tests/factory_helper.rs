@@ -6,7 +6,7 @@ use cw20::MinterResponse;
 use cw_multi_test::{AppResponse, ContractWrapper, Executor};
 
 use dex::{
-    asset::AssetInfo,
+    asset::{Asset, AssetInfo},
     factory::{
         DefaultStakeConfig, PartialDefaultStakeConfig, PartialStakeConfig, PoolConfig, PoolType,
         QueryMsg,
@@ -114,6 +114,7 @@ impl FactoryHelper {
                 max_distributions: 6,
             },
             trading_starts: None,
+            permissionless_deposit: None,
         };
 
         let factory = router

@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
     attr, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
+    Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
@@ -25,8 +25,8 @@ use crate::{
     querier::query_pair_info,
     state::{
         check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT, STAKING_ADDRESSES,
-        TMP_PAIR_INFO,
+        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT, POOL_TYPES,
+        STAKING_ADDRESSES, TMP_PAIR_INFO,
     },
 };
 
@@ -65,6 +65,12 @@ pub fn instantiate(
         ));
     }
 
+    let mut only_owner_can_create_pools = true;
+    if let Some(permissionless_deposit) = msg.permissionless_deposit {
+        PERMISSIONLESS_DEPOSIT.save(deps.storage, &permissionless_deposit)?;
+        only_owner_can_create_pools = false;
+    }
+
     if let Some(trading_starts) = msg.trading_starts {
         let block_time = env.block.time.seconds();
         if trading_starts < block_time || trading_starts > block_time + MAX_TRADING_STARTS_DELAY {
@@ -77,7 +83,7 @@ pub fn instantiate(
         fee_address: addr_opt_validate(deps.api, &msg.fee_address)?,
         max_referral_commission: msg.max_referral_commission,
         default_stake_config: msg.default_stake_config,
-        only_owner_can_create_pools: false,
+        only_owner_can_create_pools,
         trading_starts: msg.trading_starts,
     };
 
@@ -182,7 +188,6 @@ pub fn execute(
             total_fee_bps,
             staking_config,
             Vec::new(),
-            false,
         ),
         ExecuteMsg::Deregister { asset_infos } => {
             deregister_pool_and_staking(deps, info, asset_infos)
@@ -243,7 +248,6 @@ pub fn execute(
             total_fee_bps,
             staking_config,
             distribution_flows,
-            false,
         ),
         ExecuteMsg::CreateDistributionFlow {
             asset_infos,
@@ -292,7 +296,6 @@ fn receive_cw20_message(
             total_fee_bps,
             staking_config,
             Vec::new(),
-            true,
         ),
         ReceiveMsg::CreatePoolAndDistributionFlows {
             pool_type,
@@ -311,7 +314,6 @@ fn receive_cw20_message(
             total_fee_bps,
             staking_config,
             distribution_flows,
-            true,
         ),
     }
 }
@@ -473,7 +475,6 @@ pub fn execute_create_pair(
     total_fee_bps: Option<u16>,
     staking_config: PartialStakeConfig,
     distribution_flows: Vec<DistributionFlow>,
-    deposit_sent: bool,
 ) -> Result<Response, ContractError> {
     let asset_infos = check_asset_infos(deps.api, &asset_infos)?;
 
@@ -482,7 +483,8 @@ pub fn execute_create_pair(
     if config.only_owner_can_create_pools && info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
     }
-    if !config.only_owner_can_create_pools && !deposit_sent {
+
+    if !config.only_owner_can_create_pools && !deposit_provided(&deps, info) {
         return Err(ContractError::PermissionlessRequiresDeposit {});
     }
 
@@ -546,6 +548,20 @@ pub fn execute_create_pair(
             attr("action", "create_pair"),
             attr("pair", asset_infos.iter().join("-")),
         ]))
+}
+
+/// Checks if the deposit required for creating non-verified pool is provided
+///
+/// ## Returns
+/// * `true` if the deposit is provided
+fn deposit_provided(deps: &DepsMut<CoreumQueries>, info: MessageInfo) -> bool {
+    let deposit_required = PERMISSIONLESS_DEPOSIT
+        .load(deps.storage)
+        .map_err(|_| ContractError::DepositNotSet {})
+        .unwrap();
+    info.funds.iter().any(|coin| {
+        coin.amount >= deposit_required.amount && coin.denom == deposit_required.info.to_string()
+    })
 }
 
 /// Marks specified pairs as migrated to the new admin.
@@ -779,6 +795,11 @@ pub fn query_config(deps: Deps<CoreumQueries>) -> StdResult<ConfigResponse> {
     };
 
     Ok(resp)
+}
+
+pub fn query_pool_type(deps: Deps<CoreumQueries>, address: Addr) -> StdResult<bool> {
+    deps.api.addr_validate(&address.as_str())?;
+    Ok(POOL_TYPES.load(deps.storage, address)?)
 }
 
 /// Returns a pair's data using the assets in `asset_infos` as input (those being the assets that are traded in the pair).
