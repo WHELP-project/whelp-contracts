@@ -6,7 +6,7 @@ use crate::{
 };
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use cosmwasm_std::{Addr, Binary, Coin, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use cw_storage_plus::Map;
 use std::fmt::{Display, Formatter, Result};
@@ -70,6 +70,8 @@ pub struct InstantiateMsg {
     pub default_stake_config: DefaultStakeConfig,
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
+    /// Fee required to create non-verified pool
+    pub permissionless_fee: Asset,
 }
 
 #[cw_serde]
@@ -336,6 +338,10 @@ pub enum QueryMsg {
     /// Used by the `gauge-adapter` contract
     #[returns(bool)]
     ValidateStakingAddress { address: String },
+    /// Returns the pool type of the given pool address
+    /// `true` if the pool is verified, `false` if non-verified
+    #[returns(bool)]
+    PoolsType { address: Addr },
 }
 
 /// A custom struct for each query response that returns general contract settings/configs.

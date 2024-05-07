@@ -1,12 +1,12 @@
 use anyhow::Result as AnyResult;
 
 use bindings_test::CoreumApp;
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use cosmwasm_std::{Addr, Binary, Coin, Decimal, Uint128};
 use cw20::MinterResponse;
-use cw_multi_test::{AppResponse, ContractWrapper, Executor};
+use cw_multi_test::{AppResponse, BankSudo, ContractWrapper, Executor, SudoMsg};
 
 use dex::{
-    asset::AssetInfo,
+    asset::{Asset, AssetInfo},
     factory::{
         DefaultStakeConfig, PartialDefaultStakeConfig, PartialStakeConfig, PoolConfig, PoolType,
         QueryMsg,
@@ -58,6 +58,16 @@ impl FactoryHelper {
                 String::from("BASE"),
                 None,
             )
+            .unwrap();
+
+        router
+            .sudo(SudoMsg::Bank(BankSudo::Mint {
+                to_address: astro_token.to_string(),
+                amount: vec![Coin {
+                    denom: "coreum".to_string(),
+                    amount: Uint128::new(3_000),
+                }],
+            }))
             .unwrap();
 
         let pool_contract = Box::new(
@@ -114,6 +124,10 @@ impl FactoryHelper {
                 max_distributions: 6,
             },
             trading_starts: None,
+            permissionless_fee: Asset {
+                info: AssetInfo::Cw20Token("coreum".to_string()),
+                amount: Uint128::new(3_000),
+            },
         };
 
         let factory = router
@@ -174,7 +188,12 @@ impl FactoryHelper {
             total_fee_bps: None,
         };
 
-        router.execute_contract(sender.clone(), self.factory.clone(), &msg, &[])
+        router.execute_contract(
+            sender.clone(),
+            self.factory.clone(),
+            &msg,
+            &[Coin::new(3_000, "coreum")],
+        )
     }
 
     #[allow(dead_code)]

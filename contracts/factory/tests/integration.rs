@@ -1,8 +1,8 @@
 mod factory_helper;
 
 use bindings_test::CoreumApp;
-use cosmwasm_std::{attr, from_json, Addr, Decimal, StdError, Uint128};
-use dex::asset::AssetInfo;
+use cosmwasm_std::{attr, from_json, Addr, Coin, Decimal, StdError, Uint128};
+use dex::asset::{Asset, AssetInfo};
 use dex::factory::{
     ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg,
     PartialDefaultStakeConfig, PoolConfig, PoolType, QueryMsg,
@@ -68,6 +68,10 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        permissionless_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let factory_instance = app
@@ -181,6 +185,7 @@ fn test_create_then_deregister_pair() {
         res.events[1].attributes[2],
         attr("pair", format!("{}-{}", token1.as_str(), token2.as_str()))
     );
+
     // Verify the pair now exists
     let res: PairInfo = app
         .wrap()

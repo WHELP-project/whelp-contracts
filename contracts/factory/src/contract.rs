@@ -25,8 +25,8 @@ use crate::{
     querier::query_pair_info,
     state::{
         check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT, STAKING_ADDRESSES,
-        TMP_PAIR_INFO,
+        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT, POOL_TYPES,
+        STAKING_ADDRESSES, TMP_PAIR_INFO,
     },
 };
 
@@ -98,6 +98,7 @@ pub fn instantiate(
         }
         PAIR_CONFIGS.save(deps.storage, pc.pool_type.to_string(), pc)?;
     }
+    PERMISSIONLESS_DEPOSIT.save(deps.storage, &msg.permissionless_fee)?;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
@@ -182,7 +183,6 @@ pub fn execute(
             total_fee_bps,
             staking_config,
             Vec::new(),
-            false,
         ),
         ExecuteMsg::Deregister { asset_infos } => {
             deregister_pool_and_staking(deps, info, asset_infos)
@@ -243,7 +243,6 @@ pub fn execute(
             total_fee_bps,
             staking_config,
             distribution_flows,
-            false,
         ),
         ExecuteMsg::CreateDistributionFlow {
             asset_infos,
@@ -292,7 +291,6 @@ fn receive_cw20_message(
             total_fee_bps,
             staking_config,
             Vec::new(),
-            true,
         ),
         ReceiveMsg::CreatePoolAndDistributionFlows {
             pool_type,
@@ -311,7 +309,6 @@ fn receive_cw20_message(
             total_fee_bps,
             staking_config,
             distribution_flows,
-            true,
         ),
     }
 }
@@ -473,7 +470,6 @@ pub fn execute_create_pair(
     total_fee_bps: Option<u16>,
     staking_config: PartialStakeConfig,
     distribution_flows: Vec<DistributionFlow>,
-    deposit_sent: bool,
 ) -> Result<Response, ContractError> {
     let asset_infos = check_asset_infos(deps.api, &asset_infos)?;
 
@@ -482,7 +478,8 @@ pub fn execute_create_pair(
     if config.only_owner_can_create_pools && info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
     }
-    if !config.only_owner_can_create_pools && !deposit_sent {
+
+    if !config.only_owner_can_create_pools && !permissionless_fee_sent(&deps, info) {
         return Err(ContractError::PermissionlessRequiresDeposit {});
     }
 
@@ -587,6 +584,17 @@ pub fn reply(
     })?;
 
     reply::instantiate_pair(deps, env, res)
+}
+
+fn permissionless_fee_sent(deps: &DepsMut<CoreumQueries>, info: MessageInfo) -> bool {
+    let deposit_required = PERMISSIONLESS_DEPOSIT
+        .load(deps.storage)
+        .map_err(|_| ContractError::DepositNotSet {})
+        .unwrap();
+
+    info.funds.iter().any(|coin| {
+        coin.amount >= deposit_required.amount && coin.denom == deposit_required.info.to_string()
+    })
 }
 
 pub mod reply {
@@ -727,6 +735,8 @@ pub fn deregister_pool_and_staking(
 /// * **QueryMsg::BlacklistedPoolTypes {}** Returns a vector that contains blacklisted pair types (pair types that cannot get ASTRO emissions).
 ///
 /// * **QueryMsg::PoolsToMigrate {}** Returns a vector that contains pair addresses that are not migrated.
+///
+/// * **QueryMsg::PoolsType { address }** Returns the pool type of the specified address.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<CoreumQueries>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -743,6 +753,7 @@ pub fn query(deps: Deps<CoreumQueries>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::ValidateStakingAddress { address } => {
             to_json_binary(&STAKING_ADDRESSES.has(deps.storage, &deps.api.addr_validate(&address)?))
         }
+        QueryMsg::PoolsType { address } => to_json_binary(&query_pool_type(deps, address)?),
     }
 }
 
@@ -843,4 +854,13 @@ pub fn migrate(
     };
 
     Ok(Response::new())
+}
+
+/// Queryes a pool by it's address
+///
+/// Returns `true` if the pool is verified
+/// Returns `false` if the pool is non-verified
+pub fn query_pool_type(deps: Deps<CoreumQueries>, address: Addr) -> StdResult<bool> {
+    deps.api.addr_validate(&address.as_str())?;
+    Ok(POOL_TYPES.load(deps.storage, address)?)
 }
