@@ -12,7 +12,7 @@ use crate::{
 
 #[test]
 fn multiple_distribution_flows() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -168,7 +168,7 @@ fn multiple_distribution_flows() {
 // it is consistent with the users staking individually
 #[test]
 fn mass_bond_with_multiple_distribution_flows() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -329,7 +329,7 @@ fn mass_bond_with_multiple_distribution_flows() {
 
 #[test]
 fn can_fund_an_inprogress_reward_period_with_more_funds_and_a_curve() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -472,7 +472,7 @@ fn can_fund_an_inprogress_reward_period_with_more_funds_and_a_curve() {
 
 #[test]
 fn partial_payouts_by_rate() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -646,7 +646,7 @@ fn partial_payouts_by_rate() {
 
 #[test]
 fn divisible_amount_distributed_with_rate() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -955,7 +955,7 @@ fn simple_apr_simulation() {
 
 #[test]
 fn divisible_amount_distributed() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1274,7 +1274,7 @@ fn apr_native() {
 
 #[test]
 fn divisible_amount_distributed_twice() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1357,7 +1357,7 @@ fn divisible_amount_distributed_twice() {
 
 #[test]
 fn divisible_amount_distributed_twice_accumulated() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1425,7 +1425,7 @@ fn divisible_amount_distributed_twice_accumulated() {
 
 #[test]
 fn points_changed_after_distribution() {
-    let members = vec![
+    let members = [
         "member0".to_owned(),
         "member1".to_owned(),
         "member2".to_owned(),
@@ -1538,7 +1538,7 @@ fn points_changed_after_distribution() {
 
 #[test]
 fn points_changed_after_distribution_accumulated() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1606,7 +1606,7 @@ fn points_changed_after_distribution_accumulated() {
 
 #[test]
 fn distribution_with_leftover() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1681,7 +1681,7 @@ fn distribution_with_leftover() {
 
 #[test]
 fn distribution_with_leftover_accumulated() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1748,7 +1748,7 @@ fn distribution_with_leftover_accumulated() {
 
 #[test]
 fn redirecting_withdrawn_funds() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1807,7 +1807,7 @@ fn redirecting_withdrawn_funds() {
 
 #[test]
 fn cannot_withdraw_others_funds() {
-    let members = vec![
+    let members = [
         "member1".to_owned(),
         "member2".to_owned(),
         "member3".to_owned(),
@@ -1897,7 +1897,7 @@ fn multiple_rewards() {
     // One of them is a native token, one a cw20 token.
     // We add distributions for both, then delegate and distribute, then check that it was done correctly.
 
-    let members = vec!["member0".to_owned(), "member1".to_owned()];
+    let members = ["member0".to_owned(), "member1".to_owned()];
     let executor = "executor";
 
     let unbonding_period = 1000u64;

@@ -3,7 +3,6 @@ use cosmwasm_std::{
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
     to_json_binary, Addr, Coin, Decimal, ReplyOn, SubMsg, Uint128, WasmMsg,
 };
-use cw20::Cw20ReceiveMsg;
 use cw_utils::MsgInstantiateContractResponse;
 
 use dex::{
