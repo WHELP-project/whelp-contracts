@@ -861,6 +861,6 @@ pub fn migrate(
 /// Returns `true` if the pool is verified
 /// Returns `false` if the pool is non-verified
 pub fn query_pool_type(deps: Deps<CoreumQueries>, address: Addr) -> StdResult<bool> {
-    deps.api.addr_validate(&address.as_str())?;
-    Ok(POOL_TYPES.load(deps.storage, address)?)
+    deps.api.addr_validate(address.as_str())?;
+    POOL_TYPES.load(deps.storage, address)
 }
