@@ -71,7 +71,7 @@ pub struct InstantiateMsg {
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
     /// Fee required to create non-verified pool
-    pub permissionless_fee: Asset,
+    pub permissionless_fee_requirement: Asset,
 }
 
 #[cw_serde]

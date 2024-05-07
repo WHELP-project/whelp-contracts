@@ -68,7 +68,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },

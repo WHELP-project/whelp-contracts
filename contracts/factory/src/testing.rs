@@ -70,7 +70,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -97,7 +97,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -137,7 +137,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -169,7 +169,7 @@ fn trading_starts_validation() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -217,7 +217,7 @@ fn update_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -275,7 +275,7 @@ fn update_owner() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -366,7 +366,7 @@ fn update_pair_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -483,7 +483,7 @@ fn create_pair() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -588,7 +588,7 @@ fn register() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee: Asset {
+        permissionless_fee_requirement: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },

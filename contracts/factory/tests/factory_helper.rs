@@ -124,7 +124,7 @@ impl FactoryHelper {
                 max_distributions: 6,
             },
             trading_starts: None,
-            permissionless_fee: Asset {
+            permissionless_fee_requirement: Asset {
                 info: AssetInfo::Cw20Token("coreum".to_string()),
                 amount: Uint128::new(3_000),
             },

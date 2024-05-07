@@ -45,7 +45,7 @@ pub const TMP_PAIR_INFO: Item<TmpPoolInfo> = Item::new("tmp_pair_info");
 pub const CONFIG: Item<Config> = Item::new("config");
 
 /// If factory is permissionless, require deposit to create a pool
-pub const PERMISSIONLESS_DEPOSIT: Item<Asset> = Item::new("permissionless_deposit");
+pub const PERMISSIONLESS_DEPOSIT_REQUIREMENT: Item<Asset> = Item::new("permissionless_deposit");
 
 /// Saves created pairs (from olders to latest)
 pub const PAIRS: Map<&[u8], Addr> = Map::new("pair_info");

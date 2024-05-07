@@ -25,7 +25,7 @@ use crate::{
     querier::query_pair_info,
     state::{
         check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT, POOL_TYPES,
+        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT_REQUIREMENT, POOL_TYPES,
         STAKING_ADDRESSES, TMP_PAIR_INFO,
     },
 };
@@ -98,7 +98,7 @@ pub fn instantiate(
         }
         PAIR_CONFIGS.save(deps.storage, pc.pool_type.to_string(), pc)?;
     }
-    PERMISSIONLESS_DEPOSIT.save(deps.storage, &msg.permissionless_fee)?;
+    PERMISSIONLESS_DEPOSIT_REQUIREMENT.save(deps.storage, &msg.permissionless_fee_requirement)?;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
@@ -259,7 +259,7 @@ fn receive_cw20_message(
     info: MessageInfo,
     msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    let required_deposit = PERMISSIONLESS_DEPOSIT
+    let required_deposit = PERMISSIONLESS_DEPOSIT_REQUIREMENT
         .load(deps.storage)
         .map_err(|_| ContractError::DepositNotSet {})?;
     let deposit = Asset {
@@ -587,7 +587,7 @@ pub fn reply(
 }
 
 fn permissionless_fee_sent(deps: &DepsMut<CoreumQueries>, info: MessageInfo) -> bool {
-    let deposit_required = PERMISSIONLESS_DEPOSIT
+    let deposit_required = PERMISSIONLESS_DEPOSIT_REQUIREMENT
         .load(deps.storage)
         .map_err(|_| ContractError::DepositNotSet {})
         .unwrap();
@@ -849,7 +849,7 @@ pub fn migrate(
             ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         }
         MigrateMsg::AddPermissionlessPoolDeposit(asset) => {
-            PERMISSIONLESS_DEPOSIT.save(deps.storage, &asset)?;
+            PERMISSIONLESS_DEPOSIT_REQUIREMENT.save(deps.storage, &asset)?;
         }
     };
 
