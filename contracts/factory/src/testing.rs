@@ -16,9 +16,10 @@ use dex::{
 };
 
 use crate::{
-    contract::{execute, instantiate, query, reply},
+    contract::{execute, instantiate, query, query_pairs, query_pool_type, reply},
     error::ContractError,
     mock_querier::mock_dependencies,
+    querier::query_pair_info,
     state::CONFIG,
 };
 
@@ -519,6 +520,102 @@ fn create_pair() {
     )
     .unwrap_err();
     assert_eq!(res, ContractError::PoolConfigNotFound {});
+
+    let res = execute(
+        deps.as_mut(),
+        env,
+        info,
+        ExecuteMsg::CreatePool {
+            pool_type: PoolType::Xyk {},
+            asset_infos: asset_infos.clone(),
+            init_params: None,
+            total_fee_bps: None,
+            staking_config: PartialStakeConfig::default(),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "create_pair"),
+            attr("pair", "asset0000-asset0001")
+        ]
+    );
+    assert_eq!(
+        res.messages,
+        vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                msg: to_json_binary(&PoolInstantiateMsg {
+                    factory_addr: String::from(MOCK_CONTRACT_ADDR),
+                    asset_infos,
+                    init_params: None,
+                    staking_config: default_stake_config().to_stake_config(),
+                    trading_starts: mock_env().block.time.seconds(),
+                    fee_config: pair_config.fee_config,
+                    circuit_breaker: None,
+                })
+                .unwrap(),
+                code_id: pair_config.code_id,
+                funds: vec![],
+                admin: Some(config.unwrap().owner.to_string()),
+                label: String::from("Dex pair"),
+            }
+            .into(),
+            id: 1,
+            gas_limit: None,
+            reply_on: ReplyOn::Success
+        }]
+    );
+}
+
+#[test]
+fn create_permissionless_pair() {
+    let mut deps = mock_dependencies(&[]);
+
+    let pair_config = PoolConfig {
+        code_id: 42,
+        pool_type: PoolType::Xyk {},
+        fee_config: FeeConfig {
+            total_fee_bps: 100,
+            protocol_fee_bps: 10,
+        },
+        is_disabled: false,
+    };
+
+    let msg = InstantiateMsg {
+        pool_configs: vec![pair_config.clone()],
+        fee_address: None,
+        owner: "owner0000".to_string(),
+        max_referral_commission: Decimal::one(),
+        default_stake_config: default_stake_config(),
+        trading_starts: None,
+        permissionless_fee_requirement: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000u128),
+        },
+    };
+
+    let env = mock_env();
+    let info = mock_info("addr0000", &[]);
+
+    // instantiating the factory
+    let _ = instantiate(deps.as_mut(), env, info, msg.clone()).unwrap();
+
+    let asset_infos = vec![
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
+    ];
+
+    let config = CONFIG.load(&deps.storage);
+    let env = mock_env();
+    let info = mock_info(
+        "user0000",
+        &[Coin {
+            denom: "coreum".to_string(),
+            amount: Uint128::new(3_000),
+        }],
+    );
 
     let res = execute(
         deps.as_mut(),

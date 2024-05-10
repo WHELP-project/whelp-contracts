@@ -736,7 +736,7 @@ pub fn deregister_pool_and_staking(
 ///
 /// * **QueryMsg::PoolsToMigrate {}** Returns a vector that contains pair addresses that are not migrated.
 ///
-/// * **QueryMsg::PoolsType { address }** Returns the pool type of the specified address.
+/// * **QueryMsg::PoolsType { address }** Returns boolean.`true` if the pool is verified, `false` if non-verified
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<CoreumQueries>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
