@@ -25,8 +25,7 @@ use crate::{
     querier::query_pair_info,
     state::{
         check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT_REQUIREMENT, POOL_TYPE,
-        STAKING_ADDRESSES, TMP_PAIR_INFO,
+        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, STAKING_ADDRESSES, TMP_PAIR_INFO,
     },
 };
 
@@ -78,6 +77,7 @@ pub fn instantiate(
         max_referral_commission: msg.max_referral_commission,
         default_stake_config: msg.default_stake_config,
         only_owner_can_create_pools: false,
+        pool_creation_fee: msg.pool_creation_fee,
         trading_starts: msg.trading_starts,
     };
 
@@ -98,7 +98,6 @@ pub fn instantiate(
         }
         PAIR_CONFIGS.save(deps.storage, pc.pool_type.to_string(), pc)?;
     }
-    PERMISSIONLESS_DEPOSIT_REQUIREMENT.save(deps.storage, &msg.permissionless_fee_requirement)?;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
@@ -259,9 +258,7 @@ fn receive_cw20_message(
     info: MessageInfo,
     msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    let required_deposit = PERMISSIONLESS_DEPOSIT_REQUIREMENT
-        .load(deps.storage)
-        .map_err(|_| ContractError::DepositNotSet {})?;
+    let required_deposit = CONFIG.load(deps.storage)?.pool_creation_fee;
     let deposit = Asset {
         info: AssetInfo::Cw20Token(info.sender.to_string()),
         amount: msg.amount,
@@ -471,7 +468,6 @@ pub fn execute_create_pair(
     staking_config: PartialStakeConfig,
     distribution_flows: Vec<DistributionFlow>,
 ) -> Result<Response, ContractError> {
-    let simple_asset_info: Vec<AssetInfo> = asset_infos.clone();
     let asset_infos = check_asset_infos(deps.api, &asset_infos)?;
 
     let config = CONFIG.load(deps.storage)?;
@@ -591,10 +587,7 @@ pub fn reply(
 }
 
 fn permissionless_fee_sent(deps: &DepsMut<CoreumQueries>, info: MessageInfo) -> bool {
-    let deposit_required = PERMISSIONLESS_DEPOSIT_REQUIREMENT
-        .load(deps.storage)
-        .map_err(|_| ContractError::DepositNotSet {})
-        .unwrap();
+    let deposit_required = CONFIG.load(deps.storage).unwrap().pool_creation_fee;
 
     info.funds.iter().any(|coin| {
         coin.amount >= deposit_required.amount && coin.denom == deposit_required.info.to_string()
@@ -757,7 +750,6 @@ pub fn query(deps: Deps<CoreumQueries>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::ValidateStakingAddress { address } => {
             to_json_binary(&STAKING_ADDRESSES.has(deps.storage, &deps.api.addr_validate(&address)?))
         }
-        QueryMsg::PoolsType { address } => to_json_binary(&query_pool_type(deps, address)?),
     }
 }
 
@@ -853,18 +845,15 @@ pub fn migrate(
             ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         }
         MigrateMsg::AddPermissionlessPoolDeposit(asset) => {
-            PERMISSIONLESS_DEPOSIT_REQUIREMENT.save(deps.storage, &asset)?;
+            CONFIG.update(deps.storage, |old_config| -> StdResult<_> {
+                let new_config = Config {
+                    pool_creation_fee: asset,
+                    ..old_config
+                };
+                Ok(new_config)
+            })?;
         }
     };
 
     Ok(Response::new())
-}
-
-/// Queryes a pool by it's address
-///
-/// Returns `true` if the pool is verified
-/// Returns `false` if the pool is non-verified
-pub fn query_pool_type(deps: Deps<CoreumQueries>, address: Addr) -> StdResult<bool> {
-    deps.api.addr_validate(address.as_str())?;
-    POOL_TYPE.load(deps.storage, address)
 }

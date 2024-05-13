@@ -47,6 +47,9 @@ pub struct PoolConfig {
     pub code_id: u64,
     /// The pool type (provided in a [`PoolType`])
     pub pool_type: PoolType,
+    /// If the pool has been created by an admin or not
+    /// if created  by a non-admin, verified flag is set to false
+    pub verified: bool,
     /// The default fee configuration for this pool type. Total fee be overridden when creating a pool.
     pub fee_config: FeeConfig,
     /// Whether a pool type is disabled or not. If it is disabled, new pools cannot be
@@ -71,7 +74,7 @@ pub struct InstantiateMsg {
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
     /// Fee required to create non-verified pool
-    pub permissionless_fee_requirement: Asset,
+    pub pool_creation_fee: Asset,
 }
 
 #[cw_serde]
@@ -338,10 +341,6 @@ pub enum QueryMsg {
     /// Used by the `gauge-adapter` contract
     #[returns(bool)]
     ValidateStakingAddress { address: String },
-    /// Returns the pool type of the given pool address
-    /// `true` if the pool is verified, `false` if non-verified
-    #[returns(bool)]
-    PoolsType { address: Addr },
 }
 
 /// A custom struct for each query response that returns general contract settings/configs.
