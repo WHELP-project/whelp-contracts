@@ -74,6 +74,7 @@ pub fn instantiate(
             asset_infos,
             pool_type: PoolType::Xyk {},
             fee_config: msg.fee_config,
+            verified: msg.verified,
         },
         factory_addr,
         block_time_last: 0,

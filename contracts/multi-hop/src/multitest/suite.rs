@@ -164,6 +164,10 @@ impl SuiteBuilder {
                         ..self.stake_config
                     },
                     trading_starts: None,
+                    pool_creation_fee: Asset {
+                        info: AssetInfo::Cw20Token("coreum".to_string()),
+                        amount: Uint128::new(3_000),
+                    },
                 },
                 &[],
                 "Dex Factory",
@@ -219,6 +223,19 @@ impl Suite {
         pool_type: PoolType,
         tokens: [AssetInfo; 2],
     ) -> AnyResult<Addr> {
+        self.app
+            .init_modules(|router, _, storage| {
+                router.bank.init_balance(
+                    storage,
+                    &Addr::unchecked(sender),
+                    vec![Coin {
+                        denom: "coreum".to_string(),
+                        amount: Uint128::new(6_000),
+                    }],
+                )
+            })
+            .unwrap();
+
         self.app.execute_contract(
             Addr::unchecked(sender),
             self.factory.clone(),
@@ -229,7 +246,7 @@ impl Suite {
                 staking_config: Default::default(),
                 total_fee_bps: None,
             },
-            &[],
+            &[Coin::new(3_000, "coreum")],
         )?;
 
         let factory = self.factory.clone();

@@ -62,6 +62,7 @@ fn proper_initialization() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let sender = "addr0000";
@@ -150,6 +151,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();

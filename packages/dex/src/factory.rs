@@ -70,6 +70,8 @@ pub struct InstantiateMsg {
     pub default_stake_config: DefaultStakeConfig,
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
+    /// Fee required to create non-verified pool
+    pub pool_creation_fee: Asset,
 }
 
 #[cw_serde]

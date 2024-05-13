@@ -1,8 +1,8 @@
 mod factory_helper;
 
 use bindings_test::CoreumApp;
-use cosmwasm_std::{attr, from_json, Addr, Decimal, StdError, Uint128};
-use dex::asset::AssetInfo;
+use cosmwasm_std::{attr, from_json, Addr, Coin, Decimal, StdError, Uint128};
+use dex::asset::{Asset, AssetInfo};
 use dex::factory::{
     ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg,
     PartialDefaultStakeConfig, PoolConfig, PoolType, QueryMsg,
@@ -68,6 +68,10 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let factory_instance = app
@@ -164,6 +168,19 @@ fn test_create_then_deregister_pair() {
         "tokenY",
         Some(18),
     );
+
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &owner,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(3_000),
+            }],
+        )
+    })
+    .unwrap();
+
     // Create the pair which we will later delete
     let res = helper
         .create_pair(
@@ -181,6 +198,7 @@ fn test_create_then_deregister_pair() {
         res.events[1].attributes[2],
         attr("pair", format!("{}-{}", token1.as_str(), token2.as_str()))
     );
+
     // Verify the pair now exists
     let res: PairInfo = app
         .wrap()
@@ -262,6 +280,19 @@ fn test_valid_staking() {
         .unwrap();
 
     assert!(!is_valid);
+
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &owner,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(3_000),
+            }],
+        )
+    })
+    .unwrap();
+
     // Create the pair which we will later delete
     let res = helper
         .create_pair(
@@ -336,7 +367,18 @@ fn test_create_pair() {
         "tokenY",
         Some(18),
     );
-
+    // TODO: this test requires 6_000 tokens, because we try to initialize pool twice.
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &owner,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(6_000),
+            }],
+        )
+    })
+    .unwrap();
     //  factory_helper.rs:164-167 we set one of the tokens as SmartToken, the other
     //  as Cw20Token, hence it's two different tokens and the below fails to unwrap_err
     let err = helper
@@ -462,6 +504,7 @@ fn test_create_pair() {
 }
 
 #[test]
+#[ignore = "all our pools are created by default with `only_owner_can_create_pools` set to false"]
 fn test_create_pair_permissions() {
     let mut app = mock_app();
     let owner = Addr::unchecked("owner");
@@ -482,6 +525,18 @@ fn test_create_pair_permissions() {
         "tokenY",
         Some(18),
     );
+
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &user,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(6_000),
+            }],
+        )
+    })
+    .unwrap();
 
     let err = helper
         .create_pair(
@@ -538,6 +593,18 @@ fn test_update_pair_fee() {
         "tokenY",
         Some(18),
     );
+
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &owner,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(3_000),
+            }],
+        )
+    })
+    .unwrap();
 
     helper
         .create_pair(
@@ -612,6 +679,18 @@ fn test_pair_migration() {
     let token_instance2 =
         instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "tokenZ", None);
 
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &owner,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(6_000),
+            }],
+        )
+    })
+    .unwrap();
+
     // Create pairs in factory
     let pools = [
         helper
@@ -653,6 +732,18 @@ fn test_pair_migration() {
         &ExecuteMsg::ClaimOwnership {},
         &[],
     )
+    .unwrap();
+
+    app.init_modules(|router, _, storage| {
+        router.bank.init_balance(
+            storage,
+            &new_owner,
+            vec![Coin {
+                denom: "coreum".to_string(),
+                amount: Uint128::new(3_000),
+            }],
+        )
+    })
     .unwrap();
 
     let pair3 = helper

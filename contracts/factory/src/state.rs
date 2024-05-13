@@ -26,6 +26,8 @@ pub struct Config {
     pub default_stake_config: DefaultStakeConfig,
     /// When this is set to `true`, only the owner can create pairs
     pub only_owner_can_create_pools: bool,
+    /// Fee required for the pool to be established by a non-admin
+    pub pool_creation_fee: Asset,
     /// The block time until which trading is disabled
     pub trading_starts: Option<u64>,
 }
@@ -43,9 +45,6 @@ pub const TMP_PAIR_INFO: Item<TmpPoolInfo> = Item::new("tmp_pair_info");
 
 /// Saves factory settings
 pub const CONFIG: Item<Config> = Item::new("config");
-
-/// If factory is permissionless, require deposit to create a pool
-pub const PERMISSIONLESS_DEPOSIT: Item<Asset> = Item::new("permissionless_deposit");
 
 /// Saves created pairs (from olders to latest)
 pub const PAIRS: Map<&[u8], Addr> = Map::new("pair_info");

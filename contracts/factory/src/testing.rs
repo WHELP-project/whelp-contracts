@@ -1,12 +1,12 @@
 use cosmwasm_std::{
     attr, from_json,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
-    to_json_binary, Addr, Decimal, ReplyOn, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Addr, Coin, Decimal, ReplyOn, SubMsg, Uint128, WasmMsg,
 };
 use cw_utils::MsgInstantiateContractResponse;
 
 use dex::{
-    asset::AssetInfo,
+    asset::{Asset, AssetInfo},
     factory::{
         ConfigResponse, DefaultStakeConfig, ExecuteMsg, InstantiateMsg, PartialStakeConfig,
         PoolConfig, PoolType, PoolsResponse, QueryMsg,
@@ -70,6 +70,10 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -93,6 +97,10 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -129,6 +137,10 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -157,6 +169,10 @@ fn trading_starts_validation() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     // in the past
@@ -201,6 +217,10 @@ fn update_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -255,6 +275,10 @@ fn update_owner() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -342,6 +366,10 @@ fn update_pair_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -455,6 +483,10 @@ fn create_pair() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
@@ -470,7 +502,7 @@ fn create_pair() {
 
     let config = CONFIG.load(&deps.storage);
     let env = mock_env();
-    let info = mock_info("owner0000", &[]);
+    let info = mock_info("owner0000", &[Coin::new(3_000, "coreum")]);
 
     // Check pair creation using a non-whitelisted pair ID
     let res = execute(
@@ -521,6 +553,7 @@ fn create_pair() {
                     trading_starts: mock_env().block.time.seconds(),
                     fee_config: pair_config.fee_config,
                     circuit_breaker: None,
+                    verified: true,
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
@@ -536,6 +569,166 @@ fn create_pair() {
     );
 }
 
+#[test]
+fn create_permissionless_pair() {
+    let mut deps = mock_dependencies(&[]);
+
+    let pair_config = PoolConfig {
+        code_id: 42,
+        pool_type: PoolType::Xyk {},
+        fee_config: FeeConfig {
+            total_fee_bps: 100,
+            protocol_fee_bps: 10,
+        },
+        is_disabled: false,
+    };
+
+    let msg = InstantiateMsg {
+        pool_configs: vec![pair_config.clone()],
+        fee_address: None,
+        owner: "owner0000".to_string(),
+        max_referral_commission: Decimal::one(),
+        default_stake_config: default_stake_config(),
+        trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000u128),
+        },
+    };
+
+    let env = mock_env();
+    let info = mock_info("addr0000", &[]);
+
+    // instantiating the factory
+    let _ = instantiate(deps.as_mut(), env, info, msg.clone()).unwrap();
+
+    let asset_infos = vec![
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
+    ];
+
+    let config = CONFIG.load(&deps.storage);
+    let env = mock_env();
+    let info = mock_info(
+        "user0000",
+        &[Coin {
+            denom: "coreum".to_string(),
+            amount: Uint128::new(3_000),
+        }],
+    );
+
+    let res = execute(
+        deps.as_mut(),
+        env,
+        info,
+        ExecuteMsg::CreatePool {
+            pool_type: PoolType::Xyk {},
+            asset_infos: asset_infos.clone(),
+            init_params: None,
+            total_fee_bps: None,
+            staking_config: PartialStakeConfig::default(),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "create_pair"),
+            attr("pair", "asset0000-asset0001")
+        ]
+    );
+    assert_eq!(
+        res.messages,
+        vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                msg: to_json_binary(&PoolInstantiateMsg {
+                    factory_addr: String::from(MOCK_CONTRACT_ADDR),
+                    asset_infos,
+                    init_params: None,
+                    staking_config: default_stake_config().to_stake_config(),
+                    trading_starts: mock_env().block.time.seconds(),
+                    fee_config: pair_config.fee_config,
+                    circuit_breaker: None,
+                    verified: false,
+                })
+                .unwrap(),
+                code_id: pair_config.code_id,
+                funds: vec![],
+                admin: Some(config.unwrap().owner.to_string()),
+                label: String::from("Dex pair"),
+            }
+            .into(),
+            id: 1,
+            gas_limit: None,
+            reply_on: ReplyOn::Success
+        }]
+    );
+}
+
+#[test]
+fn create_permissionless_pair_too_small_deposit() {
+    let mut deps = mock_dependencies(&[]);
+
+    let pair_config = PoolConfig {
+        code_id: 42,
+        pool_type: PoolType::Xyk {},
+        fee_config: FeeConfig {
+            total_fee_bps: 100,
+            protocol_fee_bps: 10,
+        },
+        is_disabled: false,
+    };
+
+    let msg = InstantiateMsg {
+        pool_configs: vec![pair_config.clone()],
+        fee_address: None,
+        owner: "owner0000".to_string(),
+        max_referral_commission: Decimal::one(),
+        default_stake_config: default_stake_config(),
+        trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000u128),
+        },
+    };
+
+    let env = mock_env();
+    let info = mock_info("addr0000", &[]);
+
+    // instantiating the factory
+    let _ = instantiate(deps.as_mut(), env, info, msg.clone()).unwrap();
+
+    let asset_infos = vec![
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
+    ];
+
+    let env = mock_env();
+    let info = mock_info(
+        "user0000",
+        &[Coin {
+            denom: "coreum".to_string(),
+            // 1_000 tokens less then required
+            amount: Uint128::new(2_000),
+        }],
+    );
+
+    let err = execute(
+        deps.as_mut(),
+        env,
+        info,
+        ExecuteMsg::CreatePool {
+            pool_type: PoolType::Xyk {},
+            asset_infos: asset_infos.clone(),
+            init_params: None,
+            total_fee_bps: None,
+            staking_config: PartialStakeConfig::default(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(err, ContractError::PermissionlessRequiresDeposit {});
+}
 #[test]
 fn register() {
     let mut deps = mock_dependencies(&[]);
@@ -556,10 +749,14 @@ fn register() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000),
+        },
     };
 
     let env = mock_env();
-    let info = mock_info("addr0000", &[]);
+    let info = mock_info("addr0000", &[Coin::new(3_000u128, "coreum")]);
     let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
 
     let asset_infos = vec![
@@ -576,7 +773,7 @@ fn register() {
     };
 
     let env = mock_env();
-    let info = mock_info(owner, &[]);
+    let info = mock_info(owner, &[Coin::new(3_000, "coreum")]);
     let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     let pair0_addr = "pair0000".to_string();
@@ -595,6 +792,7 @@ fn register() {
             total_fee_bps: 0,
             protocol_fee_bps: 0,
         },
+        verified: true,
     };
 
     let mut deployed_pairs = vec![(&pair0_addr, &pair0_info)];
@@ -631,6 +829,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         }
     );
 
@@ -658,7 +857,7 @@ fn register() {
     };
 
     let env = mock_env();
-    let info = mock_info(owner, &[]);
+    let info = mock_info(owner, &[Coin::new(3_000, "coreum")]);
     let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     let pair1_addr = "pair0001".to_string();
@@ -672,6 +871,7 @@ fn register() {
             total_fee_bps: 0,
             protocol_fee_bps: 0,
         },
+        verified: true,
     };
 
     deployed_pairs.push((&pair1_addr, &pair1_info));
@@ -706,6 +906,7 @@ fn register() {
                     total_fee_bps: 0,
                     protocol_fee_bps: 0,
                 },
+                verified: true,
             },
             PairInfo {
                 liquidity_token: "liquidity0001".to_owned(),
@@ -717,6 +918,7 @@ fn register() {
                     total_fee_bps: 0,
                     protocol_fee_bps: 0,
                 },
+                verified: true,
             }
         ]
     );
@@ -740,6 +942,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         }]
     );
 
@@ -762,6 +965,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         }]
     );
 
@@ -814,6 +1018,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         },]
     );
 }
