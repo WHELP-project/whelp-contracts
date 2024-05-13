@@ -41,6 +41,9 @@ pub struct PairInfo {
     pub staking_addr: Addr,
     /// The pool type (xyk, stableswap etc) available in [`PoolType`]
     pub pool_type: PoolType,
+    /// If the pool has been created by an admin or not
+    /// if created  by a non-admin, verified flag is set to false
+    pub verified: bool,
     /// The fee configuration for the pool
     pub fee_config: FeeConfig,
 }
@@ -102,6 +105,9 @@ pub struct InstantiateMsg {
     pub init_params: Option<Binary>,
     /// The fees for this pool
     pub fee_config: FeeConfig,
+    /// If the pool has been created by an admin or not
+    /// if created  by a non-admin, verified flag is set to false
+    pub verified: bool,
     pub staking_config: StakeConfig,
     /// The block time until which trading is disabled
     pub trading_starts: u64,

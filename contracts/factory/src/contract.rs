@@ -476,9 +476,16 @@ pub fn execute_create_pair(
         return Err(ContractError::Unauthorized {});
     }
 
-    if !config.only_owner_can_create_pools && !permissionless_fee_sent(&deps, info) {
+    if !config.only_owner_can_create_pools && !permissionless_fee_sent(&deps, &info) {
         return Err(ContractError::PermissionlessRequiresDeposit {});
     }
+
+    // pool is verified if it's created by the admin/owner of the contract
+    let verified = if info.sender == config.owner {
+        true
+    } else {
+        false
+    };
 
     if PAIRS.has(deps.storage, &pair_key(&asset_infos)) {
         return Err(ContractError::PoolWasCreated {});
@@ -524,6 +531,7 @@ pub fn execute_create_pair(
                     total_fee_bps: total_fee_bps.unwrap_or(pair_config.fee_config.total_fee_bps),
                     protocol_fee_bps: pair_config.fee_config.protocol_fee_bps,
                 },
+                verified,
                 circuit_breaker: None,
             })?,
             funds: vec![],
@@ -586,7 +594,7 @@ pub fn reply(
     reply::instantiate_pair(deps, env, res)
 }
 
-fn permissionless_fee_sent(deps: &DepsMut<CoreumQueries>, info: MessageInfo) -> bool {
+fn permissionless_fee_sent(deps: &DepsMut<CoreumQueries>, info: &MessageInfo) -> bool {
     let deposit_required = CONFIG.load(deps.storage).unwrap().pool_creation_fee;
 
     info.funds.iter().any(|coin| {
