@@ -234,6 +234,8 @@ pub enum ExecuteMsg {
         /// Only periods that are defined in the contract can be used here
         rewards: Vec<(UnbondingPeriod, Decimal)>,
     },
+    /// Withdraws pool fee creations to the owner of the contract
+    WithdrawPoolCreationFees {},
     /// Implements the Cw20 receiver interface.
     Receive(Cw20ReceiveMsg),
 }

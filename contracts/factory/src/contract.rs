@@ -248,6 +248,7 @@ pub fn execute(
             asset,
             rewards,
         } => execute_create_distribution_flow(deps, env, info, asset_infos, asset, rewards),
+        ExecuteMsg::WithdrawPoolCreationFees {} => execute_withdraw_pool_creation_fees(deps, env),
         ExecuteMsg::Receive(msg) => receive_cw20_message(deps, env, info, msg),
     }
 }
@@ -716,6 +717,25 @@ pub fn deregister_pool_and_staking(
         attr("action", "deregister"),
         attr("pair_contract_addr", pair_addr),
     ]))
+}
+
+pub fn execute_withdraw_pool_creation_fees(
+    deps: DepsMut<CoreumQueries>,
+    env: Env,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    let pool_fee_creation_asset = config.pool_creation_fee.info;
+    // This is called 'query_pool' but it actually just do the balance query...
+    let balance = pool_fee_creation_asset.query_pool(&deps.querier, env.contract.address)?;
+
+    Ok(Response::new().add_message(
+        Asset {
+            info: pool_fee_creation_asset,
+            amount: balance,
+        }
+        .validate(deps.api)?
+        .into_msg(config.owner)?,
+    ))
 }
 
 /// Exposes all the queries available in the contract.
