@@ -481,11 +481,7 @@ pub fn execute_create_pair(
     }
 
     // pool is verified if it's created by the admin/owner of the contract
-    let verified = if info.sender == config.owner {
-        true
-    } else {
-        false
-    };
+    let verified = info.sender == config.owner;
 
     if PAIRS.has(deps.storage, &pair_key(&asset_infos)) {
         return Err(ContractError::PoolWasCreated {});

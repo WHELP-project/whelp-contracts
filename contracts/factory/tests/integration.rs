@@ -5,7 +5,7 @@ use cosmwasm_std::{attr, from_json, Addr, Coin, Decimal, StdError, Uint128};
 use dex::asset::{Asset, AssetInfo};
 use dex::factory::{
     ConfigResponse, DefaultStakeConfig, ExecuteMsg, FeeInfoResponse, InstantiateMsg,
-    PartialDefaultStakeConfig, PoolConfig, PoolType, PoolsResponse, QueryMsg,
+    PartialDefaultStakeConfig, PoolConfig, PoolType, QueryMsg,
 };
 use dex::fee_config::FeeConfig;
 use dex::pool::PairInfo;
@@ -68,7 +68,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -406,31 +406,6 @@ fn test_create_pair() {
             None,
         )
         .unwrap();
-
-    let pools_response: PoolsResponse = app
-        .wrap()
-        .query_wasm_smart(
-            &helper.factory,
-            &QueryMsg::Pools {
-                start_after: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    let pool_address = &pools_response.pools.get(0).unwrap().contract_addr;
-    let is_pool_permissionless: bool = app
-        .wrap()
-        .query_wasm_smart(
-            &helper.factory,
-            &QueryMsg::PoolsType {
-                address: pool_address.clone(),
-            },
-        )
-        .unwrap();
-
-    // we want to check if the created pool is permissionless
-    assert_eq!(is_pool_permissionless, false);
 
     let err = helper
         .create_pair(

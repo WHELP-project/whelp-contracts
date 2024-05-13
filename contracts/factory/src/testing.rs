@@ -70,7 +70,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -97,7 +97,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -137,7 +137,7 @@ fn proper_initialization() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -169,7 +169,7 @@ fn trading_starts_validation() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -217,7 +217,7 @@ fn update_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -275,7 +275,7 @@ fn update_owner() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -366,7 +366,7 @@ fn update_pair_config() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -483,7 +483,7 @@ fn create_pair() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -553,6 +553,7 @@ fn create_pair() {
                     trading_starts: mock_env().block.time.seconds(),
                     fee_config: pair_config.fee_config,
                     circuit_breaker: None,
+                    verified: true,
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
@@ -589,7 +590,7 @@ fn create_permissionless_pair() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000u128),
         },
@@ -649,6 +650,7 @@ fn create_permissionless_pair() {
                     trading_starts: mock_env().block.time.seconds(),
                     fee_config: pair_config.fee_config,
                     circuit_breaker: None,
+                    verified: false,
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
@@ -684,7 +686,7 @@ fn register() {
         max_referral_commission: Decimal::one(),
         default_stake_config: default_stake_config(),
         trading_starts: None,
-        permissionless_fee_requirement: Asset {
+        pool_creation_fee: Asset {
             info: AssetInfo::Cw20Token("coreum".to_string()),
             amount: Uint128::new(3_000),
         },
@@ -727,6 +729,7 @@ fn register() {
             total_fee_bps: 0,
             protocol_fee_bps: 0,
         },
+        verified: true,
     };
 
     let mut deployed_pairs = vec![(&pair0_addr, &pair0_info)];
@@ -763,6 +766,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         }
     );
 
@@ -804,6 +808,7 @@ fn register() {
             total_fee_bps: 0,
             protocol_fee_bps: 0,
         },
+        verified: true,
     };
 
     deployed_pairs.push((&pair1_addr, &pair1_info));
@@ -838,6 +843,7 @@ fn register() {
                     total_fee_bps: 0,
                     protocol_fee_bps: 0,
                 },
+                verified: true,
             },
             PairInfo {
                 liquidity_token: "liquidity0001".to_owned(),
@@ -849,6 +855,7 @@ fn register() {
                     total_fee_bps: 0,
                     protocol_fee_bps: 0,
                 },
+                verified: true,
             }
         ]
     );
@@ -872,6 +879,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         }]
     );
 
@@ -894,6 +902,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         }]
     );
 
@@ -946,6 +955,7 @@ fn register() {
                 total_fee_bps: 0,
                 protocol_fee_bps: 0,
             },
+            verified: true,
         },]
     );
 }

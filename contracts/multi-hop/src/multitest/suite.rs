@@ -164,7 +164,7 @@ impl SuiteBuilder {
                         ..self.stake_config
                     },
                     trading_starts: None,
-                    permissionless_fee_requirement: Asset {
+                    pool_creation_fee: Asset {
                         info: AssetInfo::Cw20Token("coreum".to_string()),
                         amount: Uint128::new(3_000),
                     },
