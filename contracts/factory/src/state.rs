@@ -54,7 +54,7 @@ pub const PAIRS: Map<&[u8], Addr> = Map::new("pair_info");
 pub const STAKING_ADDRESSES: Map<&Addr, ()> = Map::new("staking_addresses");
 
 /// Saves a map of pool addresses and their corresponding type: verified `true` or non-verified `false`
-pub const POOL_TYPES: Map<Addr, bool> = Map::new("pool_types");
+pub const POOL_TYPE: Map<Addr, bool> = Map::new("pool_types");
 
 /// Calculates a pair key from the specified parameters in the `asset_infos` variable.
 ///

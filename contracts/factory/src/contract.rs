@@ -25,7 +25,7 @@ use crate::{
     querier::query_pair_info,
     state::{
         check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT_REQUIREMENT, POOL_TYPES,
+        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, PERMISSIONLESS_DEPOSIT_REQUIREMENT, POOL_TYPE,
         STAKING_ADDRESSES, TMP_PAIR_INFO,
     },
 };
@@ -471,6 +471,7 @@ pub fn execute_create_pair(
     staking_config: PartialStakeConfig,
     distribution_flows: Vec<DistributionFlow>,
 ) -> Result<Response, ContractError> {
+    let simple_asset_info: Vec<AssetInfo> = asset_infos.clone();
     let asset_infos = check_asset_infos(deps.api, &asset_infos)?;
 
     let config = CONFIG.load(deps.storage)?;
@@ -536,6 +537,9 @@ pub fn execute_create_pair(
         gas_limit: None,
         reply_on: ReplyOn::Success,
     }];
+
+    // TODO: Query the pair contract to get the staking address
+    // and save it in the POOL_TYPE map
 
     Ok(Response::new()
         .add_submessages(sub_msg)
@@ -862,5 +866,5 @@ pub fn migrate(
 /// Returns `false` if the pool is non-verified
 pub fn query_pool_type(deps: Deps<CoreumQueries>, address: Addr) -> StdResult<bool> {
     deps.api.addr_validate(address.as_str())?;
-    POOL_TYPES.load(deps.storage, address)
+    POOL_TYPE.load(deps.storage, address)
 }
