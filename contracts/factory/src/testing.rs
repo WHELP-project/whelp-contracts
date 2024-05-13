@@ -667,6 +667,69 @@ fn create_permissionless_pair() {
 }
 
 #[test]
+fn create_permissionless_pair_too_small_deposit() {
+    let mut deps = mock_dependencies(&[]);
+
+    let pair_config = PoolConfig {
+        code_id: 42,
+        pool_type: PoolType::Xyk {},
+        fee_config: FeeConfig {
+            total_fee_bps: 100,
+            protocol_fee_bps: 10,
+        },
+        is_disabled: false,
+    };
+
+    let msg = InstantiateMsg {
+        pool_configs: vec![pair_config.clone()],
+        fee_address: None,
+        owner: "owner0000".to_string(),
+        max_referral_commission: Decimal::one(),
+        default_stake_config: default_stake_config(),
+        trading_starts: None,
+        pool_creation_fee: Asset {
+            info: AssetInfo::Cw20Token("coreum".to_string()),
+            amount: Uint128::new(3_000u128),
+        },
+    };
+
+    let env = mock_env();
+    let info = mock_info("addr0000", &[]);
+
+    // instantiating the factory
+    let _ = instantiate(deps.as_mut(), env, info, msg.clone()).unwrap();
+
+    let asset_infos = vec![
+        AssetInfo::Cw20Token("asset0000".to_string()),
+        AssetInfo::Cw20Token("asset0001".to_string()),
+    ];
+
+    let env = mock_env();
+    let info = mock_info(
+        "user0000",
+        &[Coin {
+            denom: "coreum".to_string(),
+            // 1_000 tokens less then required
+            amount: Uint128::new(2_000),
+        }],
+    );
+
+    let err = execute(
+        deps.as_mut(),
+        env,
+        info,
+        ExecuteMsg::CreatePool {
+            pool_type: PoolType::Xyk {},
+            asset_infos: asset_infos.clone(),
+            init_params: None,
+            total_fee_bps: None,
+            staking_config: PartialStakeConfig::default(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(err, ContractError::PermissionlessRequiresDeposit {});
+}
+#[test]
 fn register() {
     let mut deps = mock_dependencies(&[]);
     let owner = "owner0000";
