@@ -64,6 +64,7 @@ fn proper_initialization() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let sender = "addr0000";
@@ -168,6 +169,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -449,6 +451,7 @@ fn provide_liquidity() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -899,6 +902,7 @@ fn withdraw_liquidity() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -1051,6 +1055,7 @@ fn query_twap() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
     instantiate(deps.as_mut(), env.clone(), mock_info("owner", &[]), msg).unwrap();
 
@@ -1208,6 +1213,7 @@ fn try_native_to_token() {
             protocol_fee_bps: 1660,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -1422,6 +1428,7 @@ fn try_token_to_native() {
             protocol_fee_bps: 1660,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -1681,6 +1688,7 @@ fn test_query_pool() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -1742,6 +1750,7 @@ fn test_query_share() {
             protocol_fee_bps: 0,
         },
         circuit_breaker: None,
+        verified: true,
     };
 
     let env = mock_env();
@@ -1848,6 +1857,7 @@ fn test_accumulate_prices() {
                         total_fee_bps: 0,
                         protocol_fee_bps: 0,
                     },
+                    verified: true,
                 },
                 factory_addr: Addr::unchecked("factory"),
                 block_time_last: case.block_time_last,

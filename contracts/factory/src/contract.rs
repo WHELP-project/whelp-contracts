@@ -542,9 +542,6 @@ pub fn execute_create_pair(
         reply_on: ReplyOn::Success,
     }];
 
-    // TODO: Query the pair contract to get the staking address
-    // and save it in the POOL_TYPE map
-
     Ok(Response::new()
         .add_submessages(sub_msg)
         .add_attributes(vec![
