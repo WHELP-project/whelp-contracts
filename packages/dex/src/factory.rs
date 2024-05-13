@@ -47,9 +47,6 @@ pub struct PoolConfig {
     pub code_id: u64,
     /// The pool type (provided in a [`PoolType`])
     pub pool_type: PoolType,
-    /// If the pool has been created by an admin or not
-    /// if created  by a non-admin, verified flag is set to false
-    pub verified: bool,
     /// The default fee configuration for this pool type. Total fee be overridden when creating a pool.
     pub fee_config: FeeConfig,
     /// Whether a pool type is disabled or not. If it is disabled, new pools cannot be

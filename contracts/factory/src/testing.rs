@@ -16,10 +16,9 @@ use dex::{
 };
 
 use crate::{
-    contract::{execute, instantiate, query, query_pairs, query_pool_type, reply},
+    contract::{execute, instantiate, query, reply},
     error::ContractError,
     mock_querier::mock_dependencies,
-    querier::query_pair_info,
     state::CONFIG,
 };
 
