@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    attr, from_json,
+    attr, from_json, coin,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
     to_json_binary, Addr, Coin, Decimal, ReplyOn, SubMsg, Uint128, WasmMsg,
 };
@@ -557,7 +557,7 @@ fn create_pair() {
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
-                funds: vec![],
+                funds: vec![coin(10000000, "ucore")],
                 admin: Some(config.unwrap().owner.to_string()),
                 label: String::from("Dex pair"),
             }
@@ -654,7 +654,7 @@ fn create_permissionless_pair() {
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
-                funds: vec![],
+                funds: vec![coin(10000000, "ucore")],
                 admin: Some(config.unwrap().owner.to_string()),
                 label: String::from("Dex pair"),
             }

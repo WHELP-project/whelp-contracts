@@ -192,7 +192,7 @@ impl FactoryHelper {
             sender.clone(),
             self.factory.clone(),
             &msg,
-            &[Coin::new(3_000, "coreum")],
+            &[Coin::new(4_100, "coreum")],
         )
     }
 
