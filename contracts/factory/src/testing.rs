@@ -557,7 +557,7 @@ fn create_pair() {
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
-                funds: vec![coin(10000000, "ucore")],
+                funds: vec![coin(20000000, "ucore")],
                 admin: Some(config.unwrap().owner.to_string()),
                 label: String::from("Dex pair"),
             }
@@ -654,7 +654,7 @@ fn create_permissionless_pair() {
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
-                funds: vec![coin(10000000, "ucore")],
+                funds: vec![coin(20000000, "ucore")],
                 admin: Some(config.unwrap().owner.to_string()),
                 label: String::from("Dex pair"),
             }

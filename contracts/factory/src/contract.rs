@@ -865,6 +865,23 @@ pub fn migrate(
         MigrateMsg::Update() => {
             ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
         }
+        MigrateMsg::UpdatePoolId {
+            pool_type,
+            new_pool_id,
+        } => {
+            PAIR_CONFIGS.update(
+                deps.storage,
+                pool_type.to_string(),
+                |old_config| -> StdResult<_> {
+                    let new_config: PoolConfig = PoolConfig {
+                        code_id: new_pool_id,
+                        // if this config doesn't exist, we might as well panic and abort the migration
+                        ..old_config.unwrap()
+                    };
+                    Ok(new_config)
+                },
+            )?;
+        }
         MigrateMsg::AddPermissionlessPoolDeposit(asset) => {
             CONFIG.update(deps.storage, |old_config| -> StdResult<_> {
                 let new_config = Config {
