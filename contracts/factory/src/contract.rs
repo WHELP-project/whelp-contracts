@@ -531,7 +531,7 @@ pub fn execute_create_pair(
                 verified,
                 circuit_breaker: None,
             })?,
-            funds: vec![coin(10000000, "ucore")],
+            funds: vec![coin(20000000, "ucore")],
             label: "Dex pair".to_string(),
         }
         .into(),

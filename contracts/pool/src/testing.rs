@@ -95,7 +95,7 @@ fn proper_initialization() {
                 msg: CosmosMsg::Wasm(WasmMsg::Instantiate {
                     admin: Some("addr0000".to_owned()),
                     code_id: 11,
-                    funds: vec![],
+                    funds: vec![coin(10000000, "ucore")],
                     label: "Dex-Stake".to_owned(),
                     msg: to_json_binary(&dex::stake::InstantiateMsg {
                         lp_share_denom: "uuusdmapplp-cosmos2contract".to_owned(),
