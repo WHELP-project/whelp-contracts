@@ -69,8 +69,8 @@ fn proper_initialization() {
         default_stake_config: default_stake_config(),
         trading_starts: None,
         pool_creation_fee: Asset {
-            info: AssetInfo::Cw20Token("coreum".to_string()),
-            amount: Uint128::new(3_000),
+            info: AssetInfo::Cw20Token("ucore".to_string()),
+            amount: Uint128::new(320_000_000),
         },
     };
 
@@ -174,8 +174,8 @@ fn test_create_then_deregister_pair() {
             storage,
             &owner,
             vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(3_000),
+                denom: "ucore".to_string(),
+                amount: Uint128::new(320_000_000),
             }],
         )
     })
@@ -286,8 +286,8 @@ fn test_valid_staking() {
             storage,
             &owner,
             vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(3_000),
+                denom: "ucore".to_string(),
+                amount: Uint128::new(320_000_000),
             }],
         )
     })
@@ -373,8 +373,8 @@ fn test_create_pair() {
             storage,
             &owner,
             vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(6_000),
+                denom: "ucore".to_string(),
+                amount: Uint128::new(6_000_000_000),
             }],
         )
     })
@@ -526,17 +526,17 @@ fn test_create_pair_permissions() {
         Some(18),
     );
 
-    app.init_modules(|router, _, storage| {
-        router.bank.init_balance(
-            storage,
-            &user,
-            vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(6_000),
-            }],
-        )
-    })
-    .unwrap();
+    // app.init_modules(|router, _, storage| {
+    //     router.bank.init_balance(
+    //         storage,
+    //         &user,
+    //         vec![Coin {
+    //             denom: "ucore".to_string(),
+    //             amount: Uint128::new(320_000_000),
+    //         }],
+    //     )
+    // })
+    // .unwrap();
 
     let err = helper
         .create_pair(
@@ -599,8 +599,8 @@ fn test_update_pair_fee() {
             storage,
             &owner,
             vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(3_000),
+                denom: "ucore".to_string(),
+                amount: Uint128::new(320_000_000),
             }],
         )
     })
@@ -684,8 +684,8 @@ fn test_pair_migration() {
             storage,
             &owner,
             vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(6_000),
+                denom: "ucore".to_string(),
+                amount: Uint128::new(640_000_000),
             }],
         )
     })
@@ -739,8 +739,8 @@ fn test_pair_migration() {
             storage,
             &new_owner,
             vec![Coin {
-                denom: "coreum".to_string(),
-                amount: Uint128::new(3_000),
+                denom: "ucore".to_string(),
+                amount: Uint128::new(320_000_000),
             }],
         )
     })
