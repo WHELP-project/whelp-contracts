@@ -392,10 +392,10 @@ pub enum UpdateAddr {
 #[allow(clippy::large_enum_variant)]
 pub enum MigrateMsg {
     Update(),
-    UpdatePoolId{
+    UpdatePoolId {
         pool_type: PoolType,
         set_native_denom: String,
-        new_pool_id: u64
+        new_pool_id: u64,
     },
     /// Required with <=2.1.0 migration
     AddPermissionlessPoolDeposit(Asset),

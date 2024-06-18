@@ -114,7 +114,7 @@ pub struct InstantiateMsg {
     /// Address which can call ExecuteMsg::Freeze
     pub circuit_breaker: Option<String>,
     /// Native denom of the chain in order to sent the initial fee
-    pub native_denom: String
+    pub native_denom: String,
 }
 
 impl InstantiateMsg {
@@ -242,7 +242,7 @@ pub enum MigrateMsg {
         circuit_breaker: Option<String>,
     },
     /// Update the native token for the fee purposes
-    UpdateNativeDenom(String)
+    UpdateNativeDenom(String),
 }
 
 /// This structure describes the query messages available in the contract.

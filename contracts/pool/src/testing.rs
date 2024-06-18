@@ -65,6 +65,7 @@ fn proper_initialization() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let sender = "addr0000";
@@ -170,6 +171,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -452,6 +454,7 @@ fn provide_liquidity() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -903,6 +906,7 @@ fn withdraw_liquidity() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1056,6 +1060,7 @@ fn query_twap() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
     instantiate(deps.as_mut(), env.clone(), mock_info("owner", &[]), msg).unwrap();
 
@@ -1214,6 +1219,7 @@ fn try_native_to_token() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1429,6 +1435,7 @@ fn try_token_to_native() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1689,6 +1696,7 @@ fn test_query_pool() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1751,6 +1759,7 @@ fn test_query_share() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
