@@ -72,6 +72,7 @@ fn proper_initialization() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let factory_instance = app

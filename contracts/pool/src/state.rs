@@ -22,6 +22,8 @@ pub struct Config {
 
 /// Stores the config struct at the given key
 pub const CONFIG: Item<Config> = Item::new("config");
+/// Native denom of the chain in order to sent the initial fee
+pub const NATIVE_DENOM: Item<String> = Item::new("denom");
 // Address which can trigger a Freeze or Unfreeze via an ExecuteMsg variant
 pub const CIRCUIT_BREAKER: Item<Addr> = Item::new("circuit_breaker");
 // Whether the contract is frozen or not

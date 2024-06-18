@@ -74,6 +74,7 @@ fn proper_initialization() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -101,6 +102,7 @@ fn proper_initialization() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -132,6 +134,7 @@ fn proper_initialization() {
                 is_disabled: false,
             },
         ],
+        native_denom: "ucore".to_string(),
         fee_address: None,
         owner: owner.clone(),
         max_referral_commission: Decimal::one(),
@@ -173,6 +176,7 @@ fn trading_starts_validation() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     // in the past
@@ -221,6 +225,7 @@ fn update_config() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -279,6 +284,7 @@ fn update_owner() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -370,6 +376,7 @@ fn update_pair_config() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -487,6 +494,7 @@ fn create_pair() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -554,6 +562,7 @@ fn create_pair() {
                     fee_config: pair_config.fee_config,
                     circuit_breaker: None,
                     verified: true,
+                    native_denom: "ucore".to_string(),
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
@@ -594,6 +603,7 @@ fn create_permissionless_pair() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000u128),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -651,6 +661,7 @@ fn create_permissionless_pair() {
                     fee_config: pair_config.fee_config,
                     circuit_breaker: None,
                     verified: false,
+                    native_denom: "ucore".to_string(),
                 })
                 .unwrap(),
                 code_id: pair_config.code_id,
@@ -691,6 +702,7 @@ fn create_permissionless_pair_too_small_deposit() {
             info: AssetInfo::Cw20Token("ucore".to_string()),
             amount: Uint128::new(320_000_000u128),
         },
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -744,6 +756,7 @@ fn register() {
             },
             is_disabled: false,
         }],
+        native_denom: "ucore".to_string(),
         fee_address: None,
         owner: owner.to_string(),
         max_referral_commission: Decimal::one(),

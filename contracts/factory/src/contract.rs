@@ -24,8 +24,9 @@ use crate::{
     error::ContractError,
     querier::query_pair_info,
     state::{
-        check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, STAKING_ADDRESSES, TMP_PAIR_INFO,
+        check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, NATIVE_DENOM,
+        OWNERSHIP_PROPOSAL, PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, STAKING_ADDRESSES,
+        TMP_PAIR_INFO,
     },
 };
 
@@ -99,6 +100,7 @@ pub fn instantiate(
         PAIR_CONFIGS.save(deps.storage, pc.pool_type.to_string(), pc)?;
     }
     CONFIG.save(deps.storage, &config)?;
+    NATIVE_DENOM.save(deps.storage, &msg.native_denom)?;
 
     Ok(Response::new())
 }
@@ -530,8 +532,9 @@ pub fn execute_create_pair(
                 },
                 verified,
                 circuit_breaker: None,
+                native_denom: NATIVE_DENOM.load(deps.storage)?,
             })?,
-            funds: vec![coin(20000000, "ucore")],
+            funds: vec![coin(20000000, NATIVE_DENOM.load(deps.storage)?)],
             label: "Dex pair".to_string(),
         }
         .into(),
@@ -867,8 +870,10 @@ pub fn migrate(
         }
         MigrateMsg::UpdatePoolId {
             pool_type,
+            set_native_denom,
             new_pool_id,
         } => {
+            NATIVE_DENOM.save(deps.storage, &set_native_denom)?;
             PAIR_CONFIGS.update(
                 deps.storage,
                 pool_type.to_string(),

@@ -72,6 +72,8 @@ pub struct InstantiateMsg {
     pub trading_starts: Option<u64>,
     /// Fee required to create non-verified pool
     pub pool_creation_fee: Asset,
+    /// Native denom of the chain in order to pay the contract instantiation fees
+    pub native_denom: String,
 }
 
 #[cw_serde]
@@ -392,6 +394,7 @@ pub enum MigrateMsg {
     Update(),
     UpdatePoolId{
         pool_type: PoolType,
+        set_native_denom: String,
         new_pool_id: u64
     },
     /// Required with <=2.1.0 migration

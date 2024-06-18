@@ -33,7 +33,7 @@ use dex::{
     querier::query_factory_config,
 };
 
-use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
+use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT, NATIVE_DENOM};
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -85,6 +85,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
     FROZEN.save(deps.storage, &false)?;
+    NATIVE_DENOM.save(deps.storage, &msg.native_denom)?;
     LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
     save_tmp_staking_config(deps.storage, &msg.staking_config)?;
 
@@ -111,7 +112,7 @@ pub fn instantiate(
                     admin: Some(info.sender.to_string()),
                     unbonder: None, // TODO: allow specifying unbonder
                 })?,
-                funds: vec![coin(10000000, "ucore")],
+                funds: vec![coin(10000000, NATIVE_DENOM.load(deps.storage)?)],
                 admin: Some(info.sender.to_string()),
                 label: String::from("Dex-Stake"),
             },
@@ -135,6 +136,9 @@ pub fn migrate(
             if let Some(circuit_breaker) = circuit_breaker {
                 CIRCUIT_BREAKER.save(deps.storage, &deps.api.addr_validate(&circuit_breaker)?)?;
             }
+        }
+        MigrateMsg::UpdateNativeDenom(native_denom) => {
+            NATIVE_DENOM.save(deps.storage, &native_denom)?;
         }
     }
 
