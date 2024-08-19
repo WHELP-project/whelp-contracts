@@ -46,6 +46,9 @@ pub const TMP_PAIR_INFO: Item<TmpPoolInfo> = Item::new("tmp_pair_info");
 /// Saves factory settings
 pub const CONFIG: Item<Config> = Item::new("config");
 
+/// Native denom of the chain in order to pay the contract instantiation fees
+pub const NATIVE_DENOM: Item<String> = Item::new("native");
+
 /// Saves created pairs (from olders to latest)
 pub const PAIRS: Map<&[u8], Addr> = Map::new("pair_info");
 

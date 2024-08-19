@@ -65,6 +65,7 @@ fn proper_initialization() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let sender = "addr0000";
@@ -95,7 +96,7 @@ fn proper_initialization() {
                 msg: CosmosMsg::Wasm(WasmMsg::Instantiate {
                     admin: Some("addr0000".to_owned()),
                     code_id: 11,
-                    funds: vec![],
+                    funds: vec![coin(10000000, "ucore")],
                     label: "Dex-Stake".to_owned(),
                     msg: to_json_binary(&dex::stake::InstantiateMsg {
                         lp_share_denom: "uuusdmapplp-cosmos2contract".to_owned(),
@@ -170,6 +171,7 @@ fn test_freezing_a_pool_blocking_actions_then_unfreeze() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -452,6 +454,7 @@ fn provide_liquidity() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -903,6 +906,7 @@ fn withdraw_liquidity() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -951,6 +955,24 @@ fn withdraw_liquidity() {
     );
     // Do one successful action before freezing just for sanity
     execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    let res: PoolResponse = query_pool(deps.as_ref()).unwrap();
+    assert_eq!(
+        res,
+        PoolResponse {
+            assets: vec![
+                AssetValidated {
+                    info: AssetInfoValidated::SmartToken("uusd".to_string()),
+                    amount: Uint128::from(10_000u128)
+                },
+                AssetValidated {
+                    info: AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000")),
+                    amount: Uint128::from(10_000u128)
+                }
+            ],
+            total_share: Uint128::from(10_000u128)
+        }
+    );
 
     // Withdraw liquidity
     let msg = ExecuteMsg::WithdrawLiquidity { assets: vec![] };
@@ -1011,6 +1033,26 @@ fn withdraw_liquidity() {
         }
     );
 
+    let res: PoolResponse = query_pool(deps.as_ref()).unwrap();
+    assert_eq!(
+        res,
+        PoolResponse {
+            // the balance is not updating because we sent a burn message, yet burn is not mocked in
+            // this environment
+            assets: vec![
+                AssetValidated {
+                    info: AssetInfoValidated::SmartToken("uusd".to_string()),
+                    amount: Uint128::from(10_000u128)
+                },
+                AssetValidated {
+                    info: AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000")),
+                    amount: Uint128::from(10_000u128)
+                }
+            ],
+            total_share: Uint128::from(9_900u128)
+        }
+    );
+
     assert_eq!(
         log_withdrawn_share,
         &attr("withdrawn_share", 100u128.to_string())
@@ -1056,6 +1098,7 @@ fn query_twap() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
     instantiate(deps.as_mut(), env.clone(), mock_info("owner", &[]), msg).unwrap();
 
@@ -1214,6 +1257,7 @@ fn try_native_to_token() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1429,6 +1473,7 @@ fn try_token_to_native() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1689,6 +1734,7 @@ fn test_query_pool() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();
@@ -1751,6 +1797,7 @@ fn test_query_share() {
         },
         circuit_breaker: None,
         verified: true,
+        native_denom: "ucore".to_string(),
     };
 
     let env = mock_env();

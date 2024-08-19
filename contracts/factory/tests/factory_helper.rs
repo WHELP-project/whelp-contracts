@@ -64,8 +64,8 @@ impl FactoryHelper {
             .sudo(SudoMsg::Bank(BankSudo::Mint {
                 to_address: astro_token.to_string(),
                 amount: vec![Coin {
-                    denom: "coreum".to_string(),
-                    amount: Uint128::new(3_000),
+                    denom: "ucore".to_string(),
+                    amount: Uint128::new(320_000_000),
                 }],
             }))
             .unwrap();
@@ -125,9 +125,10 @@ impl FactoryHelper {
             },
             trading_starts: None,
             pool_creation_fee: Asset {
-                info: AssetInfo::Cw20Token("coreum".to_string()),
-                amount: Uint128::new(3_000),
+                info: AssetInfo::Cw20Token("ucore".to_string()),
+                amount: Uint128::new(320_000_000),
             },
+            native_denom: "ucore".to_string(),
         };
 
         let factory = router
@@ -192,7 +193,7 @@ impl FactoryHelper {
             sender.clone(),
             self.factory.clone(),
             &msg,
-            &[Coin::new(3_000, "coreum")],
+            &[Coin::new(320_000_000, "ucore")],
         )
     }
 

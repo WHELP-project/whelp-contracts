@@ -113,6 +113,8 @@ pub struct InstantiateMsg {
     pub trading_starts: u64,
     /// Address which can call ExecuteMsg::Freeze
     pub circuit_breaker: Option<String>,
+    /// Native denom of the chain in order to sent the initial fee
+    pub native_denom: String,
 }
 
 impl InstantiateMsg {
@@ -239,6 +241,7 @@ pub enum MigrateMsg {
         // TODO: better name. this may be an address that can set frozen itself
         circuit_breaker: Option<String>,
     },
+    UpdateSetLPShare(u128)
 }
 
 /// This structure describes the query messages available in the contract.

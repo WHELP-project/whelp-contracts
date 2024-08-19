@@ -33,7 +33,7 @@ use dex::{
     querier::query_factory_config,
 };
 
-use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT};
+use crate::state::{Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT, NATIVE_DENOM};
 
 pub type Response = cosmwasm_std::Response<CoreumMsg>;
 pub type SubMsg = cosmwasm_std::SubMsg<CoreumMsg>;
@@ -85,6 +85,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
     FROZEN.save(deps.storage, &false)?;
+    NATIVE_DENOM.save(deps.storage, &msg.native_denom)?;
     LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
     save_tmp_staking_config(deps.storage, &msg.staking_config)?;
 
@@ -111,7 +112,7 @@ pub fn instantiate(
                     admin: Some(info.sender.to_string()),
                     unbonder: None, // TODO: allow specifying unbonder
                 })?,
-                funds: vec![],
+                funds: vec![coin(10000000, NATIVE_DENOM.load(deps.storage)?)],
                 admin: Some(info.sender.to_string()),
                 label: String::from("Dex-Stake"),
             },
@@ -135,6 +136,9 @@ pub fn migrate(
             if let Some(circuit_breaker) = circuit_breaker {
                 CIRCUIT_BREAKER.save(deps.storage, &deps.api.addr_validate(&circuit_breaker)?)?;
             }
+        }
+        MigrateMsg::UpdateSetLPShare(lp_share_amount) => {
+            LP_SHARE_AMOUNT.save(deps.storage, &Uint128::from(lp_share_amount))?
         }
     }
 
@@ -589,9 +593,9 @@ pub fn withdraw_liquidity(
             coin: coin(amount.u128(), &config.pool_info.liquidity_token),
         })),
     ];
-    LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
-        amount -= amount;
-        Ok(amount)
+    LP_SHARE_AMOUNT.update(deps.storage, |mut total_amount| -> StdResult<_> {
+        total_amount -= amount;
+        Ok(total_amount)
     })?;
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![

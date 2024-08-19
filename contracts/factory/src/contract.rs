@@ -1,7 +1,7 @@
 use coreum_wasm_sdk::core::{CoreumMsg, CoreumQueries};
 use cosmwasm_std::{
-    attr, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
+    attr, coin, entry_point, from_json, to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, MessageInfo, Order, Reply, ReplyOn, StdError, StdResult, WasmMsg,
 };
 use cw2::{ensure_from_older_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
@@ -24,8 +24,9 @@ use crate::{
     error::ContractError,
     querier::query_pair_info,
     state::{
-        check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, OWNERSHIP_PROPOSAL,
-        PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, STAKING_ADDRESSES, TMP_PAIR_INFO,
+        check_asset_infos, pair_key, read_pairs, Config, TmpPoolInfo, CONFIG, NATIVE_DENOM,
+        OWNERSHIP_PROPOSAL, PAIRS, PAIRS_TO_MIGRATE, PAIR_CONFIGS, STAKING_ADDRESSES,
+        TMP_PAIR_INFO,
     },
 };
 
@@ -99,6 +100,7 @@ pub fn instantiate(
         PAIR_CONFIGS.save(deps.storage, pc.pool_type.to_string(), pc)?;
     }
     CONFIG.save(deps.storage, &config)?;
+    NATIVE_DENOM.save(deps.storage, &msg.native_denom)?;
 
     Ok(Response::new())
 }
@@ -530,8 +532,9 @@ pub fn execute_create_pair(
                 },
                 verified,
                 circuit_breaker: None,
+                native_denom: NATIVE_DENOM.load(deps.storage)?,
             })?,
-            funds: vec![],
+            funds: vec![coin(20000000, NATIVE_DENOM.load(deps.storage)?)],
             label: "Dex pair".to_string(),
         }
         .into(),
@@ -864,6 +867,25 @@ pub fn migrate(
     match msg {
         MigrateMsg::Update() => {
             ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        }
+        MigrateMsg::UpdatePoolId {
+            pool_type,
+            set_native_denom,
+            new_pool_id,
+        } => {
+            NATIVE_DENOM.save(deps.storage, &set_native_denom)?;
+            PAIR_CONFIGS.update(
+                deps.storage,
+                pool_type.to_string(),
+                |old_config| -> StdResult<_> {
+                    let new_config: PoolConfig = PoolConfig {
+                        code_id: new_pool_id,
+                        // if this config doesn't exist, we might as well panic and abort the migration
+                        ..old_config.unwrap()
+                    };
+                    Ok(new_config)
+                },
+            )?;
         }
         MigrateMsg::AddPermissionlessPoolDeposit(asset) => {
             CONFIG.update(deps.storage, |old_config| -> StdResult<_> {
