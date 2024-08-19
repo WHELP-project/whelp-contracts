@@ -137,8 +137,8 @@ pub fn migrate(
                 CIRCUIT_BREAKER.save(deps.storage, &deps.api.addr_validate(&circuit_breaker)?)?;
             }
         }
-        MigrateMsg::UpdateNativeDenom(native_denom) => {
-            NATIVE_DENOM.save(deps.storage, &native_denom)?;
+        MigrateMsg::UpdateSetLPShare(lp_share_amount) => {
+            LP_SHARE_AMOUNT.save(deps.storage, &Uint128::from(lp_share_amount))?
         }
     }
 
@@ -593,9 +593,9 @@ pub fn withdraw_liquidity(
             coin: coin(amount.u128(), &config.pool_info.liquidity_token),
         })),
     ];
-    LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
-        amount -= amount;
-        Ok(amount)
+    LP_SHARE_AMOUNT.update(deps.storage, |mut total_amount| -> StdResult<_> {
+        total_amount -= amount;
+        Ok(total_amount)
     })?;
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![

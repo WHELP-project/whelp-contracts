@@ -241,8 +241,7 @@ pub enum MigrateMsg {
         // TODO: better name. this may be an address that can set frozen itself
         circuit_breaker: Option<String>,
     },
-    /// Update the native token for the fee purposes
-    UpdateNativeDenom(String),
+    UpdateSetLPShare(u128)
 }
 
 /// This structure describes the query messages available in the contract.

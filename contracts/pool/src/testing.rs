@@ -956,6 +956,24 @@ fn withdraw_liquidity() {
     // Do one successful action before freezing just for sanity
     execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
+    let res: PoolResponse = query_pool(deps.as_ref()).unwrap();
+    assert_eq!(
+        res,
+        PoolResponse {
+            assets: vec![
+                AssetValidated {
+                    info: AssetInfoValidated::SmartToken("uusd".to_string()),
+                    amount: Uint128::from(10_000u128)
+                },
+                AssetValidated {
+                    info: AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000")),
+                    amount: Uint128::from(10_000u128)
+                }
+            ],
+            total_share: Uint128::from(10_000u128)
+        }
+    );
+
     // Withdraw liquidity
     let msg = ExecuteMsg::WithdrawLiquidity { assets: vec![] };
     let env = mock_env();
@@ -1012,6 +1030,26 @@ fn withdraw_liquidity() {
             id: 0,
             gas_limit: None,
             reply_on: ReplyOn::Never,
+        }
+    );
+
+    let res: PoolResponse = query_pool(deps.as_ref()).unwrap();
+    assert_eq!(
+        res,
+        PoolResponse {
+            // the balance is not updating because we sent a burn message, yet burn is not mocked in
+            // this environment
+            assets: vec![
+                AssetValidated {
+                    info: AssetInfoValidated::SmartToken("uusd".to_string()),
+                    amount: Uint128::from(10_000u128)
+                },
+                AssetValidated {
+                    info: AssetInfoValidated::Cw20Token(Addr::unchecked("asset0000")),
+                    amount: Uint128::from(10_000u128)
+                }
+            ],
+            total_share: Uint128::from(9_900u128)
         }
     );
 
