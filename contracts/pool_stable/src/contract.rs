@@ -38,6 +38,7 @@ use crate::{
     math::{calc_y, compute_d, AMP_PRECISION, MAX_AMP, MAX_AMP_CHANGE, MIN_AMP_CHANGING_TIME},
     state::{
         get_precision, store_precisions, Config, CIRCUIT_BREAKER, CONFIG, FROZEN, LP_SHARE_AMOUNT,
+        NATIVE_DENOM,
     },
     utils::{
         accumulate_prices, adjust_precision, calc_new_price_a_per_b, compute_current_amp,
@@ -121,6 +122,7 @@ pub fn instantiate(
     };
 
     CONFIG.save(deps.storage, &config)?;
+    NATIVE_DENOM.save(deps.storage, &msg.native_denom)?;
     FROZEN.save(deps.storage, &false)?;
     LP_SHARE_AMOUNT.save(deps.storage, &Uint128::zero())?;
     save_tmp_staking_config(deps.storage, &msg.staking_config)?;
@@ -155,6 +157,9 @@ pub fn migrate(
             if let Some(circuit_breaker) = circuit_breaker {
                 CIRCUIT_BREAKER.save(deps.storage, &deps.api.addr_validate(&circuit_breaker)?)?;
             }
+        }
+        MigrateMsg::UpdateSetLPShare(lp_share_amount) => {
+            LP_SHARE_AMOUNT.save(deps.storage, &Uint128::from(lp_share_amount))?
         }
     }
 
@@ -636,9 +641,9 @@ pub fn withdraw_liquidity(
             coin: coin(burn_amount.u128(), &config.pool_info.liquidity_token),
         })),
     ];
-    LP_SHARE_AMOUNT.update(deps.storage, |mut amount| -> StdResult<_> {
-        amount -= amount;
-        Ok(amount)
+    LP_SHARE_AMOUNT.update(deps.storage, |mut total_amount| -> StdResult<_> {
+        total_amount -= amount;
+        Ok(total_amount)
     })?;
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
