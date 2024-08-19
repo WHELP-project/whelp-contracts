@@ -158,6 +158,7 @@ impl SuiteBuilder {
                     ],
                     fee_address: None,
                     owner: owner.to_string(),
+                    native_denom: "ucore".to_string(),
                     max_referral_commission: self.max_referral_commission,
                     default_stake_config: DefaultStakeConfig {
                         staking_code_id,
@@ -165,7 +166,7 @@ impl SuiteBuilder {
                     },
                     trading_starts: None,
                     pool_creation_fee: Asset {
-                        info: AssetInfo::Cw20Token("coreum".to_string()),
+                        info: AssetInfo::Cw20Token("ucore".to_string()),
                         amount: Uint128::new(3_000),
                     },
                 },
@@ -229,8 +230,9 @@ impl Suite {
                     storage,
                     &Addr::unchecked(sender),
                     vec![Coin {
-                        denom: "coreum".to_string(),
-                        amount: Uint128::new(6_000),
+                        denom: "ucore".to_string(),
+                        // mint extra 200k of ucore for the stake contract kickstart amount
+                        amount: Uint128::new(20_000_000 + 6_000),
                     }],
                 )
             })
@@ -246,7 +248,9 @@ impl Suite {
                 staking_config: Default::default(),
                 total_fee_bps: None,
             },
-            &[Coin::new(3_000, "coreum")],
+            // Constant 200k ucore for the kickstart funds on the contract plus the pool creation
+            // fee
+            &[Coin::new(20_000_000 + 3_000, "ucore")],
         )?;
 
         let factory = self.factory.clone();
